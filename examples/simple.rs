@@ -22,7 +22,7 @@ fn main() {
     let v_metrics = font.v_metrics(scale);
     let offset = point(0.0, v_metrics.ascent);
 
-    // Glyphs to draw for "Hello!". Feel free to try other strings.
+    // Glyphs to draw for "RustType". Feel free to try other strings.
     let glyphs: Vec<PositionedGlyph> = font.layout("RustType", scale, offset).collect();
 
     // Find the most visually pleasing width to display
