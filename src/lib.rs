@@ -74,7 +74,7 @@
 //!   [unicode-normalization](http://crates.io/crates/unicode-normalization) crate, to convert to code point
 //!   sequences that work with the font in question. Typically a font is more likely to support a single code
 //!   point vs. a sequence with the same meaning, so the best normalisation to use is "canonical recomposition",
-//!   known as NFC the normalisation crate.
+//!   known as NFC in the normalisation crate.
 //! * A glyph is a particular font's shape to draw the character for a particular Unicode code point. This will
 //!   have its own identifying number unique to the font, its ID.
 extern crate arrayvec;
