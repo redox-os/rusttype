@@ -3,7 +3,7 @@ language: rust
 after_success: |
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
-  cargo doc &&
+  cargo doc --no-deps &&
   echo "<meta http-equiv=refresh content=0;url=`echo rusttype | cut -d '/' -f 2`/index.html>" > target/doc/index.html &&
   git clone https://github.com/davisp/ghp-import &&
   ./ghp-import/ghp-import target/doc &&
