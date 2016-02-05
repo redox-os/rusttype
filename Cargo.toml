@@ -1,0 +1,19 @@
+[package]
+name = "rusttype"
+version = "0.1.0"
+authors = ["Dylan Ede <dylanede@googlemail.com>"]
+description = """
+A pure Rust alternative to libraries like FreeType.
+
+RustType provides an API for loading, querying and rasterising TrueType fonts.
+"""
+documentation = "https://dylanede.github.io/rusttype"
+homepage = "https://github.com/dylanede/rusttype"
+repository = "https://github.com/dylanede/rusttype"
+readme = "README.md"
+license = "MIT / Apache-2.0"
+keywords = ["font", "truetype", "opentype", "ttf", "otf"]
+
+[dependencies]
+arrayvec = "0.3.13"
+stb_truetype = "0.1.0"
