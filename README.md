@@ -8,8 +8,7 @@ The current capabilities of RustType:
 
 * Reading TrueType formatted fonts and font collections. This includes `*.ttf`
   as well as a subset of `*.otf` font files.
-* Retrieving glyph shapes and commonly used properties from a font, for a
-  particular code point.
+* Retrieving glyph shapes and commonly used properties for a font and its glyphs.
 * Laying out glyphs horizontally using horizontal and vertical metrics, and
   glyph-pair-specific kerning.
 * Rasterising glyphs with sub-pixel positioning using an accurate analytical
