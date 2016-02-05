@@ -9,7 +9,7 @@ fn main() {
     let font = collection.into_font().unwrap(); // only succeeds if collection consists of one font
     {
         // Desired font pixel height
-        let height: f32 = 20.1; // to get 80 chars across (fits most terminals); adjust as desired
+        let height: f32 = 12.5; // to get 80 chars across (fits most terminals); adjust as desired
         let pixel_height = height.ceil() as usize;
 
         // 2x scale in x direction to counter the aspect ratio of monospace characters.
@@ -23,7 +23,7 @@ fn main() {
         let offset = point(0.0, v_metrics.ascent);
 
         // Glyphs to draw for "Hello!". Feel free to try other strings.
-        let glyphs: Vec<PositionedGlyph> = font.layout("Hello!", scale, offset).collect();
+        let glyphs: Vec<PositionedGlyph> = font.layout("RustType", scale, offset).collect();
 
         // Find the most visually pleasing width to display
         let width = glyphs.iter().map(|g| g.h_metrics().advance_width)
