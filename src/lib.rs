@@ -366,7 +366,7 @@ impl<'a> Font<'a> {
     ///         let w = g.h_metrics().advance_width
     ///             + last.map(|last| font.pair_kerning(scale, last, g.id())).unwrap_or(0.0);
     ///         let next = g.positioned(start + vector(x, 0.0));
-    ///         last = Some(g.id());
+    ///         last = Some(next.id());
     ///         x += w;
     ///         Some(next)
     ///     })
