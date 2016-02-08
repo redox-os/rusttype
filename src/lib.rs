@@ -33,7 +33,7 @@
 //!
 //! # Glyphs
 //!
-//! The glyph API uses an inheritance-style approach using `Deref` to incrementally augment a glyph with
+//! The glyph API uses wrapper structs to augment a glyph with
 //! information such as scaling and positioning, making relevant methods that make use of this information
 //! available as appropriate. For example, given a `Glyph` `glyph` obtained directly from a `Font`:
 //!
@@ -84,7 +84,6 @@ mod geometry;
 mod rasterizer;
 
 use std::borrow::Cow;
-use std::ops;
 use std::sync::Arc;
 
 pub use geometry::{Rect, Point, point, Vector, vector, Line, Curve};
@@ -165,7 +164,7 @@ pub struct VMetrics {
 /// A glyph augmented with scaling information. You can query such a glyph for information that depends
 /// on the scale of the glyph.
 #[derive(Clone)]
-pub struct SizedGlyph<'a> {
+pub struct ScaledGlyph<'a> {
     g: Glyph<'a>,
     scale: Vector<f32>
 }
@@ -173,7 +172,7 @@ pub struct SizedGlyph<'a> {
 /// that depends on the scale and position of the glyph.
 #[derive(Clone)]
 pub struct PositionedGlyph<'a> {
-    sg: SizedGlyph<'a>,
+    sg: ScaledGlyph<'a>,
     position: Point<f32>,
     bb: Option<Rect<i32>>
 }
@@ -420,7 +419,7 @@ impl<'a> Iterator for LayoutIter<'a> {
                 self.caret += self.font.pair_kerning(self.scale, last, g.id());
             }
             let g = g.positioned(point(self.start.x + self.caret, self.start.y));
-            self.caret += g.h_metrics().advance_width;
+            self.caret += g.sg.h_metrics().advance_width;
             g
         })
     }
@@ -449,7 +448,7 @@ impl<'a> Glyph<'a> {
     }
     /// Augments this glyph with scaling information, making methods that depend on the scale of the glyph
     /// available.
-    pub fn scaled<S: Into<Scale>>(self, scale: S) -> SizedGlyph<'a> {
+    pub fn scaled<S: Into<Scale>>(self, scale: S) -> ScaledGlyph<'a> {
         let scale = scale.into();
         let (scale_x, scale_y) = match self.inner {
             GlyphInner::Proxy(font, _) => {
@@ -463,7 +462,7 @@ impl<'a> Glyph<'a> {
                 (scale_x, scale_y)
             }
         };
-        SizedGlyph {
+        ScaledGlyph {
             g: self,
             scale: vector(scale_x, scale_y)
         }
@@ -505,11 +504,29 @@ pub enum Segment {
 pub struct Contour {
     pub segments: Vec<Segment>
 }
-impl<'a> SizedGlyph<'a> {
+impl<'a> ScaledGlyph<'a> {
+    /// The glyph identifier for this glyph.
+    pub fn id(&self) -> GlyphId {
+        self.g.id()
+    }
+    /// The font to which this glyph belongs. If the glyph is a standalone glyph that owns its resources,
+    /// it no longer has a reference to the font which it was created from (using `standalone()`). In which
+    /// case, `None` is returned.
+    pub fn font(&self) -> Option<&Font<'a>> {
+        self.g.font()
+    }
+    /// A reference to this glyph without the scaling
+    pub fn into_unscaled(self) -> Glyph<'a> {
+        self.g
+    }
+    /// Removes the scaling from this glyph
+    pub fn unscaled(&self) -> &Glyph<'a> {
+        &self.g
+    }
     /// Augments this glyph with positioning information, making methods that depend on the position of the
     /// glyph available.
     pub fn positioned(self, p: Point<f32>) -> PositionedGlyph<'a> {
-        let bb = match self.inner {
+        let bb = match self.g.inner {
             GlyphInner::Proxy(font, id) => {
                 font.info.get_glyph_bitmap_box_subpixel(id,
                                                         self.scale.x, self.scale.y,
@@ -536,7 +553,7 @@ impl<'a> SizedGlyph<'a> {
     }
     /// Retrieves the "horizontal metrics" of this glyph. See `HMetrics` for more detail.
     pub fn h_metrics(&self) -> HMetrics {
-        match self.inner {
+        match self.g.inner {
             GlyphInner::Proxy(font, id) => {
                 let hm = font.info.get_glyph_h_metrics(id);
                 HMetrics {
@@ -555,7 +572,7 @@ impl<'a> SizedGlyph<'a> {
     fn shape_with_offset(&self, offset: Point<f32>) -> Option<Vec<Contour>> {
         use stb_truetype::VertexType;
         use std::mem::replace;
-        match self.inner {
+        match self.g.inner {
             GlyphInner::Proxy(font, id) => font.info.get_glyph_shape(id),
             GlyphInner::Shared(ref data) => data.shape.clone()
         }.map(|shape| {
@@ -586,14 +603,14 @@ impl<'a> SizedGlyph<'a> {
                     _ => ()
                 }
                 last = end;
-                }
+            }
             if current.len() > 0 {
                 result.push(Contour {
                     segments: replace(&mut current, Vec::new())
                 });
             }
             result
-            })
+        })
     }
     /// Produces a list of the contours that make up the shape of this glyph. Each contour consists of
     /// a sequence of segments. Each segment is either a straight `Line` or a `Curve`.
@@ -605,7 +622,7 @@ impl<'a> SizedGlyph<'a> {
     /// The bounding box of the shape of this glyph, not to be confused with `pixel_bounding_box`, the
     /// conservative pixel-boundary bounding box. The coordinates are relative to the glyph's origin.
     pub fn exact_bounding_box(&self) -> Option<Rect<f32>> {
-        match self.inner {
+        match self.g.inner {
             GlyphInner::Proxy(font, id) => font.info.get_glyph_box(id).map(|bb| {
                 Rect {
                     min: point(bb.x0 as f32 * self.scale.x, bb.y0 as f32 * self.scale.y),
@@ -620,29 +637,41 @@ impl<'a> SizedGlyph<'a> {
     }
     /// Constructs a glyph that owns its data from this glyph. This is similar to `Glyph::standalone`. See
     /// that function for more details.
-    pub fn standalone(&self) -> SizedGlyph<'static> {
-        SizedGlyph {
+    pub fn standalone(&self) -> ScaledGlyph<'static> {
+        ScaledGlyph {
             g: self.g.standalone(),
             scale: self.scale
         }
     }
 }
-impl<'a> ops::Deref for SizedGlyph<'a> {
-    type Target = Glyph<'a>;
-    fn deref(&self) -> &Glyph<'a> {
-        &self.g
-    }
-}
 
 impl<'a> PositionedGlyph<'a> {
+    /// The glyph identifier for this glyph.
+    pub fn id(&self) -> GlyphId {
+        self.sg.id()
+    }
+    /// The font to which this glyph belongs. If the glyph is a standalone glyph that owns its resources,
+    /// it no longer has a reference to the font which it was created from (using `standalone()`). In which
+    /// case, `None` is returned.
+    pub fn font(&self) -> Option<&Font<'a>> {
+        self.sg.font()
+    }
+    /// A reference to this glyph without positioning
+    pub fn unpositioned(&self) -> &ScaledGlyph<'a> {
+        &self.sg
+    }
+    /// Removes the positioning from this glyph
+    pub fn into_unpositioned(self) -> ScaledGlyph<'a> {
+        self.sg
+    }
     /// The conservative pixel-boundary bounding box for this glyph. This is the smallest rectangle
     /// aligned to pixel boundaries that encloses the shape of this glyph at this position.
     pub fn pixel_bounding_box(&self) -> Option<Rect<i32>> {
         self.bb
     }
-    /// Similar to `shape()`, but with the position of the glyph taken into account.
-    pub fn positioned_shape(&self) -> Option<Vec<Contour>> {
-        self.shape_with_offset(self.position)
+    /// Similar to `ScaledGlyph::shape()`, but with the position of the glyph taken into account.
+    pub fn shape(&self) -> Option<Vec<Contour>> {
+        self.sg.shape_with_offset(self.position)
     }
     /// Rasterises this glyph. For each pixel in the rect given by `pixel_bounding_box()`, `o` is called:
     ///
@@ -665,7 +694,7 @@ impl<'a> PositionedGlyph<'a> {
     pub fn draw<O: FnMut(u32, u32, f32)>(&self, o: O) {
         use geometry::{Line, Curve};
         use stb_truetype::VertexType;
-        let shape = match self.inner {
+        let shape = match self.sg.g.inner {
             GlyphInner::Proxy(font, id) => font.info.get_glyph_shape(id).unwrap_or_else(|| Vec::new()),
             GlyphInner::Shared(ref data) => data.shape.clone().unwrap_or_else(|| Vec::new())
         };
@@ -713,11 +742,5 @@ impl<'a> PositionedGlyph<'a> {
             bb: self.bb,
             position: self.position
         }
-    }
-}
-impl<'a> ops::Deref for PositionedGlyph<'a> {
-    type Target = SizedGlyph<'a>;
-    fn deref(&self) -> &SizedGlyph<'a> {
-        &self.sg
     }
 }
