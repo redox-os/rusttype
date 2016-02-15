@@ -26,7 +26,7 @@ fn main() {
     let glyphs: Vec<PositionedGlyph> = font.layout("RustType", scale, offset).collect();
 
     // Find the most visually pleasing width to display
-    let width = glyphs.iter().map(|g| g.h_metrics().advance_width)
+    let width = glyphs.iter().map(|g| g.unpositioned().h_metrics().advance_width)
         .fold(0.0, |x, y| x + y).ceil() as usize;
 
     println!("width: {}, height: {}", width, pixel_height);
