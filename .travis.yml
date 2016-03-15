@@ -5,7 +5,7 @@ after_success: |
   cargo doc --no-deps &&
   echo "<meta http-equiv=refresh content=0;url=`echo rusttype | cut -d '/' -f 2`/index.html>" > target/doc/index.html &&
   git clone https://github.com/davisp/ghp-import &&
-  ./ghp-import/ghp-import target/doc &&
+  ./ghp-import/ghp_import.py target/doc &&
   git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
 env:
   global:
