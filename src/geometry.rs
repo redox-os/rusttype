@@ -13,7 +13,7 @@ use std::ops;
 /// # let t = 0.5; let p0 = point(0.0, 0.0); let p1 = point(0.0, 0.0);
 /// let interpolated_point = p0 + (p1 - p0) * t;
 /// ```
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct Point<N> {
     pub x: N,
     pub y: N
@@ -23,7 +23,7 @@ pub struct Point<N> {
 ///
 /// Legal operations on vectors are addition and subtraction by vectors, addition by points (to give points),
 /// and multiplication and division by scalars.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct Vector<N> {
     pub x: N,
     pub y: N
@@ -86,6 +86,34 @@ impl ops::Mul<Vector<f64>> for f64 {
     }
 }
 
+impl ops::Div<f32> for Vector<f32> {
+    type Output = Vector<f32>;
+    fn div(self, rhs: f32) -> Vector<f32> {
+        vector(self.x / rhs, self.y / rhs)
+    }
+}
+
+impl ops::Div<Vector<f32>> for f32 {
+    type Output = Vector<f32>;
+    fn div(self, rhs: Vector<f32>) -> Vector<f32> {
+        vector(self / rhs.x, self / rhs.y)
+    }
+}
+
+impl ops::Div<f64> for Vector<f64> {
+    type Output = Vector<f64>;
+    fn div(self, rhs: f64) -> Vector<f64> {
+        vector(self.x / rhs, self.y / rhs)
+    }
+}
+
+impl ops::Div<Vector<f64>> for f64 {
+    type Output = Vector<f64>;
+    fn div(self, rhs: Vector<f64>) -> Vector<f64> {
+        vector(self / rhs.x, self / rhs.y)
+    }
+}
+
 impl<N: ops::Add<Output=N>> ops::Add<Vector<N>> for Point<N> {
     type Output = Point<N>;
     fn add(self, rhs: Vector<N>) -> Point<N> {
@@ -108,17 +136,17 @@ impl<N: ops::Add<Output=N>> ops::Add<Point<N>> for Vector<N> {
 }
 
 /// A straight line between two points, `p[0]` and `p[1]`
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Line {
     pub p: [Point<f32>; 2]
 }
 /// A quadratic Bezier curve, starting at `p[0]`, ending at `p[2]`, with control point `p[1]`.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Curve {
     pub p: [Point<f32>; 3]
 }
 /// A rectangle, with top-left corner at `min`, and bottom-right corner at `max`.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Rect<N> {
     pub min: Point<N>,
     pub max: Point<N>

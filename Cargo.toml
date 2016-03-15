@@ -1,6 +1,6 @@
 [package]
 name = "rusttype"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Dylan Ede <dylanede@googlemail.com>"]
 description = """
 A pure Rust alternative to libraries like FreeType.
@@ -17,3 +17,9 @@ keywords = ["font", "truetype", "opentype", "ttf", "otf"]
 [dependencies]
 arrayvec = "0.3.13"
 stb_truetype = "0.1.2"
+ndarray = "0.3"
+linked-hash-map = "0.0.9"
+
+[dev-dependencies]
+glium = "0.13.5"
+unicode-normalization = "0.1.2"
