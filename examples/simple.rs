@@ -4,12 +4,12 @@ use rusttype::{FontCollection, PixelsXY, point, PositionedGlyph};
 use std::io::Write;
 
 fn main() {
-    let font_data = include_bytes!("Gudea-Regular.ttf");
+    let font_data = include_bytes!("Arial Unicode.ttf");
     let collection = FontCollection::from_bytes(font_data as &[u8]);
     let font = collection.into_font().unwrap(); // only succeeds if collection consists of one font
 
     // Desired font pixel height
-    let height: f32 = 12.5; // to get 80 chars across (fits most terminals); adjust as desired
+    let height: f32 = 12.4; // to get 80 chars across (fits most terminals); adjust as desired
     let pixel_height = height.ceil() as usize;
 
     // 2x scale in x direction to counter the aspect ratio of monospace characters.
@@ -26,8 +26,10 @@ fn main() {
     let glyphs: Vec<PositionedGlyph> = font.layout("RustType", scale, offset).collect();
 
     // Find the most visually pleasing width to display
-    let width = glyphs.iter().map(|g| g.unpositioned().h_metrics().advance_width)
-        .fold(0.0, |x, y| x + y).ceil() as usize;
+    let width = glyphs.iter().rev()
+        .filter_map(|g| g.pixel_bounding_box()
+                    .map(|b| b.min.x as f32 + g.unpositioned().h_metrics().advance_width))
+        .next().unwrap_or(0.0).ceil() as usize;
 
     println!("width: {}, height: {}", width, pixel_height);
 
@@ -42,9 +44,14 @@ fn main() {
                 let i = (v*mapping_scale + 0.5) as usize;
                 // so something's wrong if you get $ in the output.
                 let c = mapping.get(i).cloned().unwrap_or(b'$');
-                let x = (x as i32 + bb.min.x) as usize;
-                let y = (y as i32 + bb.min.y) as usize;
-                pixel_data[(x + y * width)] = c;
+                let x = x as i32 + bb.min.x;
+                let y = y as i32 + bb.min.y;
+                // There's still a possibility that the glyph clips the boundaries of the bitmap
+                if x >= 0 && x < width as i32 && y >= 0 && y < pixel_height as i32 {
+                    let x = x as usize;
+                    let y = y as usize;
+                    pixel_data[(x + y * width)] = c;
+                }
             })
         }
     }
