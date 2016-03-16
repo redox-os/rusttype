@@ -42,7 +42,7 @@
 //! # let glyph: Glyph<'static> = unimplemented!();
 //! // One of the few things you can do with an unsized, positionless glyph is get its id.
 //! let id = glyph.id();
-//! let glyph = glyph.scaled(Pixels(10.0));
+//! let glyph = glyph.scaled(Scale::uniform(10.0));
 //! // Now glyph is a ScaledGlyph, you can do more with it, as well as what you can do with Glyph.
 //! // For example, you can access the correctly scaled horizontal metrics for the glyph.
 //! let h_metrics = glyph.h_metrics();
@@ -183,50 +183,15 @@ pub struct PositionedGlyph<'a> {
     position: Point<f32>,
     bb: Option<Rect<i32>>
 }
-/// A uniform font scaling that makes the height of the rendered font a specific number of pixels. For example,
-/// if you want to render a font with a height of 20 pixels, use `Pixels(20.0)`.
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
-pub struct Pixels(pub f32);
-/// A nonuniform font scaling. `PixelsXY(x, y)` produces a scaling that makes the height of the rendered font
-/// `y` pixels high, with a horizontal scale factor on top of that of `x/y`. For example, if you want to render
-/// a font with a height of 20 pixels, but have it horizontally stretched by a factor of two, use
-/// `PixelsXY(40.0, 20.0)`.
-#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
-pub struct PixelsXY(pub f32, pub f32);
-/// An opaque struct representing a common format for font scaling. You typically won't use this struct directly,
-/// instead using `Pixels` or `PixelsXY` and the `Into` trait to pass them to functions.
-///
-/// You can however implement your own scales for use with functions that accept `S: Into<Scale>`. As a simplified
-/// example, if you want to write scales in a different unit, like inches, and you know that there are 96 pixels
-/// in an inch in your use case, you can create a struct like the following:
-///
-/// ```
-/// use rusttype::{Pixels, Scale};
-///
-/// struct Inches(f32);
-/// impl From<Inches> for Scale {
-///     fn from(i: Inches) -> Scale {
-///         Pixels(i.0 * 96.0).into()
-///     }
-/// }
-/// ```
-///
-/// You can then use `Inches` wherever you could use `Pixels` or `PixelsXY` before.
-#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
-pub struct Scale(f32, f32);
+pub struct Scale {
+    pub x: f32,
+    pub y: f32
+}
+
 impl Scale {
-    pub fn into_pixels_xy(self) -> PixelsXY {
-        PixelsXY(self.0, self.1)
-    }
-}
-impl From<Pixels> for Scale {
-    fn from(p: Pixels) -> Scale {
-        Scale(p.0, p.0)
-    }
-}
-impl From<PixelsXY> for Scale {
-    fn from(p: PixelsXY) -> Scale {
-        Scale(p.0, p.1)
+    pub fn uniform(s: f32) -> Scale {
+        Scale { x: s, y: s }
     }
 }
 impl From<Box<[u8]>> for Bytes<'static> {
@@ -303,10 +268,9 @@ impl<'a> Font<'a> {
     /// The "vertical metrics" for this font at a given scale. These metrics are shared by all of the glyphs
     /// in the font.
     /// See `VMetrics` for more detail.
-    pub fn v_metrics<S: Into<Scale>>(&self, scale: S) -> VMetrics {
-        let scale = scale.into();
+    pub fn v_metrics(&self, scale: Scale) -> VMetrics {
         let vm = self.info.get_v_metrics();
-        let scale = self.info.scale_for_pixel_height(scale.1);
+        let scale = self.info.scale_for_pixel_height(scale.y);
         VMetrics {
             ascent: vm.ascent as f32 * scale,
             descent: vm.descent as f32 * scale,
@@ -359,7 +323,7 @@ impl<'a> Font<'a> {
     ///
     /// ```no_run
     /// # use rusttype::*;
-    /// # let (scale, start) = (Pixels(0.0), point(0.0, 0.0));
+    /// # let (scale, start) = (Scale::uniform(0.0), point(0.0, 0.0));
     /// # let font: Font = unimplemented!();
     /// font.layout("Hello World!", scale, start)
     /// # ;
@@ -369,7 +333,7 @@ impl<'a> Font<'a> {
     ///
     /// ```no_run
     /// # use rusttype::*;
-    /// # let (scale, start) = (Pixels(0.0), point(0.0, 0.0));
+    /// # let (scale, start) = (Scale::uniform(0.0), point(0.0, 0.0));
     /// # let font: Font = unimplemented!();
     /// font.glyphs_for("Hello World!".chars())
     ///     .scan((None, 0.0), |&mut (mut last, mut x), g| {
@@ -383,23 +347,22 @@ impl<'a> Font<'a> {
     ///     })
     /// # ;
     /// ```
-    pub fn layout<'b, 'c, S: Into<Scale>>(&'b self, s: &'c str, scale: S, start: Point<f32>) -> LayoutIter<'b, 'c> {
+    pub fn layout<'b, 'c>(&'b self, s: &'c str, scale: Scale, start: Point<f32>) -> LayoutIter<'b, 'c> {
         LayoutIter {
             font: self,
             chars: s.chars(),
             caret: 0.0,
-            scale: scale.into(),
+            scale: scale,
             start: start,
             last_glyph: None
         }
     }
     /// Returns additional kerning to apply as well as that given by HMetrics for a particular pair of glyphs.
-    pub fn pair_kerning<S, A, B>(&self, scale: S, first: A, second: B) -> f32
-        where S: Into<Scale>, A: Into<CodepointOrGlyphId>, B: Into<CodepointOrGlyphId>
+    pub fn pair_kerning<A, B>(&self, scale: Scale, first: A, second: B) -> f32
+        where A: Into<CodepointOrGlyphId>, B: Into<CodepointOrGlyphId>
     {
         let (first, second) = (self.glyph(first).unwrap(), self.glyph(second).unwrap());
-        let scale = scale.into();
-        let factor = self.info.scale_for_pixel_height(scale.1) * (scale.0 / scale.1);
+        let factor = self.info.scale_for_pixel_height(scale.y) * (scale.x / scale.y);
         let kern = self.info.get_glyph_kern_advance(first.id().0, second.id().0);
         factor * kern as f32
     }
@@ -461,17 +424,16 @@ impl<'a> Glyph<'a> {
     }
     /// Augments this glyph with scaling information, making methods that depend on the scale of the glyph
     /// available.
-    pub fn scaled<S: Into<Scale>>(self, scale: S) -> ScaledGlyph<'a> {
-        let scale = scale.into();
+    pub fn scaled(self, scale: Scale) -> ScaledGlyph<'a> {
         let (scale_x, scale_y) = match self.inner {
             GlyphInner::Proxy(font, _) => {
-                let scale_y = font.info.scale_for_pixel_height(scale.1);
-                let scale_x = scale_y * scale.0 / scale.1;
+                let scale_y = font.info.scale_for_pixel_height(scale.y);
+                let scale_x = scale_y * scale.x / scale.y;
                 (scale_x, scale_y)
             }
             GlyphInner::Shared(ref data) => {
-                let scale_y = data.scale_for_1_pixel * scale.1;
-                let scale_x = scale_y * scale.0 / scale.1;
+                let scale_y = data.scale_for_1_pixel * scale.y;
+                let scale_x = scale_y * scale.x / scale.y;
                 (scale_x, scale_y)
             }
         };

@@ -111,7 +111,6 @@ impl Cache {
     pub fn cache_queued<F: FnMut(Rect<u32>, &[u8])>(&mut self, mut uploader: F) -> Result<(), CacheWriteErr> {
         use vector;
         use point;
-        use PixelsXY;
         let mut oldest_in_use_row = None;
         // tallest first gives better packing
         self.queue.sort_by(|x, y|
@@ -130,14 +129,12 @@ impl Cache {
                 scale: glyph.scale(),
                 offset: pfract
             };
-            let PixelsXY(sx, sy) = spec.scale.into_pixels_xy();
             let lower = self.all_glyphs.range(Unbounded, Included(&spec)).rev().next()
                 .and_then(|(l, &(lrow, _))| {
-                    let PixelsXY(x, y) = l.scale.into_pixels_xy();
                     if l.font_id == spec.font_id &&
                         l.glyph_id == spec.glyph_id &&
-                        (x - sx).abs() < self.scale_tolerance &&
-                        (y - sy).abs() < self.scale_tolerance &&
+                        (l.scale.x - spec.scale.x).abs() < self.scale_tolerance &&
+                        (l.scale.y - spec.scale.y).abs() < self.scale_tolerance &&
                         (spec.offset.x - l.offset.x).abs() < self.position_tolerance &&
                         (spec.offset.y - l.offset.y).abs() < self.position_tolerance
                     {
@@ -148,11 +145,10 @@ impl Cache {
                 });
             let upper = self.all_glyphs.range(Included(&spec), Unbounded).next()
                 .and_then(|(u, &(urow, _))| {
-                    let PixelsXY(x, y) = u.scale.into_pixels_xy();
                     if u.font_id == spec.font_id &&
                         u.glyph_id == spec.glyph_id &&
-                        (x - sx).abs() < self.scale_tolerance &&
-                        (y - sy).abs() < self.scale_tolerance &&
+                        (u.scale.x - spec.scale.x).abs() < self.scale_tolerance &&
+                        (u.scale.y - spec.scale.y).abs() < self.scale_tolerance &&
                         (spec.offset.x - u.offset.x).abs() < self.position_tolerance &&
                         (spec.offset.y - u.offset.y).abs() < self.position_tolerance
                     {
@@ -182,18 +178,14 @@ impl Cache {
                 }
                 (Some((scale1, offset1, row1)), Some((scale2, offset2, row2))) => {
                     // two definitely distinct matches
-                    let PixelsXY(sx1, sy1) = scale1.into_pixels_xy();
-                    let scale1 = vector(sx1 - sx, sy1 - sy);
-                    let PixelsXY(sx2, sy2) = scale2.into_pixels_xy();
-                    let scale2 = vector(sx2 - sx, sy2 - sy);
                     let v1 =
-                        (scale1.x / self.scale_tolerance).abs()
-                        + (scale1.y / self.scale_tolerance).abs()
+                        ((scale1.x - spec.scale.x) / self.scale_tolerance).abs()
+                        + ((scale1.y - spec.scale.y) / self.scale_tolerance).abs()
                         + ((offset1.x - spec.offset.x) / self.position_tolerance).abs()
                         + ((offset1.y - spec.offset.y) / self.position_tolerance).abs();
                     let v2 =
-                        (scale2.x / self.scale_tolerance).abs()
-                        + (scale2.y / self.scale_tolerance).abs()
+                        ((scale2.x - spec.scale.x) / self.scale_tolerance).abs()
+                        + ((scale2.y - spec.scale.y) / self.scale_tolerance).abs()
                         + ((offset2.x - spec.offset.x) / self.position_tolerance).abs()
                         + ((offset2.y - spec.offset.y) / self.position_tolerance).abs();
                     let row = if v1 < v2 { row1 } else { row2 };
@@ -332,7 +324,6 @@ impl Cache {
                         glyph: &PositionedGlyph) -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr> {
         use vector;
         use point;
-        use PixelsXY;
         let glyph_bb = match glyph.pixel_bounding_box() {
             Some(bb) => bb,
             None => return Ok(None)
@@ -345,14 +336,12 @@ impl Cache {
             scale: glyph.scale(),
             offset: target_offset
         };
-        let PixelsXY(target_scale_x, target_scale_y) = target_spec.scale.into_pixels_xy();
         let lower = self.all_glyphs.range(Unbounded, Included(&target_spec)).rev().next()
             .and_then(|(l, &(lrow, lindex))| {
-                let PixelsXY(x, y) = l.scale.into_pixels_xy();
                 if l.font_id == target_spec.font_id &&
                     l.glyph_id == target_spec.glyph_id &&
-                    (x - target_scale_x).abs() < self.scale_tolerance &&
-                    (y - target_scale_y).abs() < self.scale_tolerance &&
+                    (l.scale.x - target_spec.scale.x).abs() < self.scale_tolerance &&
+                    (l.scale.y - target_spec.scale.y).abs() < self.scale_tolerance &&
                     (target_spec.offset.x - l.offset.x).abs() < self.position_tolerance &&
                     (target_spec.offset.y - l.offset.y).abs() < self.position_tolerance
                 {
@@ -363,11 +352,10 @@ impl Cache {
             });
         let upper = self.all_glyphs.range(Included(&target_spec), Unbounded).next()
             .and_then(|(u, &(urow, uindex))| {
-                let PixelsXY(x, y) = u.scale.into_pixels_xy();
                 if u.font_id == target_spec.font_id &&
                     u.glyph_id == target_spec.glyph_id &&
-                    (x - target_scale_x).abs() < self.scale_tolerance &&
-                    (y - target_scale_y).abs() < self.scale_tolerance &&
+                    (u.scale.x - target_spec.scale.x).abs() < self.scale_tolerance &&
+                    (u.scale.y - target_spec.scale.y).abs() < self.scale_tolerance &&
                     (target_spec.offset.x - u.offset.x).abs() < self.position_tolerance &&
                     (target_spec.offset.y - u.offset.y).abs() < self.position_tolerance
                 {
@@ -392,18 +380,14 @@ impl Cache {
                     return Ok(Some((uv_rect, glyph_bb)))
                 } else {
                     // Two close-enough matches. Figure out which is closest.
-                    let PixelsXY(lsx, lsy) = lmatch_spec.scale.into_pixels_xy();
-                    let lscalediff = vector(lsx - target_scale_x, lsy - target_scale_y);
-                    let PixelsXY(usx, usy) = lmatch_spec.scale.into_pixels_xy();
-                    let uscalediff = vector(usx - target_scale_x, usy - target_scale_y);
                     let l_measure =
-                        (lscalediff.x / self.scale_tolerance).abs()
-                        + (lscalediff.y / self.scale_tolerance).abs()
+                        ((lmatch_spec.scale.x - target_spec.scale.x) / self.scale_tolerance).abs()
+                        + ((lmatch_spec.scale.y - target_spec.scale.y) / self.scale_tolerance).abs()
                         + ((lmatch_spec.offset.x - target_spec.offset.x) / self.position_tolerance).abs()
                         + ((lmatch_spec.offset.y - target_spec.offset.y) / self.position_tolerance).abs();
                     let u_measure =
-                        (uscalediff.x / self.scale_tolerance).abs()
-                        + (uscalediff.y / self.scale_tolerance).abs()
+                        ((umatch_spec.scale.x - target_spec.scale.x) / self.scale_tolerance).abs()
+                        + ((umatch_spec.scale.y - target_spec.scale.y) / self.scale_tolerance).abs()
                         + ((umatch_spec.offset.x - target_spec.offset.x) / self.position_tolerance).abs()
                         + ((umatch_spec.offset.y - target_spec.offset.y) / self.position_tolerance).abs();
                     if l_measure < u_measure {
@@ -440,7 +424,7 @@ impl Cache {
 #[test]
 fn cache_test() {
     use ::FontCollection;
-    use ::Pixels;
+    use ::Scale;
     use ::point;
     let mut cache = Cache::new(32, 32, 0.1, 0.1);
     let font_data = include_bytes!("../examples/Arial Unicode.ttf");
@@ -455,7 +439,7 @@ fn cache_test() {
             ];
     for i in 0..strings.len() {
         println!("Caching {:?}", strings[i]);
-        for glyph in font.layout(strings[i].0, Pixels(strings[i].1), point(0.0, 0.0)) {
+        for glyph in font.layout(strings[i].0, Scale { x: strings[i].1, y: strings[i].1 }, point(0.0, 0.0)) {
             cache.queue_glyph(0, glyph);
         }
         cache.cache_queued(|_, _| {}).unwrap();

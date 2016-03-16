@@ -1,6 +1,6 @@
 extern crate rusttype;
 
-use rusttype::{FontCollection, PixelsXY, point, PositionedGlyph};
+use rusttype::{FontCollection, Scale, point, PositionedGlyph};
 use std::io::Write;
 
 fn main() {
@@ -13,7 +13,7 @@ fn main() {
     let pixel_height = height.ceil() as usize;
 
     // 2x scale in x direction to counter the aspect ratio of monospace characters.
-    let scale = PixelsXY(height*2.0, height);
+    let scale = Scale { x: height*2.0, y: height };
 
     // The origin of a line of text is at the baseline (roughly where non-descending letters sit).
     // We don't want to clip the text, so we shift it down with an offset when laying it out.

@@ -7,14 +7,14 @@ extern crate unicode_normalization;
 use glium::{DisplayBuild, Surface};
 use glium::glutin;
 
-use rusttype::{FontCollection, Font, Pixels, point, vector, PositionedGlyph};
+use rusttype::{FontCollection, Font, Scale, point, vector, PositionedGlyph};
 use rusttype::gpu_cache::{Cache};
 use rusttype::Rect;
 
 use std::borrow::Cow;
 
 fn layout_paragraph<'a>(font: &'a Font,
-                        scale: Pixels,
+                        scale: Scale,
                         width: u32,
                         text: &str) -> Vec<PositionedGlyph<'a>> {
     use unicode_normalization::UnicodeNormalization;
@@ -124,7 +124,7 @@ Feel free to type out some text, and delete it with Backspace. You can also try 
         .into();
     'main: loop {
         let width = display.get_window().unwrap().get_inner_size_pixels().unwrap().0;
-        let glyphs = layout_paragraph(&font, Pixels(24.0 * dpi_factor), width, &text);
+        let glyphs = layout_paragraph(&font, Scale::uniform(24.0 * dpi_factor), width, &text);
         for glyph in &glyphs {
             cache.queue_glyph(0, glyph.clone());
         }
