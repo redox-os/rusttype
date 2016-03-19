@@ -65,7 +65,6 @@ fn main() {
         .with_vsync()
         .with_dimensions(512, 512)
         .with_title("RustType GPU cache example".into())
-        .with_srgb(Some(true))
         .build_glium()
         .unwrap();
 
