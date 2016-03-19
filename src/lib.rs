@@ -89,7 +89,6 @@ mod support;
 
 pub mod gpu_cache;
 
-use std::borrow::Cow;
 use std::sync::Arc;
 
 pub use geometry::{Rect, Point, point, Vector, vector, Line, Curve};
@@ -97,15 +96,51 @@ use stb_truetype as tt;
 
 /// A collection of fonts read straight from a font file's data. The data in the collection is not validated.
 /// This structure may or may not own the font data.
-pub struct FontCollection<'a>(Cow<'a, [u8]>);
+#[derive(Clone)]
+pub struct FontCollection<'a>(SharedBytes<'a>);
 /// A single font. This may or may not own the font data.
+#[derive(Clone)]
 pub struct Font<'a> {
-    info: tt::FontInfo<'a>
+    info: tt::FontInfo<SharedBytes<'a>>
 }
-/// A newtype wrapper for `Cow<[u8]>` that can be targetted by `From` and `Into`. This is intended
-/// to be used for providing convenient APIs that can accept `Vec<u8>`s or `&[u8]`s or other types
-/// that can be read as `[u8]`s (feel free to provide your own `From` implementations).
-pub struct Bytes<'a>(pub Cow<'a, [u8]>);
+
+/// `SharedBytes` handles the lifetime of font data used in RustType. The data is either a shared
+/// reference to externally owned data, or managed by reference counting. `SharedBytes` can be
+/// conveniently used with `From` and `Into`, and dereferences to the contained bytes.
+#[derive(Clone)]
+pub enum SharedBytes<'a> {
+    ByRef(&'a [u8]),
+    ByArc(Arc<Box<[u8]>>)
+}
+impl<'a> ::std::ops::Deref for SharedBytes<'a> {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        match *self {
+            SharedBytes::ByRef(bytes) => bytes,
+            SharedBytes::ByArc(ref bytes) => &***bytes
+        }
+    }
+}
+impl<'a> From<&'a [u8]> for SharedBytes<'a> {
+    fn from(bytes: &'a [u8]) -> SharedBytes<'a> {
+        SharedBytes::ByRef(bytes)
+    }
+}
+impl From<Arc<Box<[u8]>>> for SharedBytes<'static> {
+    fn from(bytes: Arc<Box<[u8]>>) -> SharedBytes<'static> {
+        SharedBytes::ByArc(bytes)
+    }
+}
+impl From<Box<[u8]>> for SharedBytes<'static> {
+    fn from(bytes: Box<[u8]>) -> SharedBytes<'static> {
+        SharedBytes::ByArc(Arc::new(bytes))
+    }
+}
+impl From<Vec<u8>> for SharedBytes<'static> {
+    fn from(bytes: Vec<u8>) -> SharedBytes<'static> {
+        SharedBytes::ByArc(Arc::new(bytes.into_boxed_slice()))
+    }
+}
 /// Represents a Unicode code point.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Codepoint(pub u32);
@@ -194,26 +229,6 @@ impl Scale {
         Scale { x: s, y: s }
     }
 }
-impl From<Box<[u8]>> for Bytes<'static> {
-    fn from(b: Box<[u8]>) -> Bytes<'static> {
-        Bytes(Cow::Owned(b.into_vec()))
-    }
-}
-impl From<Vec<u8>> for Bytes<'static> {
-    fn from(v: Vec<u8>) -> Bytes<'static> {
-        Bytes(Cow::Owned(v))
-    }
-}
-impl<'a> From<Cow<'a, [u8]>> for Bytes<'a> {
-    fn from(c: Cow<'a, [u8]>) -> Bytes<'a> {
-        Bytes(c)
-    }
-}
-impl<'a> From<&'a [u8]> for Bytes<'a> {
-    fn from(s: &'a [u8]) -> Bytes<'a> {
-        Bytes(Cow::Borrowed(s))
-    }
-}
 impl From<char> for Codepoint {
     fn from(c: char) -> Codepoint {
         Codepoint(c as u32)
@@ -238,8 +253,8 @@ impl<'a> FontCollection<'a> {
     /// Constructs a font collection from an array of bytes, typically loaded from a font file.
     /// This array may be owned (e.g. `Vec<u8>`), or borrowed (`&[u8]`).
     /// As long as `From<T>` is implemented for `Bytes` for some type `T`, `T` can be used as input.
-    pub fn from_bytes<B: Into<Bytes<'a>>>(bytes: B) -> FontCollection<'a> {
-        FontCollection(bytes.into().0)
+    pub fn from_bytes<B: Into<SharedBytes<'a>>>(bytes: B) -> FontCollection<'a> {
+        FontCollection(bytes.into())
     }
     /// In the common case that a font collection consists of only one font, this function
     /// consumes this font collection and turns it into a font. If this is not the case,
@@ -257,9 +272,8 @@ impl<'a> FontCollection<'a> {
     /// Gets the font at index `i` in the font collection, if it exists and is valid.
     /// The produced font borrows the font data that is either borrowed or owned by this font collection.
     pub fn font_at(&self, i: usize) -> Option<Font> {
-        use std::borrow::{Cow, Borrow};
         tt::get_font_offset_for_index(&self.0, i as i32)
-            .and_then(|o| tt::FontInfo::new(Cow::Borrowed(self.0.borrow()), o as usize))
+            .and_then(|o| tt::FontInfo::new(self.0.clone(), o as usize))
             .map(|info| Font { info: info })
     }
 }
