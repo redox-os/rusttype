@@ -218,13 +218,20 @@ pub struct PositionedGlyph<'a> {
     position: Point<f32>,
     bb: Option<Rect<i32>>
 }
+/// Defines the size of a rendered face of a font, in pixels, horizontally and vertically. A vertical
+/// scale of `y` pixels means that the distance betwen the ascent and descent lines (see `VMetrics`) of the
+/// face will be `y` pixels. If `x` and `y` are equal the scaling is uniform. Non-uniform scaling by a factor
+/// *f* in the horizontal direction is achieved by setting `x` equal to *f* times `y`.
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 pub struct Scale {
+    /// Horizontal scale, in pixels.
     pub x: f32,
+    /// Vertical scale, in pixels.
     pub y: f32
 }
 
 impl Scale {
+    /// Uniform scaling, equivalent to `Scale { x: s, y: s }`.
     pub fn uniform(s: f32) -> Scale {
         Scale { x: s, y: s }
     }
