@@ -2,6 +2,7 @@
 
 * Initial GPU caching implementation.
 * Made font data management more flexible.
+* Made the interface for font scales simpler.
 
 ##0.1.2
 
