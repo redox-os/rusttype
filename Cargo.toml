@@ -15,6 +15,7 @@ repository = "https://github.com/dylanede/rusttype"
 readme = "README.md"
 license = "MIT / Apache-2.0"
 keywords = ["font", "truetype", "opentype", "ttf", "otf"]
+exclude = ["examples/*.ttf"]
 
 [dependencies]
 arrayvec = "0.3.13"
