@@ -8,6 +8,9 @@
 //! * Laying out glyphs horizontally using horizontal and vertical metrics, and glyph-pair-specific kerning.
 //! * Rasterising glyphs with sub-pixel positioning using an accurate analytical algorithm
 //!   (not based on sampling).
+//! * Managing a font cache on the GPU with the `gpu_cache` module. This keeps recently used glyph renderings
+//!   in a dynamic cache in GPU memory to minimise texture uploads per-frame. It also allows you keep the draw
+//!   call count for text very low, as all glyphs are kept in one GPU texture.
 //!
 //! Notable things that RustType does not support *yet*:
 //!

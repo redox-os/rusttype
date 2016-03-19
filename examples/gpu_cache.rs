@@ -72,7 +72,7 @@ fn main() {
     let dpi_factor = display.get_window().unwrap().hidpi_factor();
 
     let (cache_width, cache_height) = (512 * dpi_factor as u32, 512 * dpi_factor as u32);
-    let mut cache = Cache::new(cache_width, cache_height, 0.25, 0.1);
+    let mut cache = Cache::new(cache_width, cache_height, 0.1, 0.1);
 
     let program = program!(
         &display,
