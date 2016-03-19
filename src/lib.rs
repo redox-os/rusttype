@@ -16,7 +16,8 @@
 //!
 //! * OpenType formatted fonts that are not just TrueType fonts (OpenType is a superset of TrueType). Notably
 //!   there is no support yet for cubic Bezier curves used in glyphs.
-//! * Ligatures of any kind
+//! * Font hinting.
+//! * Ligatures of any kind.
 //! * Some less common TrueType sub-formats.
 //! * Right-to-left and vertical text layout.
 //!
@@ -26,7 +27,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rusttype = "0.1"
+//! rusttype = "0.2.0"
 //! ```
 //!
 //! To hit the ground running with RustType, look at the `simple.rs` example supplied with the crate. It

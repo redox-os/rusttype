@@ -6,6 +6,8 @@ description = """
 A pure Rust alternative to libraries like FreeType.
 
 RustType provides an API for loading, querying and rasterising TrueType fonts.
+
+It also provides an implementation of a dynamic GPU glyph cache for hardware font rendering.
 """
 documentation = "https://dylanede.github.io/rusttype"
 homepage = "https://github.com/dylanede/rusttype"

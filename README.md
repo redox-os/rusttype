@@ -13,12 +13,18 @@ The current capabilities of RustType:
   glyph-pair-specific kerning.
 * Rasterising glyphs with sub-pixel positioning using an accurate analytical
   algorithm (not based on sampling).
+* Managing a font cache on the GPU with the `gpu_cache` module. This keeps
+  recently used glyph renderings
+  in a dynamic cache in GPU memory to minimise texture uploads per-frame. It
+  also allows you keep the draw call count for text very low, as all glyphs are
+  kept in one GPU texture.
 
 Notable things that RustType does not support *yet*:
 
 * OpenType formatted fonts that are not just TrueType fonts (OpenType is a
   superset of TrueType). Notably there is no support yet for cubic Bezier curves
   used in glyphs.
+* Font hinting.
 * Ligatures of any kind
 * Some less common TrueType sub-formats.
 * Right-to-left and vertical text layout.
@@ -29,7 +35,7 @@ Add the following to your Cargo.toml:
 
 ```toml
 [dependencies]
-rusttype = "0.1.2"
+rusttype = "0.2.0"
 ```
 
 To hit the ground running with RustType, look at the `simple.rs` example
@@ -44,10 +50,11 @@ look at the documentation, the entry point for loading fonts is
 
 The current state of RustType is only the beginning. There are numerous avenues
 for improving it. My main motivation for this project is to provide easy-to-use
-font rendering for games. Thus I will be constructing a GPU font caching library
-based on RustType. Once I get the time to go back and improve RustType itself,
-the main improvements I am most interested in are:
+font rendering for games. My current focus is on a UI library that uses RustType.
+Once I get the time to go back and improve RustType itself, the improvements I
+am most interested in are:
 
+* Some form of hinting for improved legibility at small font sizes.
 * Replacing the dependency on my other library,
   [stb_truetype-rs](https://github.com/dylanede/stb_truetype-rs)
   (a direct translation of [stb_truetype.h](https://github.com/nothings/stb/blob/master/stb_truetype.h)),

@@ -1,4 +1,4 @@
-# Unreleased (0.2)
+# 0.2.0
 
 * Initial GPU caching implementation.
 * Made font data management more flexible.
