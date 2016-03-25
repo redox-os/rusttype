@@ -11,14 +11,14 @@
 // This is pretty much entirely stolen from TreeSet, since BTreeMap has an identical interface
 // to TreeMap
 
-use ::std::cmp::Ordering::{self, Less, Greater, Equal};
-use ::std::cmp::{min, max};
-use ::std::fmt::Debug;
-use ::std::fmt;
-use ::std::iter::{Peekable, FromIterator};
-use ::std::ops::{BitOr, BitAnd, BitXor, Sub};
+use std::cmp::Ordering::{self, Less, Greater, Equal};
+use std::cmp::{min, max};
+use std::fmt::Debug;
+use std::fmt;
+use std::iter::{Peekable, FromIterator};
+use std::ops::{BitOr, BitAnd, BitXor, Sub};
 
-use ::std::borrow::Borrow;
+use std::borrow::Borrow;
 use super::map::{BTreeMap, Keys};
 use super::Recover;
 use super::Bound;
@@ -663,7 +663,9 @@ impl<'a, T> DoubleEndedIterator for Iter<'a, T> {
     }
 }
 impl<'a, T> ExactSizeIterator for Iter<'a, T> {
-    fn len(&self) -> usize { self.iter.len() }
+    fn len(&self) -> usize {
+        self.iter.len()
+    }
 }
 
 
@@ -683,7 +685,9 @@ impl<T> DoubleEndedIterator for IntoIter<T> {
     }
 }
 impl<T> ExactSizeIterator for IntoIter<T> {
-    fn len(&self) -> usize { self.iter.len() }
+    fn len(&self) -> usize {
+        self.iter.len()
+    }
 }
 
 
