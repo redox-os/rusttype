@@ -8,15 +8,15 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use ::std::cmp::Ordering;
-use ::std::fmt::Debug;
-use ::std::hash::{Hash, Hasher};
-use ::std::iter::FromIterator;
-use ::std::marker::PhantomData;
-use ::std::ops::Index;
-use ::std::{fmt, mem, ptr};
+use std::cmp::Ordering;
+use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
+use std::iter::FromIterator;
+use std::marker::PhantomData;
+use std::ops::Index;
+use std::{fmt, mem, ptr};
 
-use ::std::borrow::Borrow;
+use std::borrow::Borrow;
 use super::Bound::{self, Included, Excluded, Unbounded};
 
 use super::node::{self, NodeRef, Handle, marker};
@@ -60,35 +60,38 @@ use self::Entry::*;
 /// normally only possible through `Cell`, `RefCell`, global state, I/O, or unsafe code.
 pub struct BTreeMap<K, V> {
     root: node::Root<K, V>,
-    length: usize
+    length: usize,
 }
 
 impl<K, V> Drop for BTreeMap<K, V> {
-    //#[unsafe_destructor_blind_to_params]
+    // #[unsafe_destructor_blind_to_params]
     fn drop(&mut self) {
         unsafe {
-            for _ in ptr::read(self).into_iter() { }
+            for _ in ptr::read(self).into_iter() {
+            }
         }
     }
 }
 
 impl<K: Clone, V: Clone> Clone for BTreeMap<K, V> {
     fn clone(&self) -> BTreeMap<K, V> {
-        fn clone_subtree<K: Clone, V: Clone>(
-                node: node::NodeRef<marker::Immut, K, V, marker::LeafOrInternal>)
-                -> BTreeMap<K, V> {
+        fn clone_subtree<K: Clone, V: Clone>(node: node::NodeRef<marker::Immut,
+                                                                 K,
+                                                                 V,
+                                                                 marker::LeafOrInternal>)
+                                             -> BTreeMap<K, V> {
 
             match node.force() {
                 Leaf(leaf) => {
                     let mut out_tree = BTreeMap {
                         root: node::Root::new_leaf(),
-                        length: 0
+                        length: 0,
                     };
 
                     {
                         let mut out_node = match out_tree.root.as_mut().force() {
                             Leaf(leaf) => leaf,
-                            Internal(_) => unreachable!()
+                            Internal(_) => unreachable!(),
                         };
 
                         let mut in_edge = leaf.first_edge();
@@ -102,7 +105,7 @@ impl<K: Clone, V: Clone> Clone for BTreeMap<K, V> {
                     }
 
                     out_tree
-                },
+                }
                 Internal(internal) => {
                     let mut out_tree = clone_subtree(internal.first_edge().descend());
 
@@ -149,7 +152,7 @@ impl<K, Q: ?Sized> super::Recover<Q> for BTreeMap<K, ()>
     fn get(&self, key: &Q) -> Option<&K> {
         match search::search_tree(self.root.as_ref(), key) {
             Found(handle) => Some(handle.into_kv().0),
-            GoDown(_) => None
+            GoDown(_) => None,
         }
     }
 
@@ -157,12 +160,14 @@ impl<K, Q: ?Sized> super::Recover<Q> for BTreeMap<K, ()>
         match search::search_tree(self.root.as_mut(), key) {
             Found(handle) => {
                 Some(OccupiedEntry {
-                    handle: handle,
-                    length: &mut self.length,
-                    _marker: PhantomData,
-                }.remove_kv().0)
-            },
-            GoDown(_) => None
+                         handle: handle,
+                         length: &mut self.length,
+                         _marker: PhantomData,
+                     }
+                     .remove_kv()
+                     .0)
+            }
+            GoDown(_) => None,
         }
     }
 
@@ -175,7 +180,8 @@ impl<K, Q: ?Sized> super::Recover<Q> for BTreeMap<K, ()>
                     handle: handle,
                     length: &mut self.length,
                     _marker: PhantomData,
-                }.insert(());
+                }
+                .insert(());
                 None
             }
         }
@@ -185,20 +191,20 @@ impl<K, Q: ?Sized> super::Recover<Q> for BTreeMap<K, ()>
 /// An iterator over a BTreeMap's entries.
 pub struct Iter<'a, K: 'a, V: 'a> {
     range: Range<'a, K, V>,
-    length: usize
+    length: usize,
 }
 
 /// A mutable iterator over a BTreeMap's entries.
 pub struct IterMut<'a, K: 'a, V: 'a> {
     range: RangeMut<'a, K, V>,
-    length: usize
+    length: usize,
 }
 
 /// An owning iterator over a BTreeMap's entries.
 pub struct IntoIter<K, V> {
     front: Handle<NodeRef<marker::Owned, K, V, marker::Leaf>, marker::Edge>,
     back: Handle<NodeRef<marker::Owned, K, V, marker::Leaf>, marker::Edge>,
-    length: usize
+    length: usize,
 }
 
 /// An iterator over a BTreeMap's keys.
@@ -214,7 +220,7 @@ pub struct Values<'a, K: 'a, V: 'a> {
 /// An iterator over a sub-range of BTreeMap's entries.
 pub struct Range<'a, K: 'a, V: 'a> {
     front: Handle<NodeRef<marker::Immut<'a>, K, V, marker::Leaf>, marker::Edge>,
-    back: Handle<NodeRef<marker::Immut<'a>, K, V, marker::Leaf>, marker::Edge>
+    back: Handle<NodeRef<marker::Immut<'a>, K, V, marker::Leaf>, marker::Edge>,
 }
 
 /// A mutable iterator over a sub-range of BTreeMap's entries.
@@ -229,10 +235,10 @@ pub struct RangeMut<'a, K: 'a, V: 'a> {
 /// A view into a single entry in a map, which may either be vacant or occupied.
 pub enum Entry<'a, K: 'a, V: 'a> {
     /// A vacant Entry
-        Vacant(VacantEntry<'a, K, V>),
+    Vacant(VacantEntry<'a, K, V>),
 
     /// An occupied Entry
-        Occupied(OccupiedEntry<'a, K, V>),
+    Occupied(OccupiedEntry<'a, K, V>),
 }
 
 /// A vacant Entry.
@@ -247,11 +253,7 @@ pub struct VacantEntry<'a, K: 'a, V: 'a> {
 
 /// An occupied Entry.
 pub struct OccupiedEntry<'a, K: 'a, V: 'a> {
-    handle: Handle<NodeRef<
-        marker::Mut<'a>,
-        K, V,
-        marker::LeafOrInternal
-    >, marker::KV>,
+    handle: Handle<NodeRef<marker::Mut<'a>, K, V, marker::LeafOrInternal>, marker::KV>,
 
     length: &'a mut usize,
 
@@ -264,7 +266,7 @@ impl<K: Ord, V> BTreeMap<K, V> {
     pub fn new() -> BTreeMap<K, V> {
         BTreeMap {
             root: node::Root::new_leaf(),
-            length: 0
+            length: 0,
         }
     }
 
@@ -300,10 +302,13 @@ impl<K: Ord, V> BTreeMap<K, V> {
     /// assert_eq!(map.get(&1), Some(&"a"));
     /// assert_eq!(map.get(&2), None);
     /// ```
-    pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V> where K: Borrow<Q>, Q: Ord {
+    pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
+        where K: Borrow<Q>,
+              Q: Ord
+    {
         match search::search_tree(self.root.as_ref(), key) {
             Found(handle) => Some(handle.into_kv().1),
-            GoDown(_) => None
+            GoDown(_) => None,
         }
     }
 
@@ -322,7 +327,10 @@ impl<K: Ord, V> BTreeMap<K, V> {
     /// assert_eq!(map.contains_key(&1), true);
     /// assert_eq!(map.contains_key(&2), false);
     /// ```
-    pub fn contains_key<Q: ?Sized>(&self, key: &Q) -> bool where K: Borrow<Q>, Q: Ord {
+    pub fn contains_key<Q: ?Sized>(&self, key: &Q) -> bool
+        where K: Borrow<Q>,
+              Q: Ord
+    {
         self.get(key).is_some()
     }
 
@@ -344,10 +352,13 @@ impl<K: Ord, V> BTreeMap<K, V> {
     /// assert_eq!(map[&1], "b");
     /// ```
     // See `get` for implementation notes, this is basically a copy-paste with mut's added
-    pub fn get_mut<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V> where K: Borrow<Q>, Q: Ord {
+    pub fn get_mut<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
+        where K: Borrow<Q>,
+              Q: Ord
+    {
         match search::search_tree(self.root.as_mut(), key) {
             Found(handle) => Some(handle.into_kv_mut().1),
-            GoDown(_) => None
+            GoDown(_) => None,
         }
     }
 
@@ -400,16 +411,20 @@ impl<K: Ord, V> BTreeMap<K, V> {
     /// assert_eq!(map.remove(&1), Some("a"));
     /// assert_eq!(map.remove(&1), None);
     /// ```
-    pub fn remove<Q: ?Sized>(&mut self, key: &Q) -> Option<V> where K: Borrow<Q>, Q: Ord {
+    pub fn remove<Q: ?Sized>(&mut self, key: &Q) -> Option<V>
+        where K: Borrow<Q>,
+              Q: Ord
+    {
         match search::search_tree(self.root.as_mut(), key) {
             Found(handle) => {
                 Some(OccupiedEntry {
-                    handle: handle,
-                    length: &mut self.length,
-                    _marker: PhantomData,
-                }.remove())
-            },
-            GoDown(_) => None
+                         handle: handle,
+                         length: &mut self.length,
+                         _marker: PhantomData,
+                     }
+                     .remove())
+            }
+            GoDown(_) => None,
         }
     }
 
@@ -438,47 +453,63 @@ impl<K: Ord, V> BTreeMap<K, V> {
                                                        min: Bound<&Min>,
                                                        max: Bound<&Max>)
                                                        -> Range<K, V>
-        where K: Borrow<Min> + Borrow<Max>,
+        where K: Borrow<Min> + Borrow<Max>
     {
         let front = match min {
-            Included(key) => match search::search_tree(self.root.as_ref(), key) {
-                Found(kv_handle) => match kv_handle.left_edge().force() {
-                    Leaf(bottom) => bottom,
-                    Internal(internal) => last_leaf_edge(internal.descend())
-                },
-                GoDown(bottom) => bottom
-            },
-            Excluded(key) => match search::search_tree(self.root.as_ref(), key) {
-                Found(kv_handle) => match kv_handle.right_edge().force() {
-                    Leaf(bottom) => bottom,
-                    Internal(internal) => first_leaf_edge(internal.descend())
-                },
-                GoDown(bottom) => bottom
-            },
-            Unbounded => first_leaf_edge(self.root.as_ref())
+            Included(key) => {
+                match search::search_tree(self.root.as_ref(), key) {
+                    Found(kv_handle) => {
+                        match kv_handle.left_edge().force() {
+                            Leaf(bottom) => bottom,
+                            Internal(internal) => last_leaf_edge(internal.descend()),
+                        }
+                    }
+                    GoDown(bottom) => bottom,
+                }
+            }
+            Excluded(key) => {
+                match search::search_tree(self.root.as_ref(), key) {
+                    Found(kv_handle) => {
+                        match kv_handle.right_edge().force() {
+                            Leaf(bottom) => bottom,
+                            Internal(internal) => first_leaf_edge(internal.descend()),
+                        }
+                    }
+                    GoDown(bottom) => bottom,
+                }
+            }
+            Unbounded => first_leaf_edge(self.root.as_ref()),
         };
 
         let back = match max {
-            Included(key) => match search::search_tree(self.root.as_ref(), key) {
-                Found(kv_handle) => match kv_handle.right_edge().force() {
-                    Leaf(bottom) => bottom,
-                    Internal(internal) => first_leaf_edge(internal.descend())
-                },
-                GoDown(bottom) => bottom
-            },
-            Excluded(key) => match search::search_tree(self.root.as_ref(), key) {
-                Found(kv_handle) => match kv_handle.left_edge().force() {
-                    Leaf(bottom) => bottom,
-                    Internal(internal) => last_leaf_edge(internal.descend())
-                },
-                GoDown(bottom) => bottom
-            },
-            Unbounded => last_leaf_edge(self.root.as_ref())
+            Included(key) => {
+                match search::search_tree(self.root.as_ref(), key) {
+                    Found(kv_handle) => {
+                        match kv_handle.right_edge().force() {
+                            Leaf(bottom) => bottom,
+                            Internal(internal) => first_leaf_edge(internal.descend()),
+                        }
+                    }
+                    GoDown(bottom) => bottom,
+                }
+            }
+            Excluded(key) => {
+                match search::search_tree(self.root.as_ref(), key) {
+                    Found(kv_handle) => {
+                        match kv_handle.left_edge().force() {
+                            Leaf(bottom) => bottom,
+                            Internal(internal) => last_leaf_edge(internal.descend()),
+                        }
+                    }
+                    GoDown(bottom) => bottom,
+                }
+            }
+            Unbounded => last_leaf_edge(self.root.as_ref()),
         };
 
         Range {
             front: front,
-            back: back
+            back: back,
         }
     }
 
@@ -508,51 +539,67 @@ impl<K: Ord, V> BTreeMap<K, V> {
                                                            min: Bound<&Min>,
                                                            max: Bound<&Max>)
                                                            -> RangeMut<K, V>
-        where K: Borrow<Min> + Borrow<Max>,
+        where K: Borrow<Min> + Borrow<Max>
     {
         let root1 = self.root.as_mut();
         let root2 = unsafe { ptr::read(&root1) };
 
         let front = match min {
-            Included(key) => match search::search_tree(root1, key) {
-                Found(kv_handle) => match kv_handle.left_edge().force() {
-                    Leaf(bottom) => bottom,
-                    Internal(internal) => last_leaf_edge(internal.descend())
-                },
-                GoDown(bottom) => bottom
-            },
-            Excluded(key) => match search::search_tree(root1, key) {
-                Found(kv_handle) => match kv_handle.right_edge().force() {
-                    Leaf(bottom) => bottom,
-                    Internal(internal) => first_leaf_edge(internal.descend())
-                },
-                GoDown(bottom) => bottom
-            },
-            Unbounded => first_leaf_edge(root1)
+            Included(key) => {
+                match search::search_tree(root1, key) {
+                    Found(kv_handle) => {
+                        match kv_handle.left_edge().force() {
+                            Leaf(bottom) => bottom,
+                            Internal(internal) => last_leaf_edge(internal.descend()),
+                        }
+                    }
+                    GoDown(bottom) => bottom,
+                }
+            }
+            Excluded(key) => {
+                match search::search_tree(root1, key) {
+                    Found(kv_handle) => {
+                        match kv_handle.right_edge().force() {
+                            Leaf(bottom) => bottom,
+                            Internal(internal) => first_leaf_edge(internal.descend()),
+                        }
+                    }
+                    GoDown(bottom) => bottom,
+                }
+            }
+            Unbounded => first_leaf_edge(root1),
         };
 
         let back = match max {
-            Included(key) => match search::search_tree(root2, key) {
-                Found(kv_handle) => match kv_handle.right_edge().force() {
-                    Leaf(bottom) => bottom,
-                    Internal(internal) => first_leaf_edge(internal.descend())
-                },
-                GoDown(bottom) => bottom
-            },
-            Excluded(key) => match search::search_tree(root2, key) {
-                Found(kv_handle) => match kv_handle.left_edge().force() {
-                    Leaf(bottom) => bottom,
-                    Internal(internal) => last_leaf_edge(internal.descend())
-                },
-                GoDown(bottom) => bottom
-            },
-            Unbounded => last_leaf_edge(root2)
+            Included(key) => {
+                match search::search_tree(root2, key) {
+                    Found(kv_handle) => {
+                        match kv_handle.right_edge().force() {
+                            Leaf(bottom) => bottom,
+                            Internal(internal) => first_leaf_edge(internal.descend()),
+                        }
+                    }
+                    GoDown(bottom) => bottom,
+                }
+            }
+            Excluded(key) => {
+                match search::search_tree(root2, key) {
+                    Found(kv_handle) => {
+                        match kv_handle.left_edge().force() {
+                            Leaf(bottom) => bottom,
+                            Internal(internal) => last_leaf_edge(internal.descend()),
+                        }
+                    }
+                    GoDown(bottom) => bottom,
+                }
+            }
+            Unbounded => last_leaf_edge(root2),
         };
 
         RangeMut {
             front: front,
             back: back,
-            _marker: PhantomData
+            _marker: PhantomData,
         }
     }
 
@@ -574,17 +621,21 @@ impl<K: Ord, V> BTreeMap<K, V> {
     /// ```
     pub fn entry(&mut self, key: K) -> Entry<K, V> {
         match search::search_tree(self.root.as_mut(), &key) {
-            Found(handle) => Occupied(OccupiedEntry {
-                handle: handle,
-                length: &mut self.length,
-                _marker: PhantomData,
-            }),
-            GoDown(handle) => Vacant(VacantEntry {
-                key: key,
-                handle: handle,
-                length: &mut self.length,
-                _marker: PhantomData,
-            })
+            Found(handle) => {
+                Occupied(OccupiedEntry {
+                    handle: handle,
+                    length: &mut self.length,
+                    _marker: PhantomData,
+                })
+            }
+            GoDown(handle) => {
+                Vacant(VacantEntry {
+                    key: key,
+                    handle: handle,
+                    length: &mut self.length,
+                    _marker: PhantomData,
+                })
+            }
         }
     }
 }
@@ -627,14 +678,16 @@ impl<'a, K: 'a, V: 'a> DoubleEndedIterator for Iter<'a, K, V> {
 }
 
 impl<'a, K: 'a, V: 'a> ExactSizeIterator for Iter<'a, K, V> {
-    fn len(&self) -> usize { self.length }
+    fn len(&self) -> usize {
+        self.length
+    }
 }
 
 impl<'a, K, V> Clone for Iter<'a, K, V> {
     fn clone(&self) -> Iter<'a, K, V> {
         Iter {
             range: self.range.clone(),
-            length: self.length
+            length: self.length,
         }
     }
 }
@@ -677,7 +730,9 @@ impl<'a, K: 'a, V: 'a> DoubleEndedIterator for IterMut<'a, K, V> {
 }
 
 impl<'a, K: 'a, V: 'a> ExactSizeIterator for IterMut<'a, K, V> {
-    fn len(&self) -> usize { self.length }
+    fn len(&self) -> usize {
+        self.length
+    }
 }
 
 impl<K, V> IntoIterator for BTreeMap<K, V> {
@@ -693,14 +748,15 @@ impl<K, V> IntoIterator for BTreeMap<K, V> {
         IntoIter {
             front: first_leaf_edge(root1),
             back: last_leaf_edge(root2),
-            length: len
+            length: len,
         }
     }
 }
 
 impl<K, V> Drop for IntoIter<K, V> {
     fn drop(&mut self) {
-        for _ in &mut *self { }
+        for _ in &mut *self {
+        }
         unsafe {
             let leaf_node = ptr::read(&self.front).into_node();
             if let Some(first_parent) = leaf_node.deallocate_and_ascend() {
@@ -731,10 +787,10 @@ impl<K, V> Iterator for IntoIter<K, V> {
                 let v = unsafe { ptr::read(kv.reborrow().into_kv().1) };
                 self.front = kv.right_edge();
                 return Some((k, v));
-            },
+            }
             Err(last_edge) => unsafe {
                 unwrap_unchecked(last_edge.into_node().deallocate_and_ascend())
-            }
+            },
         };
 
         loop {
@@ -744,10 +800,10 @@ impl<K, V> Iterator for IntoIter<K, V> {
                     let v = unsafe { ptr::read(kv.reborrow().into_kv().1) };
                     self.front = first_leaf_edge(kv.right_edge().descend());
                     return Some((k, v));
-                },
+                }
                 Err(last_edge) => unsafe {
                     cur_handle = unwrap_unchecked(last_edge.into_node().deallocate_and_ascend());
-                }
+                },
             }
         }
     }
@@ -773,10 +829,10 @@ impl<K, V> DoubleEndedIterator for IntoIter<K, V> {
                 let v = unsafe { ptr::read(kv.reborrow().into_kv().1) };
                 self.back = kv.left_edge();
                 return Some((k, v));
-            },
+            }
             Err(last_edge) => unsafe {
                 unwrap_unchecked(last_edge.into_node().deallocate_and_ascend())
-            }
+            },
         };
 
         loop {
@@ -786,17 +842,19 @@ impl<K, V> DoubleEndedIterator for IntoIter<K, V> {
                     let v = unsafe { ptr::read(kv.reborrow().into_kv().1) };
                     self.back = last_leaf_edge(kv.left_edge().descend());
                     return Some((k, v));
-                },
+                }
                 Err(last_edge) => unsafe {
                     cur_handle = unwrap_unchecked(last_edge.into_node().deallocate_and_ascend());
-                }
+                },
             }
         }
     }
 }
 
 impl<K, V> ExactSizeIterator for IntoIter<K, V> {
-    fn len(&self) -> usize { self.length }
+    fn len(&self) -> usize {
+        self.length
+    }
 }
 
 impl<'a, K, V> Iterator for Keys<'a, K, V> {
@@ -825,9 +883,7 @@ impl<'a, K, V> ExactSizeIterator for Keys<'a, K, V> {
 
 impl<'a, K, V> Clone for Keys<'a, K, V> {
     fn clone(&self) -> Keys<'a, K, V> {
-        Keys {
-            inner: self.inner.clone()
-        }
+        Keys { inner: self.inner.clone() }
     }
 }
 
@@ -857,9 +913,7 @@ impl<'a, K, V> ExactSizeIterator for Values<'a, K, V> {
 
 impl<'a, K, V> Clone for Values<'a, K, V> {
     fn clone(&self) -> Values<'a, K, V> {
-        Values {
-            inner: self.inner.clone()
-        }
+        Values { inner: self.inner.clone() }
     }
 }
 
@@ -884,7 +938,7 @@ impl<'a, K, V> Range<'a, K, V> {
                 let ret = kv.into_kv();
                 self.front = kv.right_edge();
                 return ret;
-            },
+            }
             Err(last_edge) => {
                 let next_level = last_edge.into_node().ascend().ok();
                 unwrap_unchecked(next_level)
@@ -897,7 +951,7 @@ impl<'a, K, V> Range<'a, K, V> {
                     let ret = kv.into_kv();
                     self.front = first_leaf_edge(kv.right_edge().descend());
                     return ret;
-                },
+                }
                 Err(last_edge) => {
                     let next_level = last_edge.into_node().ascend().ok();
                     cur_handle = unwrap_unchecked(next_level);
@@ -926,7 +980,7 @@ impl<'a, K, V> Range<'a, K, V> {
                 let ret = kv.into_kv();
                 self.back = kv.left_edge();
                 return ret;
-            },
+            }
             Err(last_edge) => {
                 let next_level = last_edge.into_node().ascend().ok();
                 unwrap_unchecked(next_level)
@@ -939,7 +993,7 @@ impl<'a, K, V> Range<'a, K, V> {
                     let ret = kv.into_kv();
                     self.back = last_leaf_edge(kv.left_edge().descend());
                     return ret;
-                },
+                }
                 Err(last_edge) => {
                     let next_level = last_edge.into_node().ascend().ok();
                     cur_handle = unwrap_unchecked(next_level);
@@ -953,7 +1007,7 @@ impl<'a, K, V> Clone for Range<'a, K, V> {
     fn clone(&self) -> Range<'a, K, V> {
         Range {
             front: self.front,
-            back: self.back
+            back: self.back,
         }
     }
 }
@@ -965,7 +1019,7 @@ impl<'a, K, V> Iterator for RangeMut<'a, K, V> {
         if self.front == self.back {
             None
         } else {
-            unsafe { Some (self.next_unchecked()) }
+            unsafe { Some(self.next_unchecked()) }
         }
     }
 }
@@ -979,7 +1033,7 @@ impl<'a, K, V> RangeMut<'a, K, V> {
                 let (k, v) = ptr::read(&kv).into_kv_mut();
                 self.front = kv.right_edge();
                 return (k, v);
-            },
+            }
             Err(last_edge) => {
                 let next_level = last_edge.into_node().ascend().ok();
                 unwrap_unchecked(next_level)
@@ -992,7 +1046,7 @@ impl<'a, K, V> RangeMut<'a, K, V> {
                     let (k, v) = ptr::read(&kv).into_kv_mut();
                     self.front = first_leaf_edge(kv.right_edge().descend());
                     return (k, v);
-                },
+                }
                 Err(last_edge) => {
                     let next_level = last_edge.into_node().ascend().ok();
                     cur_handle = unwrap_unchecked(next_level);
@@ -1021,7 +1075,7 @@ impl<'a, K, V> RangeMut<'a, K, V> {
                 let (k, v) = ptr::read(&kv).into_kv_mut();
                 self.back = kv.left_edge();
                 return (k, v);
-            },
+            }
             Err(last_edge) => {
                 let next_level = last_edge.into_node().ascend().ok();
                 unwrap_unchecked(next_level)
@@ -1034,7 +1088,7 @@ impl<'a, K, V> RangeMut<'a, K, V> {
                     let (k, v) = ptr::read(&kv).into_kv_mut();
                     self.back = last_leaf_edge(kv.left_edge().descend());
                     return (k, v);
-                },
+                }
                 Err(last_edge) => {
                     let next_level = last_edge.into_node().ascend().ok();
                     cur_handle = unwrap_unchecked(next_level);
@@ -1045,7 +1099,7 @@ impl<'a, K, V> RangeMut<'a, K, V> {
 }
 
 impl<K: Ord, V> FromIterator<(K, V)> for BTreeMap<K, V> {
-    fn from_iter<T: IntoIterator<Item=(K, V)>>(iter: T) -> BTreeMap<K, V> {
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> BTreeMap<K, V> {
         let mut map = BTreeMap::new();
         map.extend(iter);
         map
@@ -1054,7 +1108,7 @@ impl<K: Ord, V> FromIterator<(K, V)> for BTreeMap<K, V> {
 
 impl<K: Ord, V> Extend<(K, V)> for BTreeMap<K, V> {
     #[inline]
-    fn extend<T: IntoIterator<Item=(K, V)>>(&mut self, iter: T) {
+    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
         for (k, v) in iter {
             self.insert(k, v);
         }
@@ -1062,7 +1116,7 @@ impl<K: Ord, V> Extend<(K, V)> for BTreeMap<K, V> {
 }
 
 impl<'a, K: Ord + Copy, V: Copy> Extend<(&'a K, &'a V)> for BTreeMap<K, V> {
-    fn extend<I: IntoIterator<Item=(&'a K, &'a V)>>(&mut self, iter: I) {
+    fn extend<I: IntoIterator<Item = (&'a K, &'a V)>>(&mut self, iter: I) {
         self.extend(iter.into_iter().map(|(&key, &value)| (key, value)));
     }
 }
@@ -1083,8 +1137,7 @@ impl<K: Ord, V> Default for BTreeMap<K, V> {
 
 impl<K: PartialEq, V: PartialEq> PartialEq for BTreeMap<K, V> {
     fn eq(&self, other: &BTreeMap<K, V>) -> bool {
-        self.len() == other.len() &&
-            self.iter().zip(other).all(|(a, b)| a == b)
+        self.len() == other.len() && self.iter().zip(other).all(|(a, b)| a == b)
     }
 }
 
@@ -1111,7 +1164,8 @@ impl<K: Debug, V: Debug> Debug for BTreeMap<K, V> {
 }
 
 impl<'a, K: Ord, Q: ?Sized, V> Index<&'a Q> for BTreeMap<K, V>
-    where K: Borrow<Q>, Q: Ord
+    where K: Borrow<Q>,
+          Q: Ord
 {
     type Output = V;
 
@@ -1121,11 +1175,9 @@ impl<'a, K: Ord, Q: ?Sized, V> Index<&'a Q> for BTreeMap<K, V>
     }
 }
 
-fn first_leaf_edge<BorrowType, K, V>(
-        mut node: NodeRef<BorrowType,
-                          K, V,
-                          marker::LeafOrInternal>
-        ) -> Handle<NodeRef<BorrowType, K, V, marker::Leaf>, marker::Edge> {
+fn first_leaf_edge<BorrowType, K, V>
+    (mut node: NodeRef<BorrowType, K, V, marker::LeafOrInternal>)
+     -> Handle<NodeRef<BorrowType, K, V, marker::Leaf>, marker::Edge> {
     loop {
         match node.force() {
             Leaf(leaf) => return leaf.first_edge(),
@@ -1136,11 +1188,9 @@ fn first_leaf_edge<BorrowType, K, V>(
     }
 }
 
-fn last_leaf_edge<BorrowType, K, V>(
-        mut node: NodeRef<BorrowType,
-                          K, V,
-                          marker::LeafOrInternal>
-        ) -> Handle<NodeRef<BorrowType, K, V, marker::Leaf>, marker::Edge> {
+fn last_leaf_edge<BorrowType, K, V>
+    (mut node: NodeRef<BorrowType, K, V, marker::LeafOrInternal>)
+     -> Handle<NodeRef<BorrowType, K, V, marker::Leaf>, marker::Edge> {
     loop {
         match node.force() {
             Leaf(leaf) => return leaf.last_edge(),
@@ -1186,9 +1236,9 @@ impl<K, V> BTreeMap<K, V> {
         Iter {
             range: Range {
                 front: first_leaf_edge(self.root.as_ref()),
-                back: last_leaf_edge(self.root.as_ref())
+                back: last_leaf_edge(self.root.as_ref()),
             },
-            length: self.length
+            length: self.length,
         }
     }
 
@@ -1220,7 +1270,7 @@ impl<K, V> BTreeMap<K, V> {
                 back: last_leaf_edge(root2),
                 _marker: PhantomData,
             },
-            length: self.length
+            length: self.length,
         }
     }
 
@@ -1338,15 +1388,17 @@ impl<'a, K: Ord, V> VacantEntry<'a, K, V> {
 
         loop {
             match cur_parent {
-                Ok(parent) => match parent.insert(ins_k, ins_v, ins_edge) {
-                    Fit(_) => return unsafe { &mut *out_ptr },
-                    Split(left, k, v, right) => {
-                        ins_k = k;
-                        ins_v = v;
-                        ins_edge = right;
-                        cur_parent = left.ascend().map_err(|n| n.into_root_mut());
+                Ok(parent) => {
+                    match parent.insert(ins_k, ins_v, ins_edge) {
+                        Fit(_) => return unsafe { &mut *out_ptr },
+                        Split(left, k, v, right) => {
+                            ins_k = k;
+                            ins_v = v;
+                            ins_edge = right;
+                            cur_parent = left.ascend().map_err(|n| n.into_root_mut());
+                        }
                     }
-                },
+                }
                 Err(root) => {
                     root.push_level().push(ins_k, ins_v, ins_edge);
                     return unsafe { &mut *out_ptr };
@@ -1390,7 +1442,7 @@ impl<'a, K: Ord, V> OccupiedEntry<'a, K, V> {
             Leaf(leaf) => {
                 let (hole, old_key, old_val) = leaf.remove();
                 (hole.into_node(), old_key, old_val)
-            },
+            }
             Internal(mut internal) => {
                 let key_loc = internal.kv_mut().0 as *mut K;
                 let val_loc = internal.kv_mut().1 as *mut V;
@@ -1400,12 +1452,8 @@ impl<'a, K: Ord, V> OccupiedEntry<'a, K, V> {
 
                 let (hole, key, val) = to_remove.remove();
 
-                let old_key = unsafe {
-                    mem::replace(&mut *key_loc, key)
-                };
-                let old_val = unsafe {
-                    mem::replace(&mut *val_loc, val)
-                };
+                let old_key = unsafe { mem::replace(&mut *key_loc, key) };
+                let old_val = unsafe { mem::replace(&mut *val_loc, val) };
 
                 (hole.into_node(), old_key, old_val)
             }
@@ -1417,14 +1465,16 @@ impl<'a, K: Ord, V> OccupiedEntry<'a, K, V> {
             match handle_underfull_node(cur_node) {
                 AtRoot => break,
                 EmptyParent(_) => unreachable!(),
-                Merged(parent) => if parent.len() == 0 {
-                    // We must be at the root
-                    parent.into_root_mut().pop_level();
-                    break;
-                } else {
-                    cur_node = parent.forget_type();
-                },
-                Stole(_) => break
+                Merged(parent) => {
+                    if parent.len() == 0 {
+                        // We must be at the root
+                        parent.into_root_mut().pop_level();
+                        break;
+                    } else {
+                        cur_node = parent.forget_type();
+                    }
+                }
+                Stole(_) => break,
             }
         }
 
@@ -1436,13 +1486,11 @@ enum UnderflowResult<'a, K, V> {
     AtRoot,
     EmptyParent(NodeRef<marker::Mut<'a>, K, V, marker::Internal>),
     Merged(NodeRef<marker::Mut<'a>, K, V, marker::Internal>),
-    Stole(NodeRef<marker::Mut<'a>, K, V, marker::Internal>)
+    Stole(NodeRef<marker::Mut<'a>, K, V, marker::Internal>),
 }
 
-fn handle_underfull_node<'a, K, V>(node: NodeRef<marker::Mut<'a>,
-                                                 K, V,
-                                                 marker::LeafOrInternal>)
-                                                 -> UnderflowResult<'a, K, V> {
+fn handle_underfull_node<'a, K, V>(node: NodeRef<marker::Mut<'a>, K, V, marker::LeafOrInternal>)
+                                   -> UnderflowResult<'a, K, V> {
     let parent = if let Ok(parent) = node.ascend() {
         parent
     } else {
@@ -1451,10 +1499,12 @@ fn handle_underfull_node<'a, K, V>(node: NodeRef<marker::Mut<'a>,
 
     let (is_left, mut handle) = match parent.left_kv() {
         Ok(left) => (true, left),
-        Err(parent) => match parent.right_kv() {
-            Ok(right) => (false, right),
-            Err(parent) => {
-                return EmptyParent(parent.into_node());
+        Err(parent) => {
+            match parent.right_kv() {
+                Ok(right) => (false, right),
+                Err(parent) => {
+                    return EmptyParent(parent.into_node());
+                }
             }
         }
     };
@@ -1476,12 +1526,12 @@ fn handle_underfull_node<'a, K, V>(node: NodeRef<marker::Mut<'a>,
             if is_left {
                 match handle.reborrow_mut().right_edge().descend().force() {
                     Leaf(mut leaf) => leaf.push_front(k, v),
-                    Internal(mut internal) => internal.push_front(k, v, edge.unwrap())
+                    Internal(mut internal) => internal.push_front(k, v, edge.unwrap()),
                 }
             } else {
                 match handle.reborrow_mut().left_edge().descend().force() {
                     Leaf(mut leaf) => leaf.push(k, v),
-                    Internal(mut internal) => internal.push(k, v, edge.unwrap())
+                    Internal(mut internal) => internal.push(k, v, edge.unwrap()),
                 }
             }
         }

@@ -9,10 +9,10 @@
 // except according to those terms.
 #![allow(unused)]
 
-use ::std::marker::{PhantomData};
-use ::std::ops::{Deref};
-use ::std::mem;
-use ::std::fmt;
+use std::marker::PhantomData;
+use std::ops::Deref;
+use std::mem;
+use std::fmt;
 
 mod node;
 mod search;
@@ -42,18 +42,21 @@ pub struct Unique<T: ?Sized> {
 /// reference is unaliased. Note that this aliasing invariant is
 /// unenforced by the type system; the abstraction using the
 /// `Unique` must enforce it.
-unsafe impl<T: Send + ?Sized> Send for Unique<T> { }
+unsafe impl<T: Send + ?Sized> Send for Unique<T> {}
 
 /// `Unique` pointers are `Sync` if `T` is `Sync` because the data they
 /// reference is unaliased. Note that this aliasing invariant is
 /// unenforced by the type system; the abstraction using the
 /// `Unique` must enforce it.
-unsafe impl<T: Sync + ?Sized> Sync for Unique<T> { }
+unsafe impl<T: Sync + ?Sized> Sync for Unique<T> {}
 
 impl<T: ?Sized> Unique<T> {
     /// Creates a new `Unique`.
     pub unsafe fn new(ptr: *mut T) -> Unique<T> {
-        Unique { pointer: NonZero::new(ptr), _marker: PhantomData }
+        Unique {
+            pointer: NonZero::new(ptr),
+            _marker: PhantomData,
+        }
     }
 
     /// Dereferences the content.
@@ -67,7 +70,7 @@ impl<T: ?Sized> Unique<T> {
     }
 }
 
-impl<T:?Sized> Deref for Unique<T> {
+impl<T: ?Sized> Deref for Unique<T> {
     type Target = *mut T;
 
     #[inline]

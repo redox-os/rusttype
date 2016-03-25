@@ -8,7 +8,7 @@ use glium::{DisplayBuild, Surface};
 use glium::glutin;
 
 use rusttype::{FontCollection, Font, Scale, point, vector, PositionedGlyph};
-use rusttype::gpu_cache::{Cache};
+use rusttype::gpu_cache::Cache;
 use rusttype::Rect;
 
 use std::borrow::Cow;
@@ -16,7 +16,8 @@ use std::borrow::Cow;
 fn layout_paragraph<'a>(font: &'a Font,
                         scale: Scale,
                         width: u32,
-                        text: &str) -> Vec<PositionedGlyph<'a>> {
+                        text: &str)
+                        -> Vec<PositionedGlyph<'a>> {
     use unicode_normalization::UnicodeNormalization;
     let mut result = Vec::new();
     let v_metrics = font.v_metrics(scale);
@@ -29,7 +30,7 @@ fn layout_paragraph<'a>(font: &'a Font,
                 '\r' => {
                     caret = point(0.0, caret.y + advance_height);
                 }
-                '\n' => {},
+                '\n' => {}
                 _ => {}
             }
             continue;
@@ -62,11 +63,11 @@ fn main() {
     let font = FontCollection::from_bytes(font_data as &[u8]).into_font().unwrap();
 
     let display = glutin::WindowBuilder::new()
-        .with_vsync()
-        .with_dimensions(512, 512)
-        .with_title("RustType GPU cache example".into())
-        .build_glium()
-        .unwrap();
+                      .with_vsync()
+                      .with_dimensions(512, 512)
+                      .with_title("RustType GPU cache example".into())
+                      .build_glium()
+                      .unwrap();
 
     let dpi_factor = display.get_window().unwrap().hidpi_factor();
 
@@ -104,7 +105,8 @@ fn main() {
                     f_colour = v_colour * vec4(1.0, 1.0, 1.0, texture(tex, v_tex_coords).r);
                 }
             "
-        }).unwrap();
+        })
+                      .unwrap();
     let cache_tex = glium::texture::Texture2d::with_format(
         &display,
         glium::texture::RawImage2d {
@@ -128,18 +130,20 @@ Feel free to type out some text, and delete it with Backspace. You can also try 
             cache.queue_glyph(0, glyph.clone());
         }
         cache.cache_queued(|rect, data| {
-            cache_tex.main_level().write(glium::Rect {
-                left: rect.min.x,
-                bottom: rect.min.y,
-                width: rect.width(),
-                height: rect.height()
-            }, glium::texture::RawImage2d {
-                data: Cow::Borrowed(data),
-                width: rect.width(),
-                height: rect.height(),
-                format: glium::texture::ClientFormat::U8
-            });
-        }).unwrap();
+                 cache_tex.main_level().write(glium::Rect {
+                                                  left: rect.min.x,
+                                                  bottom: rect.min.y,
+                                                  width: rect.width(),
+                                                  height: rect.height(),
+                                              },
+                                              glium::texture::RawImage2d {
+                                                  data: Cow::Borrowed(data),
+                                                  width: rect.width(),
+                                                  height: rect.height(),
+                                                  format: glium::texture::ClientFormat::U8,
+                                              });
+             })
+             .unwrap();
 
         let uniforms = uniform! {
             tex: cache_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest)
@@ -150,7 +154,7 @@ Feel free to type out some text, and delete it with Backspace. You can also try 
             struct Vertex {
                 position: [f32; 2],
                 tex_coords: [f32; 2],
-                colour: [f32; 4]
+                colour: [f32; 4],
             }
 
             implement_vertex!(Vertex, position, tex_coords, colour);
@@ -160,17 +164,31 @@ Feel free to type out some text, and delete it with Backspace. You can also try 
                 (w as f32, h as f32)
             };
             let origin = point(0.0, 0.0);
-            let vertices: Vec<Vertex> = glyphs.iter().flat_map(|g| {
-                if let Ok(Some((uv_rect, screen_rect))) = cache.rect_for(0, g) {
-                    let gl_rect = Rect {
-                        min: origin
-                            + (vector(screen_rect.min.x as f32 / screen_width - 0.5,
-                                      1.0 - screen_rect.min.y as f32 / screen_height - 0.5)) * 2.0,
-                        max: origin
-                            + (vector(screen_rect.max.x as f32 / screen_width - 0.5,
-                                      1.0 - screen_rect.max.y as f32 / screen_height - 0.5)) * 2.0
-                    };
-                    arrayvec::ArrayVec::<[Vertex; 6]>::from([
+            let vertices: Vec<Vertex> = glyphs.iter()
+                                              .flat_map(|g| {
+                                                  if let Ok(Some((uv_rect, screen_rect))) =
+                                                         cache.rect_for(0, g) {
+                                                      let gl_rect = Rect {
+                                                          min: origin +
+                                                               (vector(screen_rect.min.x as f32 /
+                                                                       screen_width -
+                                                                       0.5,
+                                                                       1.0 -
+                                                                       screen_rect.min.y as f32 /
+                                                                       screen_height -
+                                                                       0.5)) *
+                                                               2.0,
+                                                          max: origin +
+                                                               (vector(screen_rect.max.x as f32 /
+                                                                       screen_width -
+                                                                       0.5,
+                                                                       1.0 -
+                                                                       screen_rect.max.y as f32 /
+                                                                       screen_height -
+                                                                       0.5)) *
+                                                               2.0,
+                                                      };
+                                                      arrayvec::ArrayVec::<[Vertex; 6]>::from([
                         Vertex {
                             position: [gl_rect.min.x, gl_rect.max.y],
                             tex_coords: [uv_rect.min.x, uv_rect.max.y],
@@ -200,25 +218,26 @@ Feel free to type out some text, and delete it with Backspace. You can also try 
                             tex_coords: [uv_rect.min.x, uv_rect.max.y],
                             colour: colour
                         }])
-                } else {
-                    arrayvec::ArrayVec::new()
-                }
-            }).collect();
+                                                  } else {
+                                                      arrayvec::ArrayVec::new()
+                                                  }
+                                              })
+                                              .collect();
 
-            glium::VertexBuffer::new(
-                &display,
-                &vertices).unwrap()
+            glium::VertexBuffer::new(&display, &vertices).unwrap()
         };
 
         let mut target = display.draw();
         target.clear_color(1.0, 1.0, 1.0, 0.0);
         target.draw(&vertex_buffer,
                     glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
-                    &program, &uniforms,
+                    &program,
+                    &uniforms,
                     &glium::DrawParameters {
                         blend: glium::Blend::alpha_blending(),
                         ..Default::default()
-                    }).unwrap();
+                    })
+              .unwrap();
 
         target.finish().unwrap();
 
@@ -226,15 +245,16 @@ Feel free to type out some text, and delete it with Backspace. You can also try 
             match event {
                 glutin::Event::KeyboardInput(_, _, Some(glutin::VirtualKeyCode::Escape)) |
                 glutin::Event::Closed => break 'main,
-                glutin::Event::ReceivedCharacter(c) => if c != '\u{7f}' {
-                    text.push(c);
-                },
-                glutin::Event::KeyboardInput(
-                    glutin::ElementState::Pressed,
-                    _,
-                    Some(glutin::VirtualKeyCode::Back)) => {
+                glutin::Event::ReceivedCharacter(c) => {
+                    if c != '\u{7f}' {
+                        text.push(c);
+                    }
+                }
+                glutin::Event::KeyboardInput(glutin::ElementState::Pressed,
+                                             _,
+                                             Some(glutin::VirtualKeyCode::Back)) => {
                     text.pop();
-                },
+                }
                 _ => {}
             }
         }
