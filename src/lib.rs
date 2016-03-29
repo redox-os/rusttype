@@ -83,7 +83,9 @@
 //!   have its own identifying number unique to the font, its ID.
 extern crate arrayvec;
 extern crate stb_truetype;
+#[cfg(not(target_os = "redox"))]
 extern crate ndarray;
+#[cfg(not(target_os = "redox"))]
 extern crate linked_hash_map;
 
 mod geometry;
@@ -91,6 +93,7 @@ mod rasterizer;
 
 mod support;
 
+#[cfg(not(target_os = "redox"))]
 pub mod gpu_cache;
 
 use std::sync::Arc;
