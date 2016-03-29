@@ -20,9 +20,11 @@ exclude = ["examples/*.ttf"]
 [dependencies]
 arrayvec = "0.3.13"
 stb_truetype = "0.2.0"
+
+[target.'cfg(not(target_os = "redox"))'.dependencies]
 ndarray = "0.3"
 linked-hash-map = "0.0.9"
 
-[dev-dependencies]
+[target.'cfg(not(target_os = "redox"))'.dev-dependencies]
 glium = "0.13.5"
 unicode-normalization = "0.1.2"
