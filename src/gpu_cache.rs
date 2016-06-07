@@ -30,8 +30,6 @@ use support::bst::map::BTreeMap;
 use support::bst::Bound::{Included, Unbounded};
 use linked_hash_map::LinkedHashMap;
 
-use ndarray::{Ix, OwnedArray, zeros};
-
 #[derive(PartialEq, PartialOrd, Copy, Clone, Debug)]
 struct PGlyphSpec {
     font_id: usize,
@@ -48,10 +46,56 @@ impl ::std::cmp::Ord for PGlyphSpec {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ByteArray2d {
+    inner_array: Vec<u8>,
+    row: usize,
+    col: usize,
+}
+
+impl ByteArray2d {
+    pub fn zeros(row: usize, col: usize) -> Self {
+        ByteArray2d {
+            inner_array: vec![0; row * col],
+            row: row,
+            col: col,
+        }
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        self.inner_array.as_slice()
+    }
+
+    fn get_vec_index(&self, row: usize, col: usize) -> usize {
+        if row >= self.row {
+            panic!("row out of range: row={}, given={}", self.row, row);
+        } else if col >= self.col {
+            panic!("column out of range: col={}, given={}", self.col, col);
+        } else {
+            row * self.col + col
+        }
+    }
+}
+
+impl ::std::ops::Index<(usize, usize)> for ByteArray2d {
+    type Output = u8;
+
+    fn index(&self, (row, col): (usize, usize)) -> &u8 {
+        &self.inner_array[self.get_vec_index(row, col)]
+    }
+}
+
+impl ::std::ops::IndexMut<(usize, usize)> for ByteArray2d {
+    fn index_mut(&mut self, (row, col): (usize, usize)) -> &mut u8 {
+        let vec_index = self.get_vec_index(row, col);
+        &mut self.inner_array[vec_index]
+    }
+}
+
 struct Row {
     height: u32,
     width: u32,
-    glyphs: Vec<(PGlyphSpec, Rect<u32>, OwnedArray<u8, (Ix, Ix)>)>
+    glyphs: Vec<(PGlyphSpec, Rect<u32>, ByteArray2d)>
 }
 
 /// An implementation of a dynamic GPU glyph cache. See the module documentation for more information.
@@ -378,7 +422,7 @@ impl Cache {
                 max: point(row.width + width, row_top + height)
             };
             // draw the glyph into main memory
-            let mut pixels = zeros((height as usize, width as usize));
+            let mut pixels = ByteArray2d::zeros(height as usize, width as usize);
             glyph.draw(|x, y, v| {
                 let v = ((v * 255.0) + 0.5).floor().max(0.0).min(255.0) as u8;
                 pixels[(y as usize, x as usize)] = v;
@@ -386,7 +430,7 @@ impl Cache {
             // transfer
             uploader(
                 rect,
-                &pixels.as_slice().unwrap());
+                &pixels.as_slice());
             // add the glyph to the row
             row.glyphs.push((spec, rect, pixels));
             row.width += width;

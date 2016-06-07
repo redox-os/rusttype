@@ -83,7 +83,6 @@
 //!   have its own identifying number unique to the font, its ID.
 extern crate arrayvec;
 extern crate stb_truetype;
-extern crate ndarray;
 extern crate linked_hash_map;
 
 mod geometry;

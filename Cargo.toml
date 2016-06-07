@@ -20,7 +20,6 @@ exclude = ["examples/*.ttf"]
 [dependencies]
 arrayvec = "0.3.13"
 stb_truetype = "0.2.0"
-ndarray = "0.3"
 linked-hash-map = "0.0.9"
 
 [dev-dependencies]
