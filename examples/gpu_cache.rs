@@ -226,7 +226,7 @@ Feel free to type out some text, and delete it with Backspace. You can also try 
             match event {
                 glutin::Event::KeyboardInput(_, _, Some(glutin::VirtualKeyCode::Escape)) |
                 glutin::Event::Closed => break 'main,
-                glutin::Event::ReceivedCharacter(c) => if c != '\u{7f}' {
+                glutin::Event::ReceivedCharacter(c) => if c != '\u{7f}' && c != '\u{8}' {
                     text.push(c);
                 },
                 glutin::Event::KeyboardInput(
