@@ -122,7 +122,10 @@ fn main() {
 Feel free to type out some text, and delete it with Backspace. You can also try resizing this window."
         .into();
     'main: loop {
-        let width = display.get_window().unwrap().get_inner_size_pixels().unwrap().0;
+        let (width, dpi_factor) = {
+            let window = display.get_window().unwrap();
+            (window.get_inner_size_pixels().unwrap().0, window.hidpi_factor())
+        };
         let glyphs = layout_paragraph(&font, Scale::uniform(24.0 * dpi_factor), width, &text);
         for glyph in &glyphs {
             cache.queue_glyph(0, glyph.clone());
