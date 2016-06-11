@@ -286,6 +286,28 @@ impl<'a> FontCollection<'a> {
             .and_then(|o| tt::FontInfo::new(self.0.clone(), o as usize))
             .map(|info| Font { info: info })
     }
+    /// Converts `self` into an `Iterator` yielding each `Font` that exists within the collection.
+    pub fn into_fonts(self) -> IntoFontsIter<'a> {
+        IntoFontsIter {
+            collection: self,
+            next_index: 0,
+        }
+    }
+}
+pub struct IntoFontsIter<'a> {
+    next_index: usize,
+    collection: FontCollection<'a>,
+}
+impl<'a> Iterator for IntoFontsIter<'a> {
+    type Item = Font<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        tt::get_font_offset_for_index(&self.collection.0, self.next_index as i32)
+            .and_then(|o| tt::FontInfo::new(self.collection.0.clone(), o as usize))
+            .map(|info| {
+                self.next_index += 1;
+                Font { info: info }
+            })
+    }
 }
 impl<'a> Font<'a> {
 
