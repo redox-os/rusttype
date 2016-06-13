@@ -64,7 +64,7 @@ fn main() {
     let display = glutin::WindowBuilder::new()
         .with_vsync()
         .with_dimensions(512, 512)
-        .with_title("RustType GPU cache example".into())
+        .with_title("RustType GPU cache example")
         .build_glium()
         .unwrap();
 
