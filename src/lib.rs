@@ -391,6 +391,7 @@ impl<'a> Font<'a> {
         factor * kern as f32
     }
 }
+#[derive(Clone)]
 pub struct GlyphIter<'a, I: Iterator> where I::Item: Into<CodepointOrGlyphId> {
     font: &'a Font<'a>,
     itr: I
@@ -401,6 +402,7 @@ impl<'a, I: Iterator> Iterator for GlyphIter<'a, I> where I::Item: Into<Codepoin
         self.itr.next().map(|c| self.font.glyph(c).unwrap())
     }
 }
+#[derive(Clone)]
 pub struct LayoutIter<'a, 'b> {
     font: &'a Font<'a>,
     chars: ::std::str::Chars<'b>,
