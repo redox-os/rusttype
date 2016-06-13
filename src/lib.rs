@@ -281,7 +281,7 @@ impl<'a> FontCollection<'a> {
     }
     /// Gets the font at index `i` in the font collection, if it exists and is valid.
     /// The produced font borrows the font data that is either borrowed or owned by this font collection.
-    pub fn font_at(&self, i: usize) -> Option<Font> {
+    pub fn font_at(&self, i: usize) -> Option<Font<'a>> {
         tt::get_font_offset_for_index(&self.0, i as i32)
             .and_then(|o| tt::FontInfo::new(self.0.clone(), o as usize))
             .map(|info| Font { info: info })
