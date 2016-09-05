@@ -1,3 +1,9 @@
+##0.2.1
+
+* Made the API more convenient (courtesy of @mitchmindtree, @I1048576).
+* Fixes for the examples (@I1048576)
+* Removed the dependency on ndarray (@I1048576)
+
 # 0.2.0
 
 * Initial GPU caching implementation.
