@@ -1,6 +1,6 @@
 [package]
 name = "rusttype"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Dylan Ede <dylanede@googlemail.com>"]
 description = """
 A pure Rust alternative to libraries like FreeType.
