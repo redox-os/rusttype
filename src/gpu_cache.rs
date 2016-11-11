@@ -567,7 +567,7 @@ fn cache_test() {
     use ::Scale;
     use ::point;
     let mut cache = Cache::new(32, 32, 0.1, 0.1);
-    let font_data = include_bytes!("../examples/Arial Unicode.ttf");
+    let font_data = include_bytes!("../examples/DejaVuSans.ttf");
     let font = FontCollection::from_bytes(font_data as &[u8]).into_font().unwrap();
     let strings = [
         ("Hello World!", 15.0),
