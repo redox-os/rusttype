@@ -585,3 +585,34 @@ fn cache_test() {
         cache.cache_queued(|_, _| {}).unwrap();
     }
 }
+
+#[cfg(test)]
+#[test]
+fn need_to_check_whole_cache() {
+    use ::FontCollection;
+    use ::Scale;
+    use ::point;
+    let font_data = include_bytes!("../examples/Arial Unicode.ttf");
+    let font = FontCollection::from_bytes(font_data as &[u8]).into_font().unwrap();
+
+    let glyph = font.glyph('l').unwrap();
+
+    let small = glyph.clone().scaled(Scale::uniform(10.0));
+    let large = glyph.clone().scaled(Scale::uniform(10.05));
+
+    let small_left = small.clone().positioned(point(0.0, 0.0));
+    let large_left = large.clone().positioned(point(0.0, 0.0));
+    let large_right = large.clone().positioned(point(-0.2, 0.0));
+
+    let mut cache = Cache::new(32, 32, 0.1, 0.1);
+
+    cache.queue_glyph(0, small_left.clone());
+    cache.queue_glyph(0, large_left.clone()); // Noop since it's within the scale tolerance of small_left
+    cache.queue_glyph(0, large_right.clone());
+
+    cache.cache_queued(|_, _| {}).unwrap();
+
+    cache.rect_for(0, &small_left).unwrap();
+    cache.rect_for(0, &large_left).unwrap(); // Blows up because large_right (not a match) is the value to its left in the BTreeMap, thus small_left (a match) never gets checked
+    cache.rect_for(0, &large_right).unwrap();
+}
