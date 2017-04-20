@@ -27,7 +27,6 @@ use ::{PositionedGlyph, GlyphId, Rect, Scale, Vector};
 
 use std::collections::HashMap;
 use support::bst::map::BTreeMap;
-use support::bst::Bound::{Included, Unbounded};
 use linked_hash_map::LinkedHashMap;
 
 #[derive(PartialEq, PartialOrd, Copy, Clone, Debug)]
@@ -266,73 +265,36 @@ impl Cache {
                 scale: glyph.scale(),
                 offset: pfract
             };
-            let lower = self.all_glyphs.range(Unbounded, Included(&spec)).rev().next()
-                .and_then(|(l, &(lrow, _))| {
-                    if l.font_id == spec.font_id &&
-                        l.glyph_id == spec.glyph_id &&
-                        (l.scale.x - spec.scale.x).abs() < self.scale_tolerance &&
-                        (l.scale.y - spec.scale.y).abs() < self.scale_tolerance &&
-                        (spec.offset.x - l.offset.x).abs() < self.position_tolerance &&
-                        (spec.offset.y - l.offset.y).abs() < self.position_tolerance
-                    {
-                        Some((l.scale, l.offset, lrow))
-                    } else {
-                        None
-                    }
-                });
-            let upper = self.all_glyphs.range(Included(&spec), Unbounded).next()
-                .and_then(|(u, &(urow, _))| {
-                    if u.font_id == spec.font_id &&
-                        u.glyph_id == spec.glyph_id &&
-                        (u.scale.x - spec.scale.x).abs() < self.scale_tolerance &&
-                        (u.scale.y - spec.scale.y).abs() < self.scale_tolerance &&
-                        (spec.offset.x - u.offset.x).abs() < self.position_tolerance &&
-                        (spec.offset.y - u.offset.y).abs() < self.position_tolerance
-                    {
-                        Some((u.scale, u.offset, urow))
-                    } else {
-                        None
-                    }
-                });
-            match (lower, upper) {
-                (None, None) => {} // No match
-                (None, Some((_, _, row))) |
-                (Some((_, _, row)), None) => {
-                    // just one match
-                    self.rows.get_refresh(&row);
-                    if oldest_in_use_row.is_none() {
-                        oldest_in_use_row = Some(row);
-                    }
-                    continue 'per_glyph;
+
+
+            let matching_row = self.all_glyphs.iter()
+                .filter(|&(other, _)| {
+                    other.font_id == spec.font_id &&
+                        other.glyph_id == spec.glyph_id &&
+                        (other.scale.x - spec.scale.x).abs() < self.scale_tolerance &&
+                        (other.scale.y - spec.scale.y).abs() < self.scale_tolerance &&
+                        (spec.offset.x - other.offset.x).abs() < self.position_tolerance &&
+                        (spec.offset.y - other.offset.y).abs() < self.position_tolerance
+                })
+                .map(|(other, &(row, _))| {
+                    let measure = ((other.scale.x - spec.scale.x) / self.scale_tolerance).abs()
+                        + ((other.scale.y - spec.scale.y) / self.scale_tolerance).abs()
+                        + ((other.offset.x - spec.offset.x) / self.position_tolerance).abs()
+                        + ((other.offset.y - spec.offset.y) / self.position_tolerance).abs();
+
+                    (measure, row)
+                })
+                .min_by(|a, b| a.0.partial_cmp(&b.0).unwrap())
+                .map(|(_, row)| row);
+
+            if let Some(row) = matching_row {
+                self.rows.get_refresh(&row);
+                if oldest_in_use_row.is_none() {
+                    oldest_in_use_row = Some(row);
                 }
-                (Some((_, _, row1)), Some((_, _, row2))) if row1 == row2 => {
-                    // two matches, but the same row
-                    self.rows.get_refresh(&row1);
-                    if oldest_in_use_row.is_none() {
-                        oldest_in_use_row = Some(row1);
-                    }
-                    continue 'per_glyph;
-                }
-                (Some((scale1, offset1, row1)), Some((scale2, offset2, row2))) => {
-                    // two definitely distinct matches
-                    let v1 =
-                        ((scale1.x - spec.scale.x) / self.scale_tolerance).abs()
-                        + ((scale1.y - spec.scale.y) / self.scale_tolerance).abs()
-                        + ((offset1.x - spec.offset.x) / self.position_tolerance).abs()
-                        + ((offset1.y - spec.offset.y) / self.position_tolerance).abs();
-                    let v2 =
-                        ((scale2.x - spec.scale.x) / self.scale_tolerance).abs()
-                        + ((scale2.y - spec.scale.y) / self.scale_tolerance).abs()
-                        + ((offset2.x - spec.offset.x) / self.position_tolerance).abs()
-                        + ((offset2.y - spec.offset.y) / self.position_tolerance).abs();
-                    let row = if v1 < v2 { row1 } else { row2 };
-                    self.rows.get_refresh(&row);
-                    if oldest_in_use_row.is_none() {
-                        oldest_in_use_row = Some(row);
-                    }
-                    continue 'per_glyph;
-                }
+                continue 'per_glyph;
             }
+
             // Not cached, so add it:
             let bb = glyph.pixel_bounding_box().unwrap();
             let (width, height) = (bb.width() as u32, bb.height() as u32);
@@ -464,10 +426,8 @@ impl Cache {
                         glyph: &PositionedGlyph) -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr> {
         use vector;
         use point;
-        let glyph_bb = match glyph.pixel_bounding_box() {
-            Some(bb) => bb,
-            None => return Ok(None)
-        };
+
+        if glyph.pixel_bounding_box().is_none() { return Ok(None) }
         let target_position = glyph.position();
         let target_offset = normalise_pixel_offset(vector(target_position.x.fract(), target_position.y.fract()));
         let target_spec = PGlyphSpec {
@@ -476,68 +436,34 @@ impl Cache {
             scale: glyph.scale(),
             offset: target_offset
         };
-        let lower = self.all_glyphs.range(Unbounded, Included(&target_spec)).rev().next()
-            .and_then(|(l, &(lrow, lindex))| {
-                if l.font_id == target_spec.font_id &&
-                    l.glyph_id == target_spec.glyph_id &&
-                    (l.scale.x - target_spec.scale.x).abs() < self.scale_tolerance &&
-                    (l.scale.y - target_spec.scale.y).abs() < self.scale_tolerance &&
-                    (target_spec.offset.x - l.offset.x).abs() < self.position_tolerance &&
-                    (target_spec.offset.y - l.offset.y).abs() < self.position_tolerance
-                {
-                    Some((l, lrow, lindex))
-                } else {
-                    None
-                }
-            });
-        let upper = self.all_glyphs.range(Included(&target_spec), Unbounded).next()
-            .and_then(|(u, &(urow, uindex))| {
-                if u.font_id == target_spec.font_id &&
-                    u.glyph_id == target_spec.glyph_id &&
-                    (u.scale.x - target_spec.scale.x).abs() < self.scale_tolerance &&
-                    (u.scale.y - target_spec.scale.y).abs() < self.scale_tolerance &&
-                    (target_spec.offset.x - u.offset.x).abs() < self.position_tolerance &&
-                    (target_spec.offset.y - u.offset.y).abs() < self.position_tolerance
-                {
-                    Some((u, urow, uindex))
-                } else {
-                    None
-                }
-            });
-        let (width, height) = (self.width as f32, self.height as f32);
-        let (match_spec, row, index) = match (lower, upper) {
-            (None, None) => return Err(CacheReadErr::GlyphNotCached),
-            (Some(match_), None) |
-            (None, Some(match_)) => match_, // one match
-            (Some((lmatch_spec, lrow, lindex)), Some((umatch_spec, urow, uindex))) => {
-                if lrow == urow && lindex == uindex {
-                    // both matches are really the same one, and match the input
-                    let tex_rect = self.rows[&lrow].glyphs[lindex as usize].1;
-                    let uv_rect = Rect {
-                        min: point(tex_rect.min.x as f32 / width, tex_rect.min.y as f32 / height),
-                        max: point(tex_rect.max.x as f32 / width, tex_rect.max.y as f32 / height)
-                    };
-                    return Ok(Some((uv_rect, glyph_bb)))
-                } else {
-                    // Two close-enough matches. Figure out which is closest.
-                    let l_measure =
-                        ((lmatch_spec.scale.x - target_spec.scale.x) / self.scale_tolerance).abs()
-                        + ((lmatch_spec.scale.y - target_spec.scale.y) / self.scale_tolerance).abs()
-                        + ((lmatch_spec.offset.x - target_spec.offset.x) / self.position_tolerance).abs()
-                        + ((lmatch_spec.offset.y - target_spec.offset.y) / self.position_tolerance).abs();
-                    let u_measure =
-                        ((umatch_spec.scale.x - target_spec.scale.x) / self.scale_tolerance).abs()
-                        + ((umatch_spec.scale.y - target_spec.scale.y) / self.scale_tolerance).abs()
-                        + ((umatch_spec.offset.x - target_spec.offset.x) / self.position_tolerance).abs()
-                        + ((umatch_spec.offset.y - target_spec.offset.y) / self.position_tolerance).abs();
-                    if l_measure < u_measure {
-                        (lmatch_spec, lrow, lindex)
-                    } else {
-                        (umatch_spec, urow, uindex)
-                    }
-                }
-            }
+
+        let match_ = self.all_glyphs.iter()
+            .filter(|&(other, _)| {
+                other.font_id == target_spec.font_id &&
+                    other.glyph_id == target_spec.glyph_id &&
+                    (other.scale.x - target_spec.scale.x).abs() < self.scale_tolerance &&
+                    (other.scale.y - target_spec.scale.y).abs() < self.scale_tolerance &&
+                    (target_spec.offset.x - other.offset.x).abs() < self.position_tolerance &&
+                    (target_spec.offset.y - other.offset.y).abs() < self.position_tolerance
+            })
+            .map(|(other, &(row, index))| {
+                let measure = ((other.scale.x - target_spec.scale.x) / self.scale_tolerance).abs()
+                    + ((other.scale.y - target_spec.scale.y) / self.scale_tolerance).abs()
+                    + ((other.offset.x - target_spec.offset.x) / self.position_tolerance).abs()
+                    + ((other.offset.y - target_spec.offset.y) / self.position_tolerance).abs();
+
+                (measure, (other, row, index))
+            })
+            .min_by(|a, b| a.0.partial_cmp(&b.0).unwrap())
+            .map(|(_, match_)| match_);
+
+        let (match_spec, row, index) = match match_ {
+            Some(match_) => match_,
+            None => return Err(CacheReadErr::GlyphNotCached),
         };
+
+        let (width, height) = (self.width as f32, self.height as f32);
+
         let tex_rect = self.rows[&row].glyphs[index as usize].1;
         let uv_rect = Rect {
             min: point(tex_rect.min.x as f32 / width, tex_rect.min.y as f32 / height),
@@ -613,6 +539,6 @@ fn need_to_check_whole_cache() {
     cache.cache_queued(|_, _| {}).unwrap();
 
     cache.rect_for(0, &small_left).unwrap();
-    cache.rect_for(0, &large_left).unwrap(); // Blows up because large_right (not a match) is the value to its left in the BTreeMap, thus small_left (a match) never gets checked
+    cache.rect_for(0, &large_left).unwrap();
     cache.rect_for(0, &large_right).unwrap();
 }
