@@ -41,7 +41,7 @@ use ::std::boxed::Box;
 use super::heap;
 
 const B: usize = 6;
-pub const CAPACITY: usize = 2 * B - 1;
+pub const CAPACITY: usize = 11;
 
 struct LeafNode<K, V> {
     keys: [K; CAPACITY],
@@ -68,7 +68,7 @@ impl<K, V> LeafNode<K, V> {
 #[repr(C)]
 struct InternalNode<K, V> {
     data: LeafNode<K, V>,
-    edges: [BoxedNode<K, V>; 2 * B],
+    edges: [BoxedNode<K, V>; 12],
 }
 
 impl<K, V> InternalNode<K, V> {
