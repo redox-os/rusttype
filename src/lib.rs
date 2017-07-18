@@ -85,6 +85,8 @@ extern crate arrayvec;
 extern crate stb_truetype;
 extern crate linked_hash_map;
 
+#[deny(missing_copy_implementations)]
+
 mod geometry;
 mod rasterizer;
 
@@ -99,7 +101,7 @@ use stb_truetype as tt;
 
 /// A collection of fonts read straight from a font file's data. The data in the collection is not validated.
 /// This structure may or may not own the font data.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FontCollection<'a>(SharedBytes<'a>);
 /// A single font. This may or may not own the font data.
 #[derive(Clone)]
@@ -110,7 +112,7 @@ pub struct Font<'a> {
 /// `SharedBytes` handles the lifetime of font data used in RustType. The data is either a shared
 /// reference to externally owned data, or managed by reference counting. `SharedBytes` can be
 /// conveniently used with `From` and `Into`, and dereferences to the contained bytes.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum SharedBytes<'a> {
     ByRef(&'a [u8]),
     ByArc(Arc<Box<[u8]>>)
@@ -177,12 +179,19 @@ enum GlyphInner<'a> {
     Shared(Arc<SharedGlyphData>)
 }
 
-struct SharedGlyphData {
-    id: u32,
-    extents: Option<Rect<i32>>,
-    scale_for_1_pixel: f32,
-    unit_h_metrics: HMetrics,
-    shape: Option<Vec<tt::Vertex>>
+/// Shared glyph data, inner data of a glyph
+#[derive(Clone, Debug)]
+pub struct SharedGlyphData {
+    /// ID of the glyph in the font
+    pub id: u32,
+    /// Extents of the glyph
+    pub extents: Option<Rect<i32>>,
+    /// Current scaling
+    pub scale_for_1_pixel: f32,
+    /// Raw horizontal metrics
+    pub unit_h_metrics: HMetrics,
+    /// Vertices of the glyph
+    pub shape: Option<Vec<tt::Vertex>>
 }
 /// The "horizontal metrics" of a glyph. This is useful for calculating the horizontal offset of a glyph
 /// from the previous one in a string when laying a string out horizontally.
@@ -319,6 +328,18 @@ impl<'a> Font<'a> {
             ascent: vm.ascent as f32 * scale,
             descent: vm.descent as f32 * scale,
             line_gap: vm.line_gap as f32 * scale
+        }
+    }
+
+    /// Get the unscaled VMetrics for this font, shared by all glyphs.
+    /// See `VMetrics` for more detail.
+    #[inline]
+    pub fn v_metrics_unscaled(&self) -> VMetrics {
+        let vm = self.info.get_v_metrics();
+        VMetrics {
+            ascent: vm.ascent as f32,
+            descent: vm.descent as f32,
+            line_gap: vm.line_gap as f32,
         }
     }
 
@@ -461,6 +482,16 @@ impl<'a> Glyph<'a> {
             GlyphInner::Shared(_) => None
         }
     }
+
+    /// Get the data from this glyph (such as width, extents, vertices, etc.).
+    /// Only possible if the glyph is a shared glyph.
+    pub fn get_data(&self) -> Option<Arc<SharedGlyphData>> {
+        match self.inner {
+            GlyphInner::Proxy(_, _) => None,
+            GlyphInner::Shared(ref s) => Some(s.clone())
+        }
+    }
+
     /// The glyph identifier for this glyph.
     pub fn id(&self) -> GlyphId {
         match self.inner {
