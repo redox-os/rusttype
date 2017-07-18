@@ -19,7 +19,7 @@ exclude = ["examples/*.ttf"]
 
 [dependencies]
 arrayvec = "^0.3.13"
-stb_truetype = "^0.2"
+stb_truetype = { git = "https://github.com/sharazam/stb_truetype-rs" }
 linked-hash-map = "0.0.10"
 
 [dev-dependencies]
