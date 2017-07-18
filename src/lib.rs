@@ -177,11 +177,17 @@ enum GlyphInner<'a> {
     Shared(Arc<SharedGlyphData>)
 }
 
+/// Shared glyph data, inner data of a glyph
 pub struct SharedGlyphData {
+    /// ID of the glyph in the font
     pub id: u32,
+    /// Extents of the glyph
     pub extents: Option<Rect<i32>>,
+    /// Current scaling
     pub scale_for_1_pixel: f32,
+    /// Raw horizontal metrics
     pub unit_h_metrics: HMetrics,
+    /// Vertices of the glyph
     pub shape: Option<Vec<tt::Vertex>>
 }
 /// The "horizontal metrics" of a glyph. This is useful for calculating the horizontal offset of a glyph
