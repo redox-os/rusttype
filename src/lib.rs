@@ -322,6 +322,18 @@ impl<'a> Font<'a> {
         }
     }
 
+    /// Get the unscaled VMetrics for this font, shared by all glyphs.
+    /// See `VMetrics` for more detail.
+    #[inline]
+    pub fn v_metrics_unscaled(&self) -> VMetrics {
+        let vm = self.info.get_v_metrics();
+        VMetrics {
+            ascent: vm.ascent as f32,
+            descent: vm.descent as f32,
+            line_gap: vm.line_gap as f32,
+        }
+    }
+
     /// The number of glyphs present in this font. Glyph identifiers for this font will always be in the range
     /// `0..self.glyph_count()`
     pub fn glyph_count(&self) -> usize {
