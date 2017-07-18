@@ -178,6 +178,7 @@ enum GlyphInner<'a> {
 }
 
 /// Shared glyph data, inner data of a glyph
+#[derive(Clone, Debug)]
 pub struct SharedGlyphData {
     /// ID of the glyph in the font
     pub id: u32,
