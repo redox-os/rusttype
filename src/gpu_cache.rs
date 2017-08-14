@@ -218,7 +218,7 @@ impl Cache {
     /// Queue a glyph for caching by the next call to `cache_queued`. `font_id` is used to
     /// disambiguate glyphs from different fonts. The user should ensure that `font_id` is unique to the
     /// font the glyph is from.
-    pub fn queue_glyph(&mut self, font_id: usize, glyph: PositionedGlyph) {
+    pub fn queue_glyph(&mut self, font_id: usize, glyph: &PositionedGlyph) {
         if glyph.pixel_bounding_box().is_some() {
             self.queue.push((font_id, glyph.standalone()));
         }
