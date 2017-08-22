@@ -18,10 +18,10 @@ keywords = ["font", "truetype", "opentype", "ttf", "otf"]
 exclude = ["examples/*.ttf"]
 
 [dependencies]
-arrayvec = "^0.3.13"
-stb_truetype = "^0.2"
-linked-hash-map = "0.0.10"
+arrayvec = "0.4"
+stb_truetype = "0.2"
+linked-hash-map = "0.5"
 
 [dev-dependencies]
-glium = "^0.14"
-unicode-normalization = "^0.1.2"
+glium = "0.17"
+unicode-normalization = "0.1"

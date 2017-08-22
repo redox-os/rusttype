@@ -4,13 +4,9 @@ extern crate rusttype;
 extern crate arrayvec;
 extern crate unicode_normalization;
 
-use glium::{DisplayBuild, Surface};
-use glium::glutin;
-
-use rusttype::{FontCollection, Font, Scale, point, vector, PositionedGlyph};
-use rusttype::gpu_cache::{Cache};
-use rusttype::Rect;
-
+use glium::{glutin, Surface};
+use rusttype::{FontCollection, Font, Scale, point, vector, PositionedGlyph, Rect};
+use rusttype::gpu_cache::Cache;
 use std::borrow::Cow;
 
 fn layout_paragraph<'a>(font: &'a Font,
@@ -61,14 +57,15 @@ fn main() {
     let font_data = include_bytes!("Arial Unicode.ttf");
     let font = FontCollection::from_bytes(font_data as &[u8]).into_font().unwrap();
 
-    let display = glutin::WindowBuilder::new()
-        .with_vsync()
+    let window = glutin::WindowBuilder::new()
         .with_dimensions(512, 512)
-        .with_title("RustType GPU cache example")
-        .build_glium()
-        .unwrap();
+        .with_title("RustType GPU cache example");
+    let context = glutin::ContextBuilder::new()
+        .with_vsync(true);
+    let mut events_loop = glutin::EventsLoop::new();
+    let display = glium::Display::new(window, context, &events_loop).unwrap();
 
-    let dpi_factor = display.get_window().unwrap().hidpi_factor();
+    let dpi_factor = display.gl_window().hidpi_factor();
 
     let (cache_width, cache_height) = (512 * dpi_factor as u32, 512 * dpi_factor as u32);
     let mut cache = Cache::new(cache_width, cache_height, 0.1, 0.1);
@@ -121,11 +118,39 @@ fn main() {
 \r
 Feel free to type out some text, and delete it with Backspace. You can also try resizing this window."
         .into();
-    'main: loop {
+    loop {
         let (width, dpi_factor) = {
-            let window = display.get_window().unwrap();
+            let window = display.gl_window();
             (window.get_inner_size_pixels().unwrap().0, window.hidpi_factor())
         };
+
+        let mut finished = false;
+        events_loop.poll_events(|event| {
+            use glutin::*;
+
+            if let Event::WindowEvent { event, .. } = event {
+                match event {
+                    WindowEvent::Closed => finished = true,
+                    WindowEvent::KeyboardInput {
+                        input: KeyboardInput {
+                            state: ElementState::Pressed,
+                            virtual_keycode: Some(keypress),
+                            .. },
+                        ..
+                    } => match keypress {
+                        VirtualKeyCode::Escape => finished = true,
+                        VirtualKeyCode::Back => { text.pop(); },
+                        _ => (),
+                    },
+                    WindowEvent::ReceivedCharacter(c) => if c != '\u{7f}' && c != '\u{8}' {
+                        text.push(c);
+                    },
+                    _ => {},
+                }
+            }
+        });
+        if finished { break }
+
         let glyphs = layout_paragraph(&font, Scale::uniform(24.0 * dpi_factor), width, &text);
         for glyph in &glyphs {
             cache.queue_glyph(0, glyph.clone());
@@ -224,22 +249,5 @@ Feel free to type out some text, and delete it with Backspace. You can also try 
                     }).unwrap();
 
         target.finish().unwrap();
-
-        for event in display.poll_events() {
-            match event {
-                glutin::Event::KeyboardInput(_, _, Some(glutin::VirtualKeyCode::Escape)) |
-                glutin::Event::Closed => break 'main,
-                glutin::Event::ReceivedCharacter(c) => if c != '\u{7f}' && c != '\u{8}' {
-                    text.push(c);
-                },
-                glutin::Event::KeyboardInput(
-                    glutin::ElementState::Pressed,
-                    _,
-                    Some(glutin::VirtualKeyCode::Back)) => {
-                    text.pop();
-                },
-                _ => {}
-            }
-        }
     }
 }
