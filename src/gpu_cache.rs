@@ -450,6 +450,7 @@ impl Cache {
             result
         }
     }
+
     /// Retrieves the (floating point) texture coordinates of the quad for a glyph in the cache,
     /// as well as the pixel-space (integer) coordinates that this region should be drawn at.
     /// In the majority of cases these pixel-space coordinates should be identical to the bounding box of the
@@ -459,9 +460,22 @@ impl Cache {
     /// A sucessful result is `Some` if the glyph is not an empty glyph (no shape, and thus no rect to return).
     ///
     /// Ensure that `font_id` matches the `font_id` that was passed to `queue_glyph` with this `glyph`.
-    pub fn rect_for<'a>(&'a self,
-                        font_id: usize,
-                        glyph: &PositionedGlyph) -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr> {
+    pub fn rect_for<'a>(
+        &'a self,
+        font_id: usize,
+        glyph: &PositionedGlyph)
+        -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr>
+    {
+        self.cache_adjacent_rect(font_id, glyph)
+            .or_else(|_| self.full_cache_search_rect(font_id, glyph))
+    }
+
+    fn cache_adjacent_rect<'a>(
+        &'a self,
+        font_id: usize,
+        glyph: &PositionedGlyph)
+        -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr>
+    {
         use vector;
         use point;
         let glyph_bb = match glyph.pixel_bounding_box() {
@@ -558,6 +572,73 @@ impl Cache {
         };
         Ok(Some((uv_rect, bb)))
     }
+
+    fn full_cache_search_rect<'a>(
+        &'a self,
+        font_id: usize,
+        glyph: &PositionedGlyph)
+        -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr>
+    {
+        use vector;
+        use point;
+
+        if glyph.pixel_bounding_box().is_none() { return Ok(None) }
+        let target_position = glyph.position();
+        let target_offset = normalise_pixel_offset(vector(target_position.x.fract(), target_position.y.fract()));
+        let target_spec = PGlyphSpec {
+            font_id: font_id,
+            glyph_id: glyph.id(),
+            scale: glyph.scale(),
+            offset: target_offset
+        };
+
+        let match_ = self.all_glyphs.iter()
+            .filter(|&(other, _)| {
+                other.font_id == target_spec.font_id &&
+                    other.glyph_id == target_spec.glyph_id &&
+                    (other.scale.x - target_spec.scale.x).abs() < self.scale_tolerance &&
+                    (other.scale.y - target_spec.scale.y).abs() < self.scale_tolerance &&
+                    (target_spec.offset.x - other.offset.x).abs() < self.position_tolerance &&
+                    (target_spec.offset.y - other.offset.y).abs() < self.position_tolerance
+            })
+            .map(|(other, &(row, index))| {
+                let measure = ((other.scale.x - target_spec.scale.x) / self.scale_tolerance).abs()
+                    + ((other.scale.y - target_spec.scale.y) / self.scale_tolerance).abs()
+                    + ((other.offset.x - target_spec.offset.x) / self.position_tolerance).abs()
+                    + ((other.offset.y - target_spec.offset.y) / self.position_tolerance).abs();
+
+                (measure, (other, row, index))
+            })
+            .min_by(|a, b| a.0.partial_cmp(&b.0).unwrap())
+            .map(|(_, match_)| match_);
+
+        let (match_spec, row, index) = match match_ {
+            Some(match_) => match_,
+            None => return Err(CacheReadErr::GlyphNotCached),
+        };
+
+        let (width, height) = (self.width as f32, self.height as f32);
+
+        let tex_rect = self.rows[&row].glyphs[index as usize].1;
+        let uv_rect = Rect {
+            min: point(tex_rect.min.x as f32 / width, tex_rect.min.y as f32 / height),
+            max: point(tex_rect.max.x as f32 / width, tex_rect.max.y as f32 / height)
+        };
+        let local_bb = glyph
+            .unpositioned().clone()
+            .positioned(point(0.0, 0.0) + match_spec.offset).pixel_bounding_box().unwrap();
+        let min_from_origin =
+            point(local_bb.min.x as f32, local_bb.min.y as f32)
+                    - (point(0.0, 0.0) + match_spec.offset);
+        let ideal_min = min_from_origin + target_position;
+        let min = point(ideal_min.x.round() as i32, ideal_min.y.round() as i32);
+        let bb_offset = min - local_bb.min;
+        let bb = Rect {
+            min: min,
+            max: local_bb.max + bb_offset
+        };
+        Ok(Some((uv_rect, bb)))
+    }
 }
 
 #[cfg(test)]
@@ -586,6 +667,37 @@ fn cache_test() {
     }
 }
 
+#[cfg(test)]
+#[test]
+fn need_to_check_whole_cache() {
+    use ::FontCollection;
+    use ::Scale;
+    use ::point;
+    let font_data = include_bytes!("../examples/Arial Unicode.ttf");
+    let font = FontCollection::from_bytes(font_data as &[u8]).into_font().unwrap();
+
+    let glyph = font.glyph('l').unwrap();
+
+    let small = glyph.clone().scaled(Scale::uniform(10.0));
+    let large = glyph.clone().scaled(Scale::uniform(10.05));
+
+    let small_left = small.clone().positioned(point(0.0, 0.0));
+    let large_left = large.clone().positioned(point(0.0, 0.0));
+    let large_right = large.clone().positioned(point(-0.2, 0.0));
+
+    let mut cache = Cache::new(32, 32, 0.1, 0.1);
+
+    cache.queue_glyph(0, small_left.clone());
+    cache.queue_glyph(0, large_left.clone()); // Noop since it's within the scale tolerance of small_left
+    cache.queue_glyph(0, large_right.clone());
+
+    cache.cache_queued(|_, _| {}).unwrap();
+
+    cache.rect_for(0, &small_left).unwrap();
+    cache.rect_for(0, &large_left).unwrap();
+    cache.rect_for(0, &large_right).unwrap();
+}
+
 #[cfg(feature = "bench")]
 #[cfg(test)]
 mod cache_bench_tests {
@@ -598,12 +710,44 @@ mod cache_bench_tests {
 
     /// Reproduces Err(GlyphNotCached) issue & serves as a general purpose cache benchmark
     #[bench]
-    fn cache_bench(b: &mut ::test::Bencher) {
+    fn cache_bench_tolerance_p1(b: &mut ::test::Bencher) {
         let font = FontCollection::from_bytes(FONT_BYTES).into_font().unwrap();
 
         // Set of scales, found through brute force, to reproduce GlyphNotCached issue
         // Cache settings also affect this.
         let mut cache = Cache::new(512, 512, 0.1, 0.1);
+        let scales = &[25_f32, 24.5, 25.01, 24.7, 24.99];
+
+        let mut glyphs = vec![];
+        for scale in scales {
+            for glyph in layout_paragraph(&font, Scale::uniform(*scale), 500, TEST_STR) {
+                glyphs.push(glyph.standalone());
+            }
+        }
+
+        b.iter(|| {
+            for glyph in &glyphs {
+                cache.queue_glyph(FONT_ID, glyph.clone());
+            }
+
+            cache.cache_queued(|_, _| {}).expect("cache_queued");
+
+            for (index, glyph) in glyphs.iter().enumerate() {
+                let rect = cache.rect_for(FONT_ID, glyph);
+                assert!(rect.is_ok(),
+                    "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
+                        rect, index, glyph.id().0);
+            }
+        });
+    }
+
+    #[bench]
+    fn cache_bench_tolerance_1(b: &mut ::test::Bencher) {
+        let font = FontCollection::from_bytes(FONT_BYTES).into_font().unwrap();
+
+        // Set of scales, found through brute force, to reproduce GlyphNotCached issue
+        // Cache settings also affect this.
+        let mut cache = Cache::new(512, 512, 0.1, 1.0);
         let scales = &[25_f32, 24.5, 25.01, 24.7, 24.99];
 
         let mut glyphs = vec![];
