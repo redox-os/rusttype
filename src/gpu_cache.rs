@@ -585,3 +585,88 @@ fn cache_test() {
         cache.cache_queued(|_, _| {}).unwrap();
     }
 }
+
+#[cfg(feature = "bench")]
+#[cfg(test)]
+mod cache_bench_tests {
+    use super::*;
+    use ::{FontCollection, Scale, Font, point};
+
+    const FONT_ID: usize = 0;
+    const FONT_BYTES: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
+    const TEST_STR: &str = include_str!("../tests/lipsum.txt");
+
+    /// Reproduces Err(GlyphNotCached) issue & serves as a general purpose cache benchmark
+    #[bench]
+    fn cache_bench(b: &mut ::test::Bencher) {
+        let font = FontCollection::from_bytes(FONT_BYTES).into_font().unwrap();
+
+        // Set of scales, found through brute force, to reproduce GlyphNotCached issue
+        // Cache settings also affect this.
+        let mut cache = Cache::new(512, 512, 0.1, 0.1);
+        let scales = &[25_f32, 24.5, 25.01, 24.7, 24.99];
+
+        let mut glyphs = vec![];
+        for scale in scales {
+            for glyph in layout_paragraph(&font, Scale::uniform(*scale), 500, TEST_STR) {
+                glyphs.push(glyph.standalone());
+            }
+        }
+
+        b.iter(|| {
+            for glyph in &glyphs {
+                cache.queue_glyph(FONT_ID, glyph.clone());
+            }
+
+            cache.cache_queued(|_, _| {}).expect("cache_queued");
+
+            for (index, glyph) in glyphs.iter().enumerate() {
+                let rect = cache.rect_for(FONT_ID, glyph);
+                assert!(rect.is_ok(),
+                    "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
+                        rect, index, glyph.id().0);
+            }
+        });
+    }
+
+    fn layout_paragraph<'a>(font: &'a Font,
+                            scale: Scale,
+                            width: u32,
+                            text: &str) -> Vec<PositionedGlyph<'a>> {
+        use unicode_normalization::UnicodeNormalization;
+        let mut result = Vec::new();
+        let v_metrics = font.v_metrics(scale);
+        let advance_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
+        let mut caret = point(0.0, v_metrics.ascent);
+        let mut last_glyph_id = None;
+        for c in text.nfc() {
+            if c.is_control() {
+                match c {
+                    '\n' => { caret = point(0.0, caret.y + advance_height) },
+                    _ => {}
+                }
+                continue;
+            }
+            let base_glyph = if let Some(glyph) = font.glyph(c) {
+                glyph
+            } else {
+                continue;
+            };
+            if let Some(id) = last_glyph_id.take() {
+                caret.x += font.pair_kerning(scale, id, base_glyph.id());
+            }
+            last_glyph_id = Some(base_glyph.id());
+            let mut glyph = base_glyph.scaled(scale).positioned(caret);
+            if let Some(bb) = glyph.pixel_bounding_box() {
+                if bb.max.x > width as i32 {
+                    caret = point(0.0, caret.y + advance_height);
+                    glyph = glyph.into_unpositioned().positioned(caret);
+                    last_glyph_id = None;
+                }
+            }
+            caret.x += glyph.unpositioned().h_metrics().advance_width;
+            result.push(glyph);
+        }
+        result
+    }
+}
