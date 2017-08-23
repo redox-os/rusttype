@@ -46,6 +46,21 @@ impl ::std::cmp::Ord for PGlyphSpec {
     }
 }
 
+impl PGlyphSpec {
+    /// Returns if this cached glyph can be considered to match another
+    /// at input tolerances
+    fn matches(&self, other: &PGlyphSpec, scale_tolerance: f32, position_tolerance: f32)
+        -> bool
+    {
+        self.font_id == other.font_id &&
+            self.glyph_id == other.glyph_id &&
+            (self.scale.x - other.scale.x).abs() < scale_tolerance &&
+            (self.scale.y - other.scale.y).abs() < scale_tolerance &&
+            (self.offset.x - other.offset.x).abs() < position_tolerance &&
+            (self.offset.y - other.offset.y).abs() < position_tolerance
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ByteArray2d {
     inner_array: Vec<u8>,
@@ -466,8 +481,115 @@ impl Cache {
         glyph: &PositionedGlyph)
         -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr>
     {
-        self.cache_adjacent_rect(font_id, glyph)
-            .or_else(|_| self.full_cache_search_rect(font_id, glyph))
+        self.cache_middle_out_rect(font_id, glyph)
+    }
+
+    #[inline]
+    fn cache_middle_out_rect<'a>(
+        &'a self,
+        font_id: usize,
+        glyph: &PositionedGlyph)
+        -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr>
+    {
+        use vector;
+        use point;
+        let glyph_bb = match glyph.pixel_bounding_box() {
+            Some(bb) => bb,
+            None => return Ok(None)
+        };
+        let target_position = glyph.position();
+        let target_offset = normalise_pixel_offset(vector(target_position.x.fract(), target_position.y.fract()));
+        let target_spec = PGlyphSpec {
+            font_id: font_id,
+            glyph_id: glyph.id(),
+            scale: glyph.scale(),
+            offset: target_offset
+        };
+
+        let (lower, upper) = {
+            let mut left_range = self.all_glyphs.range(Unbounded, Included(&target_spec)).rev();
+            let mut right_range = self.all_glyphs.range(Included(&target_spec), Unbounded);
+
+            let mut left = left_range.next().map(|(s, &(r, i))| (s, r, i));
+            let mut right = right_range.next().map(|(s, &(r, i))| (s, r, i));
+
+            while left.is_some() || right.is_some() {
+                left = left.and_then(|(spec, row, index)| {
+                    if spec.matches(&target_spec, self.scale_tolerance, self.position_tolerance) {
+                        Some((spec, row, index))
+                    }
+                    else { None }
+                });
+                right = right.and_then(|(spec, row, index)| {
+                    if spec.matches(&target_spec, self.scale_tolerance, self.position_tolerance) {
+                        Some((spec, row, index))
+                    }
+                    else { None }
+                });
+
+                if left.is_none() && right.is_none() {
+                    // continue searching for a match
+                    left = left_range.next().map(|(s, &(r, i))| (s, r, i));
+                    right = right_range.next().map(|(s, &(r, i))| (s, r, i));
+                }
+                else { break; }
+            }
+            (left, right)
+        };
+
+        let (width, height) = (self.width as f32, self.height as f32);
+        let (match_spec, row, index) = match (lower, upper) {
+            (None, None) => return Err(CacheReadErr::GlyphNotCached),
+            (Some(match_), None) |
+            (None, Some(match_)) => match_, // one match
+            (Some((lmatch_spec, lrow, lindex)), Some((umatch_spec, urow, uindex))) => {
+                if lrow == urow && lindex == uindex {
+                    // both matches are really the same one, and match the input
+                    let tex_rect = self.rows[&lrow].glyphs[lindex as usize].1;
+                    let uv_rect = Rect {
+                        min: point(tex_rect.min.x as f32 / width, tex_rect.min.y as f32 / height),
+                        max: point(tex_rect.max.x as f32 / width, tex_rect.max.y as f32 / height)
+                    };
+                    return Ok(Some((uv_rect, glyph_bb)))
+                } else {
+                    // Two close-enough matches. Figure out which is closest.
+                    let l_measure =
+                        ((lmatch_spec.scale.x - target_spec.scale.x) / self.scale_tolerance).abs()
+                        + ((lmatch_spec.scale.y - target_spec.scale.y) / self.scale_tolerance).abs()
+                        + ((lmatch_spec.offset.x - target_spec.offset.x) / self.position_tolerance).abs()
+                        + ((lmatch_spec.offset.y - target_spec.offset.y) / self.position_tolerance).abs();
+                    let u_measure =
+                        ((umatch_spec.scale.x - target_spec.scale.x) / self.scale_tolerance).abs()
+                        + ((umatch_spec.scale.y - target_spec.scale.y) / self.scale_tolerance).abs()
+                        + ((umatch_spec.offset.x - target_spec.offset.x) / self.position_tolerance).abs()
+                        + ((umatch_spec.offset.y - target_spec.offset.y) / self.position_tolerance).abs();
+                    if l_measure < u_measure {
+                        (lmatch_spec, lrow, lindex)
+                    } else {
+                        (umatch_spec, urow, uindex)
+                    }
+                }
+            }
+        };
+        let tex_rect = self.rows[&row].glyphs[index as usize].1;
+        let uv_rect = Rect {
+            min: point(tex_rect.min.x as f32 / width, tex_rect.min.y as f32 / height),
+            max: point(tex_rect.max.x as f32 / width, tex_rect.max.y as f32 / height)
+        };
+        let local_bb = glyph
+            .unpositioned().clone()
+            .positioned(point(0.0, 0.0) + match_spec.offset).pixel_bounding_box().unwrap();
+        let min_from_origin =
+            point(local_bb.min.x as f32, local_bb.min.y as f32)
+                    - (point(0.0, 0.0) + match_spec.offset);
+        let ideal_min = min_from_origin + target_position;
+        let min = point(ideal_min.x.round() as i32, ideal_min.y.round() as i32);
+        let bb_offset = min - local_bb.min;
+        let bb = Rect {
+            min: min,
+            max: local_bb.max + bb_offset
+        };
+        Ok(Some((uv_rect, bb)))
     }
 
     fn cache_adjacent_rect<'a>(
@@ -711,19 +833,8 @@ mod cache_bench_tests {
     /// Reproduces Err(GlyphNotCached) issue & serves as a general purpose cache benchmark
     #[bench]
     fn cache_bench_tolerance_p1(b: &mut ::test::Bencher) {
-        let font = FontCollection::from_bytes(FONT_BYTES).into_font().unwrap();
-
-        // Set of scales, found through brute force, to reproduce GlyphNotCached issue
-        // Cache settings also affect this.
+        let glyphs = test_glyphs();
         let mut cache = Cache::new(512, 512, 0.1, 0.1);
-        let scales = &[25_f32, 24.5, 25.01, 24.7, 24.99];
-
-        let mut glyphs = vec![];
-        for scale in scales {
-            for glyph in layout_paragraph(&font, Scale::uniform(*scale), 500, TEST_STR) {
-                glyphs.push(glyph.standalone());
-            }
-        }
 
         b.iter(|| {
             for glyph in &glyphs {
@@ -743,19 +854,8 @@ mod cache_bench_tests {
 
     #[bench]
     fn cache_bench_tolerance_1(b: &mut ::test::Bencher) {
-        let font = FontCollection::from_bytes(FONT_BYTES).into_font().unwrap();
-
-        // Set of scales, found through brute force, to reproduce GlyphNotCached issue
-        // Cache settings also affect this.
+        let glyphs = test_glyphs();
         let mut cache = Cache::new(512, 512, 0.1, 1.0);
-        let scales = &[25_f32, 24.5, 25.01, 24.7, 24.99];
-
-        let mut glyphs = vec![];
-        for scale in scales {
-            for glyph in layout_paragraph(&font, Scale::uniform(*scale), 500, TEST_STR) {
-                glyphs.push(glyph.standalone());
-            }
-        }
 
         b.iter(|| {
             for glyph in &glyphs {
@@ -771,6 +871,19 @@ mod cache_bench_tests {
                         rect, index, glyph.id().0);
             }
         });
+    }
+
+    fn test_glyphs() -> Vec<PositionedGlyph<'static>> {
+        let font = FontCollection::from_bytes(FONT_BYTES).into_font().unwrap();
+        let mut glyphs = vec![];
+        // Set of scales, found through brute force, to reproduce GlyphNotCached issue
+        // Cache settings also affect this, it occurs when position_tolerance is < 1.0
+        for scale in &[25_f32, 24.5, 25.01, 24.7, 24.99] {
+            for glyph in layout_paragraph(&font, Scale::uniform(*scale), 500, TEST_STR) {
+                glyphs.push(glyph.standalone());
+            }
+        }
+        glyphs
     }
 
     fn layout_paragraph<'a>(font: &'a Font,
