@@ -19,7 +19,7 @@ exclude = ["examples/*.ttf"]
 
 [dependencies]
 arrayvec = "^0.3.13"
-stb_truetype = "^0.2.2"
+stb_truetype = "^0.2"
 linked-hash-map = "0.0.10"
 
 [dev-dependencies]
