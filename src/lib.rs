@@ -81,6 +81,13 @@
 //!   known as NFC in the normalisation crate.
 //! * A glyph is a particular font's shape to draw the character for a particular Unicode code point. This will
 //!   have its own identifying number unique to the font, its ID.
+
+#![cfg_attr(feature = "bench", feature(test))]
+#[cfg(feature = "bench")]
+extern crate test;
+#[cfg(test)]
+extern crate unicode_normalization;
+
 extern crate arrayvec;
 extern crate stb_truetype;
 extern crate linked_hash_map;

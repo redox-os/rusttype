@@ -46,6 +46,21 @@ impl ::std::cmp::Ord for PGlyphSpec {
     }
 }
 
+impl PGlyphSpec {
+    /// Returns if this cached glyph can be considered to match another
+    /// at input tolerances
+    fn matches(&self, other: &PGlyphSpec, scale_tolerance: f32, position_tolerance: f32)
+        -> bool
+    {
+        self.font_id == other.font_id &&
+            self.glyph_id == other.glyph_id &&
+            (self.scale.x - other.scale.x).abs() < scale_tolerance &&
+            (self.scale.y - other.scale.y).abs() < scale_tolerance &&
+            (self.offset.x - other.offset.x).abs() < position_tolerance &&
+            (self.offset.y - other.offset.y).abs() < position_tolerance
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ByteArray2d {
     inner_array: Vec<u8>,
@@ -450,6 +465,7 @@ impl Cache {
             result
         }
     }
+
     /// Retrieves the (floating point) texture coordinates of the quad for a glyph in the cache,
     /// as well as the pixel-space (integer) coordinates that this region should be drawn at.
     /// In the majority of cases these pixel-space coordinates should be identical to the bounding box of the
@@ -459,9 +475,12 @@ impl Cache {
     /// A sucessful result is `Some` if the glyph is not an empty glyph (no shape, and thus no rect to return).
     ///
     /// Ensure that `font_id` matches the `font_id` that was passed to `queue_glyph` with this `glyph`.
-    pub fn rect_for<'a>(&'a self,
-                        font_id: usize,
-                        glyph: &PositionedGlyph) -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr> {
+    pub fn rect_for<'a>(
+        &'a self,
+        font_id: usize,
+        glyph: &PositionedGlyph)
+        -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr>
+    {
         use vector;
         use point;
         let glyph_bb = match glyph.pixel_bounding_box() {
@@ -476,34 +495,38 @@ impl Cache {
             scale: glyph.scale(),
             offset: target_offset
         };
-        let lower = self.all_glyphs.range(Unbounded, Included(&target_spec)).rev().next()
-            .and_then(|(l, &(lrow, lindex))| {
-                if l.font_id == target_spec.font_id &&
-                    l.glyph_id == target_spec.glyph_id &&
-                    (l.scale.x - target_spec.scale.x).abs() < self.scale_tolerance &&
-                    (l.scale.y - target_spec.scale.y).abs() < self.scale_tolerance &&
-                    (target_spec.offset.x - l.offset.x).abs() < self.position_tolerance &&
-                    (target_spec.offset.y - l.offset.y).abs() < self.position_tolerance
-                {
-                    Some((l, lrow, lindex))
-                } else {
-                    None
+
+        let (lower, upper) = {
+            let mut left_range = self.all_glyphs.range(Unbounded, Included(&target_spec)).rev();
+            let mut right_range = self.all_glyphs.range(Included(&target_spec), Unbounded);
+
+            let mut left = left_range.next().map(|(s, &(r, i))| (s, r, i));
+            let mut right = right_range.next().map(|(s, &(r, i))| (s, r, i));
+
+            while left.is_some() || right.is_some() {
+                left = left.and_then(|(spec, row, index)| {
+                    if spec.matches(&target_spec, self.scale_tolerance, self.position_tolerance) {
+                        Some((spec, row, index))
+                    }
+                    else { None }
+                });
+                right = right.and_then(|(spec, row, index)| {
+                    if spec.matches(&target_spec, self.scale_tolerance, self.position_tolerance) {
+                        Some((spec, row, index))
+                    }
+                    else { None }
+                });
+
+                if left.is_none() && right.is_none() {
+                    // continue searching for a match
+                    left = left_range.next().map(|(s, &(r, i))| (s, r, i));
+                    right = right_range.next().map(|(s, &(r, i))| (s, r, i));
                 }
-            });
-        let upper = self.all_glyphs.range(Included(&target_spec), Unbounded).next()
-            .and_then(|(u, &(urow, uindex))| {
-                if u.font_id == target_spec.font_id &&
-                    u.glyph_id == target_spec.glyph_id &&
-                    (u.scale.x - target_spec.scale.x).abs() < self.scale_tolerance &&
-                    (u.scale.y - target_spec.scale.y).abs() < self.scale_tolerance &&
-                    (target_spec.offset.x - u.offset.x).abs() < self.position_tolerance &&
-                    (target_spec.offset.y - u.offset.y).abs() < self.position_tolerance
-                {
-                    Some((u, urow, uindex))
-                } else {
-                    None
-                }
-            });
+                else { break; }
+            }
+            (left, right)
+        };
+
         let (width, height) = (self.width as f32, self.height as f32);
         let (match_spec, row, index) = match (lower, upper) {
             (None, None) => return Err(CacheReadErr::GlyphNotCached),
@@ -583,5 +606,144 @@ fn cache_test() {
             cache.queue_glyph(0, glyph);
         }
         cache.cache_queued(|_, _| {}).unwrap();
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn need_to_check_whole_cache() {
+    use ::FontCollection;
+    use ::Scale;
+    use ::point;
+    let font_data = include_bytes!("../examples/Arial Unicode.ttf");
+    let font = FontCollection::from_bytes(font_data as &[u8]).into_font().unwrap();
+
+    let glyph = font.glyph('l').unwrap();
+
+    let small = glyph.clone().scaled(Scale::uniform(10.0));
+    let large = glyph.clone().scaled(Scale::uniform(10.05));
+
+    let small_left = small.clone().positioned(point(0.0, 0.0));
+    let large_left = large.clone().positioned(point(0.0, 0.0));
+    let large_right = large.clone().positioned(point(-0.2, 0.0));
+
+    let mut cache = Cache::new(32, 32, 0.1, 0.1);
+
+    cache.queue_glyph(0, small_left.clone());
+    cache.queue_glyph(0, large_left.clone()); // Noop since it's within the scale tolerance of small_left
+    cache.queue_glyph(0, large_right.clone());
+
+    cache.cache_queued(|_, _| {}).unwrap();
+
+    cache.rect_for(0, &small_left).unwrap();
+    cache.rect_for(0, &large_left).unwrap();
+    cache.rect_for(0, &large_right).unwrap();
+}
+
+#[cfg(feature = "bench")]
+#[cfg(test)]
+mod cache_bench_tests {
+    use super::*;
+    use ::{FontCollection, Scale, Font, point};
+
+    const FONT_ID: usize = 0;
+    const FONT_BYTES: &[u8] = include_bytes!("../examples/Arial Unicode.ttf");
+    const TEST_STR: &str = include_str!("../tests/lipsum.txt");
+
+    /// Reproduces Err(GlyphNotCached) issue & serves as a general purpose cache benchmark
+    #[bench]
+    fn cache_bench_tolerance_p1(b: &mut ::test::Bencher) {
+        let glyphs = test_glyphs();
+        let mut cache = Cache::new(512, 512, 0.1, 0.1);
+
+        b.iter(|| {
+            for glyph in &glyphs {
+                cache.queue_glyph(FONT_ID, glyph.clone());
+            }
+
+            cache.cache_queued(|_, _| {}).expect("cache_queued");
+
+            for (index, glyph) in glyphs.iter().enumerate() {
+                let rect = cache.rect_for(FONT_ID, glyph);
+                assert!(rect.is_ok(),
+                    "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
+                        rect, index, glyph.id().0);
+            }
+        });
+    }
+
+    #[bench]
+    fn cache_bench_tolerance_1(b: &mut ::test::Bencher) {
+        let glyphs = test_glyphs();
+        let mut cache = Cache::new(512, 512, 0.1, 1.0);
+
+        b.iter(|| {
+            for glyph in &glyphs {
+                cache.queue_glyph(FONT_ID, glyph.clone());
+            }
+
+            cache.cache_queued(|_, _| {}).expect("cache_queued");
+
+            for (index, glyph) in glyphs.iter().enumerate() {
+                let rect = cache.rect_for(FONT_ID, glyph);
+                assert!(rect.is_ok(),
+                    "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
+                        rect, index, glyph.id().0);
+            }
+        });
+    }
+
+    fn test_glyphs() -> Vec<PositionedGlyph<'static>> {
+        let font = FontCollection::from_bytes(FONT_BYTES).into_font().unwrap();
+        let mut glyphs = vec![];
+        // Set of scales, found through brute force, to reproduce GlyphNotCached issue
+        // Cache settings also affect this, it occurs when position_tolerance is < 1.0
+        for scale in &[25_f32, 24.5, 25.01, 24.7, 24.99] {
+            for glyph in layout_paragraph(&font, Scale::uniform(*scale), 500, TEST_STR) {
+                glyphs.push(glyph.standalone());
+            }
+        }
+        glyphs
+    }
+
+    fn layout_paragraph<'a>(font: &'a Font,
+                            scale: Scale,
+                            width: u32,
+                            text: &str) -> Vec<PositionedGlyph<'a>> {
+        use unicode_normalization::UnicodeNormalization;
+        let mut result = Vec::new();
+        let v_metrics = font.v_metrics(scale);
+        let advance_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
+        let mut caret = point(0.0, v_metrics.ascent);
+        let mut last_glyph_id = None;
+        for c in text.nfc() {
+            if c.is_control() {
+                match c {
+                    '\n' => { caret = point(0.0, caret.y + advance_height) },
+                    _ => {}
+                }
+                continue;
+            }
+            let base_glyph = if let Some(glyph) = font.glyph(c) {
+                glyph
+            } else {
+                continue;
+            };
+            if let Some(id) = last_glyph_id.take() {
+                caret.x += font.pair_kerning(scale, id, base_glyph.id());
+            }
+            last_glyph_id = Some(base_glyph.id());
+            let mut glyph = base_glyph.scaled(scale).positioned(caret);
+            if let Some(bb) = glyph.pixel_bounding_box() {
+                if bb.max.x > width as i32 {
+                    caret = point(0.0, caret.y + advance_height);
+                    glyph = glyph.into_unpositioned().positioned(caret);
+                    last_glyph_id = None;
+                }
+            }
+            caret.x += glyph.unpositioned().h_metrics().advance_width;
+            result.push(glyph);
+        }
+        result
     }
 }

@@ -46,6 +46,12 @@ look at the documentation, the entry point for loading fonts is
 
 ## [Documentation](https://dylanede.github.io/rusttype)
 
+## Performance
+Code performance regression can be tracked, to a certain degree, using benchmarks, run with:
+```sh
+rustup run nightly cargo bench --features "bench"
+```
+
 ## Future Plans
 
 The current state of RustType is only the beginning. There are numerous avenues
