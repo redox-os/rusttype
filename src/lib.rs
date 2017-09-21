@@ -166,7 +166,7 @@ pub struct GlyphId(pub u32);
 ///
 /// A `Glyph` does not have an inherent scale or position associated with it. To augment a glyph with a
 /// size, give it a scale using `scaled`. You can then position it using `positioned`.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Glyph<'a> {
     inner: GlyphInner<'a>
 }
@@ -208,7 +208,7 @@ pub struct VMetrics {
 }
 /// A glyph augmented with scaling information. You can query such a glyph for information that depends
 /// on the scale of the glyph.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ScaledGlyph<'a> {
     g: Glyph<'a>,
     api_scale: Scale,
@@ -216,7 +216,7 @@ pub struct ScaledGlyph<'a> {
 }
 /// A glyph augmented with positioning and scaling information. You can query such a glyph for information
 /// that depends on the scale and position of the glyph.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct PositionedGlyph<'a> {
     sg: ScaledGlyph<'a>,
     position: Point<f32>,
