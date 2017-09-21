@@ -171,7 +171,7 @@ pub struct Glyph<'a> {
     inner: GlyphInner<'a>
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 enum GlyphInner<'a> {
     Proxy(&'a Font<'a>, u32),
     Shared(Arc<SharedGlyphData>)
