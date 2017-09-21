@@ -337,7 +337,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(lines: &[Line], curves: &[Curve],
                     }
                 }
                 //output
-                output(x, y, pixel_value);
+                output(x, y, pixel_value.abs());
                 acc += pixel_acc;
                 // remove deactivated segments
                 for k in lines_to_remove.drain(..) {
@@ -350,7 +350,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(lines: &[Line], curves: &[Curve],
             }
             // fill remaining pixels
             for x in x..width {
-                output(x, y, acc);
+                output(x, y, acc.abs());
             }
         }
         y += 1;

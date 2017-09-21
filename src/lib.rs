@@ -99,7 +99,7 @@ use stb_truetype as tt;
 
 /// A collection of fonts read straight from a font file's data. The data in the collection is not validated.
 /// This structure may or may not own the font data.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FontCollection<'a>(SharedBytes<'a>);
 /// A single font. This may or may not own the font data.
 #[derive(Clone)]
@@ -110,7 +110,7 @@ pub struct Font<'a> {
 /// `SharedBytes` handles the lifetime of font data used in RustType. The data is either a shared
 /// reference to externally owned data, or managed by reference counting. `SharedBytes` can be
 /// conveniently used with `From` and `Into`, and dereferences to the contained bytes.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum SharedBytes<'a> {
     ByRef(&'a [u8]),
     ByArc(Arc<Box<[u8]>>)
@@ -177,6 +177,7 @@ enum GlyphInner<'a> {
     Shared(Arc<SharedGlyphData>)
 }
 
+#[derive(Debug)]
 struct SharedGlyphData {
     id: u32,
     extents: Option<Rect<i32>>,

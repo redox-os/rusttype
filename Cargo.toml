@@ -9,7 +9,7 @@ RustType provides an API for loading, querying and rasterising TrueType fonts.
 
 It also provides an implementation of a dynamic GPU glyph cache for hardware font rendering.
 """
-documentation = "https://dylanede.github.io/rusttype"
+documentation = "https://docs.rs/rusttype"
 homepage = "https://github.com/dylanede/rusttype"
 repository = "https://github.com/dylanede/rusttype"
 readme = "README.md"
