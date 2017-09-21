@@ -1,6 +1,7 @@
 # RustType
 
 [![Build Status](https://travis-ci.org/dylanede/rusttype.svg?branch=master)](https://travis-ci.org/dylanede/rusttype)
+[![docs.rs](https://docs.rs/rusttype/badge.svg)](https://docs.rs/rusttype)
 
 RustType is a pure Rust alternative to libraries like FreeType.
 
@@ -44,7 +45,7 @@ arbitrary string, and displaying the result as ASCII art. If you prefer to just
 look at the documentation, the entry point for loading fonts is
 `FontCollection`, from which you can access individual fonts, then their glyphs.
 
-## [Documentation](https://dylanede.github.io/rusttype)
+## [Documentation](https://docs.rs/rusttype)
 
 ## Future Plans
 
