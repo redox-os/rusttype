@@ -102,7 +102,7 @@ use stb_truetype as tt;
 #[derive(Clone, Debug)]
 pub struct FontCollection<'a>(SharedBytes<'a>);
 /// A single font. This may or may not own the font data.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Font<'a> {
     info: tt::FontInfo<SharedBytes<'a>>
 }
