@@ -46,8 +46,9 @@ look at the documentation, the entry point for loading fonts is
 `FontCollection`, from which you can access individual fonts, then their glyphs.
 
 ## Documentation
-[Crate Release](https://docs.rs/rusttype)
-[Git Repository](https://redox-os.github.io/rusttype)
+
+* [Crate Release](https://docs.rs/rusttype)
+* [Git Repository](https://redox-os.github.io/rusttype)
 
 ## Future Plans
 
