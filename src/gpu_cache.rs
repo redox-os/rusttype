@@ -218,7 +218,7 @@ impl Cache {
     /// Queue a glyph for caching by the next call to `cache_queued`. `font_id` is used to
     /// disambiguate glyphs from different fonts. The user should ensure that `font_id` is unique to the
     /// font the glyph is from.
-    pub fn queue_glyph(&mut self, font_id: usize, glyph: PositionedGlyph) {
+    pub fn queue_glyph(&mut self, font_id: usize, glyph: &PositionedGlyph) {
         if glyph.pixel_bounding_box().is_some() {
             self.queue.push((font_id, glyph.standalone()));
         }
@@ -245,7 +245,11 @@ impl Cache {
     /// The information provided is the rectangular region to insert the pixel data into, and the pixel data
     /// itself. This data is provided in horizontal scanline format (row major), with stride equal to the
     /// rectangle width.
-    pub fn cache_queued<F: FnMut(Rect<u32>, &[u8])>(&mut self, mut uploader: F) -> Result<(), CacheWriteErr> {
+    pub fn cache_queued<F: FnMut(Rect<u32>, &[u8])> (
+        &mut self,
+        mut uploader: F,
+        glyph_padding: u32,
+    ) -> Result<(), CacheWriteErr> {
         use vector;
         use point;
         let mut oldest_in_use_row = None;
@@ -335,7 +339,7 @@ impl Cache {
             }
             // Not cached, so add it:
             let bb = glyph.pixel_bounding_box().unwrap();
-            let (width, height) = (bb.width() as u32, bb.height() as u32);
+            let (width, height) = (bb.width() as u32 + 2 * glyph_padding, bb.height() as u32 + 2 * glyph_padding);
             if width >= self.width || height >= self.height {
                 return Result::Err(CacheWriteErr::GlyphTooLarge);
             }
@@ -418,11 +422,11 @@ impl Cache {
             // calculate the target rect
             let row = self.rows.get_refresh(&row_top).unwrap();
             let rect = Rect {
-                min: point(row.width, row_top),
-                max: point(row.width + width, row_top + height)
+                min: point(row.width + glyph_padding, row_top + glyph_padding),
+                max: point(row.width + width - glyph_padding, row_top + height - glyph_padding)
             };
             // draw the glyph into main memory
-            let mut pixels = ByteArray2d::zeros(height as usize, width as usize);
+            let mut pixels = ByteArray2d::zeros((height - 2 * glyph_padding) as usize, (width - 2 * glyph_padding) as usize);
             glyph.draw(|x, y, v| {
                 let v = ((v * 255.0) + 0.5).floor().max(0.0).min(255.0) as u8;
                 pixels[(y as usize, x as usize)] = v;
@@ -445,7 +449,7 @@ impl Cache {
         } else { // clear the cache then try again
             self.clear();
             self.queue_retry = true;
-            let result = self.cache_queued(uploader);
+            let result = self.cache_queued(uploader, glyph_padding);
             self.queue_retry = false;
             result
         }

@@ -142,7 +142,7 @@ Feel free to type out some text, and delete it with Backspace. You can also try 
                 height: rect.height(),
                 format: glium::texture::ClientFormat::U8
             });
-        }).unwrap();
+        }, 0).unwrap();
 
         let uniforms = uniform! {
             tex: cache_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest)
