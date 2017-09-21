@@ -1,6 +1,6 @@
 # RustType
 
-[![Build Status](https://travis-ci.org/dylanede/rusttype.svg?branch=master)](https://travis-ci.org/dylanede/rusttype)
+[![Build Status](https://travis-ci.org/redox-os/rusttype.svg?branch=master)](https://travis-ci.org/redox-os/rusttype)
 [![docs.rs](https://docs.rs/rusttype/badge.svg)](https://docs.rs/rusttype)
 
 RustType is a pure Rust alternative to libraries like FreeType.
