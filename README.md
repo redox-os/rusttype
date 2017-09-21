@@ -45,7 +45,9 @@ arbitrary string, and displaying the result as ASCII art. If you prefer to just
 look at the documentation, the entry point for loading fonts is
 `FontCollection`, from which you can access individual fonts, then their glyphs.
 
-## [Documentation](https://docs.rs/rusttype)
+## Documentation
+[Crate Release](https://docs.rs/rusttype)
+[Git Repository](https://redox-os.github.io/rusttype)
 
 ## Future Plans
 
