@@ -54,7 +54,7 @@ fn layout_paragraph<'a>(font: &'a Font,
 }
 
 fn main() {
-    let font_data = include_bytes!("DejaVuSans.ttf");
+    let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let font = FontCollection::from_bytes(font_data as &[u8]).into_font().unwrap();
 
     let window = glutin::WindowBuilder::new()

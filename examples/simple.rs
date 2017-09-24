@@ -4,7 +4,7 @@ use rusttype::{FontCollection, Scale, point, PositionedGlyph};
 use std::io::Write;
 
 fn main() {
-    let font_data = include_bytes!("DejaVuSans.ttf");
+    let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let collection = FontCollection::from_bytes(font_data as &[u8]);
     let font = collection.into_font().unwrap(); // only succeeds if collection consists of one font
 
