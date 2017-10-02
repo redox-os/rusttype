@@ -91,6 +91,7 @@ extern crate unicode_normalization;
 extern crate arrayvec;
 extern crate stb_truetype;
 extern crate linked_hash_map;
+extern crate ordered_float;
 
 mod geometry;
 mod rasterizer;
