@@ -28,6 +28,7 @@ linked-hash-map = "0.5"
 [dev-dependencies]
 glium = "0.17"
 unicode-normalization = "0.1"
+image = "0.16.0"
 
 [features]
 # Compiles benchmark code, to be avoided normally as this currently requires nightly rust
