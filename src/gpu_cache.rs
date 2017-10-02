@@ -583,7 +583,7 @@ fn cache_test() {
     use ::Scale;
     use ::point;
     let mut cache = Cache::new(32, 32, 0.1, 0.1);
-    let font_data = include_bytes!("../examples/DejaVuSans.ttf");
+    let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let font = FontCollection::from_bytes(font_data as &[u8]).into_font().unwrap();
     let strings = [
         ("Hello World!", 15.0),
@@ -608,7 +608,7 @@ fn need_to_check_whole_cache() {
     use ::FontCollection;
     use ::Scale;
     use ::point;
-    let font_data = include_bytes!("../examples/DejaVuSans.ttf");
+    let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let font = FontCollection::from_bytes(font_data as &[u8]).into_font().unwrap();
 
     let glyph = font.glyph('l').unwrap();
@@ -640,8 +640,7 @@ mod cache_bench_tests {
     use ::{FontCollection, Scale, Font, point};
 
     const FONT_ID: usize = 0;
-    // TODO use a more complex font
-    const FONT_BYTES: &[u8] = include_bytes!("../examples/DejaVuSans.ttf");
+    const FONT_BYTES: &[u8] = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     const TEST_STR: &str = include_str!("../tests/lipsum.txt");
 
     /// Reproduces Err(GlyphNotCached) issue & serves as a general purpose cache benchmark
