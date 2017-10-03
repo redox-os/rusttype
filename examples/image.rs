@@ -24,10 +24,10 @@ fn main() {
     // Use a dark red colour
     let colour = (150, 0, 0);
 
-    // The starting position of the glyphs (top left corner)
+    // The starting positioning of the glyphs (top left corner)
     let start = point(20.0, 50.0);
 
-    // Loop through the glpyhs in the text, positing each one on a line
+    // Loop through the glyphs in the text, positing each one on a line
     for glyph in font.layout(text, scale, start) {
         if let Some(bounding_box) = glyph.pixel_bounding_box() {
             // Draw the glyph into the image per-pixel by using the draw closure
