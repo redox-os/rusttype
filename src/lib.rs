@@ -96,8 +96,6 @@ extern crate ordered_float;
 mod geometry;
 mod rasterizer;
 
-mod support;
-
 pub mod gpu_cache;
 
 use std::sync::Arc;
