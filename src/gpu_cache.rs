@@ -23,10 +23,12 @@
 //! then when it's time to render call `Cache::rect_for` to get the UV coordinates in the cache texture for
 //! each glyph. For a concrete use case see the `gpu_cache` example.
 
+extern crate linked_hash_map;
+
 use ::{PositionedGlyph, Rect, Scale, GlyphId, Vector};
 use std::collections::{HashMap, HashSet, BTreeMap};
 use std::collections::Bound::{Included, Unbounded};
-use linked_hash_map::LinkedHashMap;
+use self::linked_hash_map::LinkedHashMap;
 use ordered_float::OrderedFloat;
 use std::cmp::{PartialEq, Eq, Ord, PartialOrd, Ordering};
 
