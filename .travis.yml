@@ -1,4 +1,9 @@
 language: rust
+script:
+  - cargo build --verbose
+  - cargo test --verbose
+  - cargo build --verbose --features="gpu_cache"
+  - cargo test --verbose --features="gpu_cache"
 after_success: |
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
