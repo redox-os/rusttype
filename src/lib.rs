@@ -119,14 +119,15 @@ pub struct Font<'a> {
 #[derive(Clone, Debug)]
 pub enum SharedBytes<'a> {
     ByRef(&'a [u8]),
-    ByArc(Arc<Box<[u8]>>)
+    ByArc(Arc<[u8]>),
 }
+
 impl<'a> ::std::ops::Deref for SharedBytes<'a> {
     type Target = [u8];
     fn deref(&self) -> &[u8] {
         match *self {
             SharedBytes::ByRef(bytes) => bytes,
-            SharedBytes::ByArc(ref bytes) => &***bytes
+            SharedBytes::ByArc(ref bytes) => &**bytes
         }
     }
 }
@@ -135,21 +136,22 @@ impl<'a> From<&'a [u8]> for SharedBytes<'a> {
         SharedBytes::ByRef(bytes)
     }
 }
-impl From<Arc<Box<[u8]>>> for SharedBytes<'static> {
-    fn from(bytes: Arc<Box<[u8]>>) -> SharedBytes<'static> {
+impl From<Arc<[u8]>> for SharedBytes<'static> {
+    fn from(bytes: Arc<[u8]>) -> SharedBytes<'static> {
         SharedBytes::ByArc(bytes)
     }
 }
 impl From<Box<[u8]>> for SharedBytes<'static> {
     fn from(bytes: Box<[u8]>) -> SharedBytes<'static> {
-        SharedBytes::ByArc(Arc::new(bytes))
+        SharedBytes::ByArc(bytes.into())
     }
 }
 impl From<Vec<u8>> for SharedBytes<'static> {
     fn from(bytes: Vec<u8>) -> SharedBytes<'static> {
-        SharedBytes::ByArc(Arc::new(bytes.into_boxed_slice()))
+        SharedBytes::ByArc(bytes.into())
     }
 }
+
 /// Represents a Unicode code point.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Codepoint(pub u32);
