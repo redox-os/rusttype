@@ -181,7 +181,7 @@ pub struct Glyph<'a> {
 
 #[derive(Clone)]
 enum GlyphInner<'a> {
-    Proxy(&'a Font<'a>, u32),
+    Proxy(Font<'a>, u32),
     Shared(Arc<SharedGlyphData>)
 }
 
@@ -342,12 +342,13 @@ impl<'a> Font<'a> {
     /// otherwise `None` is returned.
     ///
     /// Note that code points without corresponding glyphs in this font map to the "undef" glyph, glyph 0.
-    pub fn glyph<C: Into<CodepointOrGlyphId>>(&self, id: C) -> Option<Glyph> {
+    pub fn glyph<C: Into<CodepointOrGlyphId>>(&self, id: C) -> Option<Glyph<'a>> {
         let gid = match id.into() {
             CodepointOrGlyphId::Codepoint(Codepoint(c)) => self.info.find_glyph_index(c),
             CodepointOrGlyphId::GlyphId(GlyphId(gid)) => gid
         };
-        Some(Glyph::new(GlyphInner::Proxy(self, gid)))
+        // font clone either a reference clone, or arc clone
+        Some(Glyph::new(GlyphInner::Proxy(self.clone(), gid)))
     }
     /// A convenience function.
     ///
@@ -456,17 +457,15 @@ impl<'a, 'b> Iterator for LayoutIter<'a, 'b> {
     }
 }
 impl<'a> Glyph<'a> {
-    fn new(inner: GlyphInner) -> Glyph {
-        Glyph {
-            inner: inner
-        }
+    fn new(inner: GlyphInner<'a>) -> Glyph<'a> {
+        Glyph { inner }
     }
     /// The font to which this glyph belongs. If the glyph is a standalone glyph that owns its resources,
     /// it no longer has a reference to the font which it was created from (using `standalone()`). In which
     /// case, `None` is returned.
     pub fn font(&self) -> Option<&Font<'a>> {
         match self.inner {
-            GlyphInner::Proxy(f, _) => Some(f),
+            GlyphInner::Proxy(ref f, _) => Some(f),
             GlyphInner::Shared(_) => None
         }
     }
@@ -481,7 +480,7 @@ impl<'a> Glyph<'a> {
     /// available.
     pub fn scaled(self, scale: Scale) -> ScaledGlyph<'a> {
         let (scale_x, scale_y) = match self.inner {
-            GlyphInner::Proxy(font, _) => {
+            GlyphInner::Proxy(ref font, _) => {
                 let scale_y = font.info.scale_for_pixel_height(scale.y);
                 let scale_x = scale_y * scale.x / scale.y;
                 (scale_x, scale_y)
@@ -504,7 +503,7 @@ impl<'a> Glyph<'a> {
     /// Calling `standalone()` on a standalone glyph shares the resources, and is equivalent to `clone()`.
     pub fn standalone(&self) -> Glyph<'static> {
         match self.inner {
-            GlyphInner::Proxy(font, id) => Glyph::new(GlyphInner::Shared(Arc::new(SharedGlyphData {
+            GlyphInner::Proxy(ref font, id) => Glyph::new(GlyphInner::Shared(Arc::new(SharedGlyphData {
                 id: id,
                 scale_for_1_pixel: font.info.scale_for_pixel_height(1.0),
                 unit_h_metrics: {
@@ -558,7 +557,7 @@ impl<'a> ScaledGlyph<'a> {
     /// glyph available.
     pub fn positioned(self, p: Point<f32>) -> PositionedGlyph<'a> {
         let bb = match self.g.inner {
-            GlyphInner::Proxy(font, id) => {
+            GlyphInner::Proxy(ref font, id) => {
                 font.info.get_glyph_bitmap_box_subpixel(id,
                                                         self.scale.x, self.scale.y,
                                                         p.x, p.y)
@@ -588,7 +587,7 @@ impl<'a> ScaledGlyph<'a> {
     /// Retrieves the "horizontal metrics" of this glyph. See `HMetrics` for more detail.
     pub fn h_metrics(&self) -> HMetrics {
         match self.g.inner {
-            GlyphInner::Proxy(font, id) => {
+            GlyphInner::Proxy(ref font, id) => {
                 let hm = font.info.get_glyph_h_metrics(id);
                 HMetrics {
                     advance_width: hm.advance_width as f32 * self.scale.x,
@@ -607,7 +606,7 @@ impl<'a> ScaledGlyph<'a> {
         use stb_truetype::VertexType;
         use std::mem::replace;
         match self.g.inner {
-            GlyphInner::Proxy(font, id) => font.info.get_glyph_shape(id),
+            GlyphInner::Proxy(ref font, id) => font.info.get_glyph_shape(id),
             GlyphInner::Shared(ref data) => data.shape.clone()
         }.map(|shape| {
             let mut result = Vec::new();
@@ -657,7 +656,7 @@ impl<'a> ScaledGlyph<'a> {
     /// conservative pixel-boundary bounding box. The coordinates are relative to the glyph's origin.
     pub fn exact_bounding_box(&self) -> Option<Rect<f32>> {
         match self.g.inner {
-            GlyphInner::Proxy(font, id) => font.info.get_glyph_box(id).map(|bb| {
+            GlyphInner::Proxy(ref font, id) => font.info.get_glyph_box(id).map(|bb| {
                 Rect {
                     min: point(bb.x0 as f32 * self.scale.x, -bb.y1 as f32 * self.scale.y),
                     max: point(bb.x1 as f32 * self.scale.x, -bb.y0 as f32 * self.scale.y)
@@ -736,7 +735,7 @@ impl<'a> PositionedGlyph<'a> {
         use geometry::{Line, Curve};
         use stb_truetype::VertexType;
         let shape = match self.sg.g.inner {
-            GlyphInner::Proxy(font, id) => font.info.get_glyph_shape(id).unwrap_or_else(|| Vec::new()),
+            GlyphInner::Proxy(ref font, id) => font.info.get_glyph_shape(id).unwrap_or_else(|| Vec::new()),
             GlyphInner::Shared(ref data) => data.shape.clone().unwrap_or_else(|| Vec::new())
         };
         let bb = if let Some(bb) = self.bb.as_ref() {
