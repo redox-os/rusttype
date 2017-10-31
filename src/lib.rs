@@ -616,7 +616,7 @@ impl<'a> ScaledGlyph<'a> {
                 let end = point(v.x as f32 * self.scale.x + offset.x,
                                 v.y as f32 * self.scale.y + offset.y);
                 match v.vertex_type() {
-                    VertexType::MoveTo if result.len() != 0 => {
+                    VertexType::MoveTo if current.len() != 0 => {
                         result.push(Contour {
                             segments: replace(&mut current, Vec::new())
                         })
