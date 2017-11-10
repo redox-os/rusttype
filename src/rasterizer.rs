@@ -1,5 +1,7 @@
 use ::geometry::*;
 use arrayvec;
+ use ordered_float::OrderedFloat;
+
 trait SliceUp: Sized {
     type PerSlice: Iterator<Item=Self>;
     type Out: Iterator<Item=Self::PerSlice>;
@@ -196,9 +198,9 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(lines: &[Line], curves: &[Curve],
                                           mut output: O) {
     use ::std::collections::HashMap;
     let mut lines: Vec<_> = lines.iter().map(|&l| (l, l.bounding_box())).collect();
-    lines[..].sort_by(|&(_, ref a), &(_, ref b)| a.min.y.partial_cmp(&b.min.y).unwrap());
+    lines.sort_by_key(|&(_, ref a)| OrderedFloat(a.min.y));
     let mut curves: Vec<_> = curves.iter().map(|&c| (c, c.bounding_box())).collect();
-    curves[..].sort_by(|&(_, ref a), &(_, ref b)| a.min.y.partial_cmp(&b.min.y).unwrap());
+    curves.sort_by_key(|&(_, ref a)| OrderedFloat(a.min.y));
     let mut y = 0;
     let mut next_line = 0; let mut next_curve = 0;
     let mut active_lines_y  = HashMap::new(); let mut active_curves_y = HashMap::new();
@@ -260,8 +262,8 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(lines: &[Line], curves: &[Curve],
             active_curves_y.remove(&k);
         }
         // sort scanline for traversal
-        scanline_lines.sort_by(|a, b| (a.1).0.partial_cmp(&(b.1).0).unwrap());
-        scanline_curves.sort_by(|a, b| (a.1).0.partial_cmp(&(b.1).0).unwrap());
+        scanline_lines.sort_by_key(|a| OrderedFloat((a.1).0));
+        scanline_curves.sort_by_key(|a| OrderedFloat((a.1).0));
         // Iterate through x, slice scanline segments into each cell. Evaluate, accumulate and output.
         {
             let mut next_line = 0; let mut next_curve = 0;
