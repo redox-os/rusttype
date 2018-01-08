@@ -29,6 +29,8 @@ use std::collections::Bound::{Included, Unbounded};
 use linked_hash_map::LinkedHashMap;
 use ordered_float::OrderedFloat;
 use std::cmp::{PartialEq, Eq, Ord, PartialOrd, Ordering};
+use std::error;
+use std::fmt;
 
 #[derive(Copy, Clone, Debug)]
 struct PGlyphSpec {
@@ -164,6 +166,19 @@ pub enum CacheReadErr {
     /// Indicates that the requested glyph is not present in the cache
     GlyphNotCached
 }
+impl fmt::Display for CacheReadErr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", error::Error::description(self))
+    }
+}
+impl error::Error for CacheReadErr {
+    fn description(&self) -> &str {
+        match *self {
+            CacheReadErr::GlyphNotCached => "Glyph not cached",
+        }
+    }
+}
+
 /// Returned from `Cache::cache_queued`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CacheWriteErr {
@@ -173,6 +188,20 @@ pub enum CacheWriteErr {
     /// the attempt.
     NoRoomForWholeQueue
 }
+impl fmt::Display for CacheWriteErr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", error::Error::description(self))
+    }
+}
+impl error::Error for CacheWriteErr {
+    fn description(&self) -> &str {
+        match *self {
+            CacheWriteErr::GlyphTooLarge => "Glyph too large",
+            CacheWriteErr::NoRoomForWholeQueue => "No room for whole queue",
+        }
+    }
+}
+
 fn normalise_pixel_offset(mut offset: Vector<f32>) -> Vector<f32> {
     if offset.x > 0.5 {
         offset.x -= 1.0;
