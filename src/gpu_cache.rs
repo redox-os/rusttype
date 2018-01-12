@@ -32,9 +32,11 @@ use std::cmp::{PartialEq, Eq, Ord, PartialOrd, Ordering};
 use std::error;
 use std::fmt;
 
+type FontId = usize;
+
 #[derive(Copy, Clone, Debug)]
 struct PGlyphSpec {
-    font_id: usize,
+    font_id: FontId,
     glyph_id: GlyphId,
     scale: Scale,
     offset: Vector<f32>,
@@ -71,6 +73,10 @@ impl PGlyphSpec {
             (self.scale.y - other.scale.y).abs() < scale_tolerance &&
             (self.offset.x - other.offset.x).abs() < position_tolerance &&
             (self.offset.y - other.offset.y).abs() < position_tolerance
+    }
+
+    fn key(&self) -> (FontId, GlyphId) {
+        (self.font_id, self.glyph_id)
     }
 
     /// Returns a data view that is implicitly equal-able/hash-able/orderable
@@ -157,7 +163,7 @@ pub struct Cache<'font> {
     space_end_for_start: HashMap<u32, u32>,
     queue: Vec<(usize, PositionedGlyph<'font>)>,
     queue_retry: bool,
-    all_glyphs: BTreeMap<PGlyphSpec, (u32, u32)>
+    all_glyphs: HashMap<(FontId, GlyphId), BTreeMap<PGlyphSpec, (u32, u32)>>,
 }
 
 /// Returned from `Cache::rect_for`.
@@ -258,9 +264,10 @@ impl<'font> Cache<'font> {
             space_end_for_start: {let mut m = HashMap::new(); m.insert(0, height); m},
             queue: Vec::new(),
             queue_retry: false,
-            all_glyphs: BTreeMap::new()
+            all_glyphs: HashMap::new()
         }
     }
+
     /// Sets the scale tolerance for the cache. See the documentation for `Cache::new` for more information.
     ///
     /// # Panics
@@ -325,9 +332,10 @@ impl<'font> Cache<'font> {
     /// The information provided is the rectangular region to insert the pixel data into, and the pixel data
     /// itself. This data is provided in horizontal scanline format (row major), with stride equal to the
     /// rectangle width.
-    pub fn cache_queued<F: FnMut(Rect<u32>, &[u8])>(&mut self, mut uploader: F)
-        -> Result<(), CacheWriteErr>
-    {
+    pub fn cache_queued<F: FnMut(Rect<u32>, &[u8])>(
+        &mut self,
+        mut uploader: F,
+    ) -> Result<(), CacheWriteErr> {
         use vector;
         use point;
         let mut in_use_rows = HashSet::new();
@@ -349,65 +357,73 @@ impl<'font> Cache<'font> {
                 scale: glyph.scale(),
                 offset: pfract
             };
-            let lower = self.all_glyphs.range((Unbounded, Included(&spec))).rev().next()
-                .and_then(|(l, &(lrow, _))| {
-                    if l.font_id == spec.font_id &&
-                        l.glyph_id == spec.glyph_id &&
-                        (l.scale.x - spec.scale.x).abs() < self.scale_tolerance &&
-                        (l.scale.y - spec.scale.y).abs() < self.scale_tolerance &&
-                        (spec.offset.x - l.offset.x).abs() < self.position_tolerance &&
-                        (spec.offset.y - l.offset.y).abs() < self.position_tolerance
-                    {
-                        Some((l.scale, l.offset, lrow))
-                    } else {
-                        None
-                    }
+
+            {
+                let cached = self.all_glyphs.get(&(font_id, glyph.id()));
+                let lower = cached.and_then(|tree| {
+                    tree.range((Unbounded, Included(&spec))).rev().next()
+                        .and_then(|(l, &(lrow, _))| {
+                            if l.font_id == spec.font_id &&
+                                l.glyph_id == spec.glyph_id &&
+                                (l.scale.x - spec.scale.x).abs() < self.scale_tolerance &&
+                                (l.scale.y - spec.scale.y).abs() < self.scale_tolerance &&
+                                (spec.offset.x - l.offset.x).abs() < self.position_tolerance &&
+                                (spec.offset.y - l.offset.y).abs() < self.position_tolerance
+                            {
+                                Some((l.scale, l.offset, lrow))
+                            } else {
+                                None
+                            }
+                        })
                 });
-            let upper = self.all_glyphs.range((Included(&spec), Unbounded)).next()
-                .and_then(|(u, &(urow, _))| {
-                    if u.font_id == spec.font_id &&
-                        u.glyph_id == spec.glyph_id &&
-                        (u.scale.x - spec.scale.x).abs() < self.scale_tolerance &&
-                        (u.scale.y - spec.scale.y).abs() < self.scale_tolerance &&
-                        (spec.offset.x - u.offset.x).abs() < self.position_tolerance &&
-                        (spec.offset.y - u.offset.y).abs() < self.position_tolerance
-                    {
-                        Some((u.scale, u.offset, urow))
-                    } else {
-                        None
-                    }
+                let upper = cached.and_then(|tree| {
+                    tree.range((Included(&spec), Unbounded)).next()
+                        .and_then(|(u, &(urow, _))| {
+                            if u.font_id == spec.font_id &&
+                                u.glyph_id == spec.glyph_id &&
+                                (u.scale.x - spec.scale.x).abs() < self.scale_tolerance &&
+                                (u.scale.y - spec.scale.y).abs() < self.scale_tolerance &&
+                                (spec.offset.x - u.offset.x).abs() < self.position_tolerance &&
+                                (spec.offset.y - u.offset.y).abs() < self.position_tolerance
+                            {
+                                Some((u.scale, u.offset, urow))
+                            } else {
+                                None
+                            }
+                        })
                 });
-            match (lower, upper) {
-                (None, None) => {} // No match
-                (None, Some((_, _, row))) |
-                (Some((_, _, row)), None) => {
-                    // just one match
-                    self.rows.get_refresh(&row);
-                    in_use_rows.insert(row);
-                    continue 'per_glyph;
-                }
-                (Some((_, _, row1)), Some((_, _, row2))) if row1 == row2 => {
-                    // two matches, but the same row
-                    self.rows.get_refresh(&row1);
-                    in_use_rows.insert(row1);
-                    continue 'per_glyph;
-                }
-                (Some((scale1, offset1, row1)), Some((scale2, offset2, row2))) => {
-                    // two definitely distinct matches
-                    let v1 =
-                        ((scale1.x - spec.scale.x) / self.scale_tolerance).abs()
-                        + ((scale1.y - spec.scale.y) / self.scale_tolerance).abs()
-                        + ((offset1.x - spec.offset.x) / self.position_tolerance).abs()
-                        + ((offset1.y - spec.offset.y) / self.position_tolerance).abs();
-                    let v2 =
-                        ((scale2.x - spec.scale.x) / self.scale_tolerance).abs()
-                        + ((scale2.y - spec.scale.y) / self.scale_tolerance).abs()
-                        + ((offset2.x - spec.offset.x) / self.position_tolerance).abs()
-                        + ((offset2.y - spec.offset.y) / self.position_tolerance).abs();
-                    let row = if v1 < v2 { row1 } else { row2 };
-                    self.rows.get_refresh(&row);
-                    in_use_rows.insert(row);
-                    continue 'per_glyph;
+                match (lower, upper) {
+                    (None, None) => {} // No match
+                    (None, Some((_, _, row))) |
+                    (Some((_, _, row)), None) => {
+                        // just one match
+                        self.rows.get_refresh(&row);
+                        in_use_rows.insert(row);
+                        continue 'per_glyph;
+                    }
+                    (Some((_, _, row1)), Some((_, _, row2))) if row1 == row2 => {
+                        // two matches, but the same row
+                        self.rows.get_refresh(&row1);
+                        in_use_rows.insert(row1);
+                        continue 'per_glyph;
+                    }
+                    (Some((scale1, offset1, row1)), Some((scale2, offset2, row2))) => {
+                        // two definitely distinct matches
+                        let v1 =
+                            ((scale1.x - spec.scale.x) / self.scale_tolerance).abs()
+                            + ((scale1.y - spec.scale.y) / self.scale_tolerance).abs()
+                            + ((offset1.x - spec.offset.x) / self.position_tolerance).abs()
+                            + ((offset1.y - spec.offset.y) / self.position_tolerance).abs();
+                        let v2 =
+                            ((scale2.x - spec.scale.x) / self.scale_tolerance).abs()
+                            + ((scale2.y - spec.scale.y) / self.scale_tolerance).abs()
+                            + ((offset2.x - spec.offset.x) / self.position_tolerance).abs()
+                            + ((offset2.y - spec.offset.y) / self.position_tolerance).abs();
+                        let row = if v1 < v2 { row1 } else { row2 };
+                        self.rows.get_refresh(&row);
+                        in_use_rows.insert(row);
+                        continue 'per_glyph;
+                    }
                 }
             }
             // Not cached, so add it:
@@ -429,7 +445,7 @@ impl<'font> Cache<'font> {
             if row_top.is_none() {
                 let mut gap = None;
                 // See if there is space for a new row
-                for (start, end) in self.space_end_for_start.iter() {
+                for (start, end) in &self.space_end_for_start {
                     if end - start >= height {
                         gap = Some((*start, *end));
                         break;
@@ -437,13 +453,15 @@ impl<'font> Cache<'font> {
                 }
                 if gap.is_none() {
                     // Remove old rows until room is available
-                    while self.rows.len() > 0 {
+                    while !self.rows.is_empty() {
                         // check that the oldest row isn't also in use
                         if !in_use_rows.contains(self.rows.front().unwrap().0) {
                             // Remove row
                             let (top, row) = self.rows.pop_front().unwrap();
                             for (spec, _, _) in row.glyphs {
-                                self.all_glyphs.remove(&spec);
+                                if let Some(ref mut c) = self.all_glyphs.get_mut(&spec.key()) {
+                                    c.remove(&spec);
+                                }
                             }
                             let (mut new_start, mut new_end) = (top, top + row.height);
                             // Update the free space maps
@@ -460,16 +478,17 @@ impl<'font> Cache<'font> {
                                 gap = Some((new_start, new_end));
                                 break
                             }
-                        } else {
-                            // all rows left are in use
-                            // try a clean insert of all needed glyphs
-                            // if that doesn't work, fail
-                            if self.queue_retry { // already trying a clean insert, don't do it again
-                                return Err(CacheWriteErr::NoRoomForWholeQueue);
-                            } else { // signal that a retry is needed
-                                queue_success = false;
-                                break 'per_glyph;
-                            }
+                        }
+                        // all rows left are in use
+                        // try a clean insert of all needed glyphs
+                        // if that doesn't work, fail
+                        else if self.queue_retry {
+                            // already trying a clean insert, don't do it again
+                            return Err(CacheWriteErr::NoRoomForWholeQueue);
+                        }
+                        else { // signal that a retry is needed
+                            queue_success = false;
+                            break 'per_glyph;
                         }
                     }
                 }
@@ -505,14 +524,15 @@ impl<'font> Cache<'font> {
                 pixels[(y as usize, x as usize)] = v;
             });
             // transfer
-            uploader(
-                rect,
-                &pixels.as_slice());
+            uploader(rect, pixels.as_slice());
             // add the glyph to the row
             row.glyphs.push((spec, rect, pixels));
             row.width += width;
             in_use_rows.insert(row_top);
-            self.all_glyphs.insert(spec, (row_top, row.glyphs.len() as u32 - 1));
+
+            self.all_glyphs.entry(spec.key())
+                .or_insert_with(|| BTreeMap::new())
+                .insert(spec, (row_top, row.glyphs.len() as u32 - 1));
         }
         if queue_success {
             self.queue.clear();
@@ -535,11 +555,11 @@ impl<'font> Cache<'font> {
     /// A sucessful result is `Some` if the glyph is not an empty glyph (no shape, and thus no rect to return).
     ///
     /// Ensure that `font_id` matches the `font_id` that was passed to `queue_glyph` with this `glyph`.
-    pub fn rect_for<'a>(&'a self,
-                        font_id: usize,
-                        glyph: &PositionedGlyph)
-                        -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr>
-    {
+    pub fn rect_for<'a>(
+        &'a self,
+        font_id: usize,
+        glyph: &PositionedGlyph,
+    ) -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr> {
         use vector;
         use point;
         let glyph_bb = match glyph.pixel_bounding_box() {
@@ -555,9 +575,10 @@ impl<'font> Cache<'font> {
             offset: target_offset
         };
 
-        let (lower, upper) = {
-            let mut left_range = self.all_glyphs.range((Unbounded, Included(&target_spec))).rev();
-            let mut right_range = self.all_glyphs.range((Included(&target_spec), Unbounded));
+        let glyphs = self.all_glyphs.get(&target_spec.key());
+        let (lower, upper) = glyphs.map(|glyphs| {
+            let mut left_range = glyphs.range((Unbounded, Included(&target_spec))).rev();
+            let mut right_range = glyphs.range((Included(&target_spec), Unbounded));
 
             let mut left = left_range.next().map(|(s, &(r, i))| (s, r, i));
             let mut right = right_range.next().map(|(s, &(r, i))| (s, r, i));
@@ -584,7 +605,7 @@ impl<'font> Cache<'font> {
                 else { break; }
             }
             (left, right)
-        };
+        }).unwrap_or((None, None));
 
         let (width, height) = (self.width as f32, self.height as f32);
         let (match_spec, row, index) = match (lower, upper) {
