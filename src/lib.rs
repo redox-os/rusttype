@@ -214,6 +214,29 @@ pub struct VMetrics {
     /// course only a guideline given by the font's designers.
     pub line_gap: f32
 }
+
+impl From<tt::VMetrics> for VMetrics {
+    fn from(vm: tt::VMetrics) -> Self {
+        Self {
+            ascent: vm.ascent as f32,
+            descent: vm.descent as f32,
+            line_gap: vm.line_gap as f32,
+        }
+    }
+}
+
+impl ::std::ops::Mul<f32> for VMetrics {
+    type Output = VMetrics;
+
+    fn mul(self, rhs: f32) -> Self {
+        Self {
+            ascent: self.ascent * rhs,
+            descent: self.descent * rhs,
+            line_gap: self.line_gap * rhs,
+        }
+    }
+}
+
 /// A glyph augmented with scaling information. You can query such a glyph for information that depends
 /// on the scale of the glyph.
 #[derive(Clone)]
@@ -324,11 +347,13 @@ impl<'a> Font<'a> {
     pub fn v_metrics(&self, scale: Scale) -> VMetrics {
         let vm = self.info.get_v_metrics();
         let scale = self.info.scale_for_pixel_height(scale.y);
-        VMetrics {
-            ascent: vm.ascent as f32 * scale,
-            descent: vm.descent as f32 * scale,
-            line_gap: vm.line_gap as f32 * scale
-        }
+        VMetrics::from(vm) * scale
+    }
+
+    /// Get the unscaled VMetrics for this font, shared by all glyphs.
+    /// See `VMetrics` for more detail.
+    pub fn v_metrics_unscaled(&self) -> VMetrics {
+        VMetrics::from(self.info.get_v_metrics())
     }
 
     /// The number of glyphs present in this font. Glyph identifiers for this font will always be in the range
