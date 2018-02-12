@@ -1,3 +1,14 @@
+##0.3.1
+
+* Add more debugging features
+* Add support for unscaled fonts
+* Improve performance
+* Make gpu_cache optional
+
+##0.3.0
+
+* Transfer to redox-os organization, merge a number of pull requests
+
 ##0.2.1
 
 * Made the API more convenient (courtesy of @mitchmindtree, @I1048576).
