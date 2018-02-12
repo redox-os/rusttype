@@ -356,6 +356,11 @@ impl<'a> Font<'a> {
         VMetrics::from(self.info.get_v_metrics())
     }
 
+    /// Returns the units per EM square of this font
+    pub fn units_per_em(&self) -> u16 {
+        self.info.units_per_em()
+    }
+
     /// The number of glyphs present in this font. Glyph identifiers for this font will always be in the range
     /// `0..self.glyph_count()`
     pub fn glyph_count(&self) -> usize {
