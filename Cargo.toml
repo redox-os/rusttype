@@ -41,4 +41,7 @@ name = "gpu_cache"
 required-features = ["gpu_cache"]
 
 [[example]]
+name = "image"
+
+[[example]]
 name = "simple"
