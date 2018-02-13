@@ -1,4 +1,4 @@
-##0.3.1
+##0.4.0
 
 * Add more debugging features
 * Add support for unscaled fonts

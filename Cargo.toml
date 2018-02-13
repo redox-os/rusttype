@@ -1,6 +1,6 @@
 [package]
 name = "rusttype"
-version = "0.3.1"
+version = "0.4.0"
 authors = [
     "Dylan Ede <dylanede@googlemail.com>",
     "Jeremy Soller <jackpot51@gmail.com>"
