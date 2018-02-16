@@ -27,7 +27,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rusttype = "0.2.1"
+//! rusttype = "0.4.1"
 //! ```
 //!
 //! To hit the ground running with RustType, look at the `simple.rs` example supplied with the crate. It
