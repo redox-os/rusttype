@@ -1,5 +1,8 @@
 //! This module provides capabilities for managing a cache of rendered glyphs in GPU memory, with the goal of
 //! minimisng the size and frequency of glyph uploads to GPU memory from the CPU.
+//! 
+//! This module is optional, and not compiled by default. To use it enable the `gpu_cache` feature in your 
+//! Cargo.toml.
 //!
 //! Typical applications that render directly with hardware graphics APIs (e.g. games) need text rendering.
 //! There is not yet a performant solution for high quality text rendering directly on the GPU that isn't

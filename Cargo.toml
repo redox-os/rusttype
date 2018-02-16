@@ -1,6 +1,6 @@
 [package]
 name = "rusttype"
-version = "0.4.0"
+version = "0.4.1"
 authors = [
     "Dylan Ede <dylanede@googlemail.com>",
     "Jeremy Soller <jackpot51@gmail.com>"
@@ -19,6 +19,9 @@ readme = "README.md"
 license = "MIT / Apache-2.0"
 keywords = ["font", "truetype", "opentype", "ttf", "otf"]
 exclude = ["/fonts/**"]
+
+[package.metadata.docs.rs]
+features = ["gpu_cache"]
 
 [dependencies]
 arrayvec = "0.4"
