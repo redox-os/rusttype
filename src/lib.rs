@@ -118,6 +118,7 @@ pub mod gpu_cache;
 
 pub use geometry::{point, vector, Curve, Line, Point, Rect, Vector};
 use stb_truetype as tt;
+use std::fmt;
 use std::sync::Arc;
 
 /// A collection of fonts read straight from a font file's data. The data in the
@@ -319,38 +320,60 @@ impl IntoGlyphId for GlyphId {
 }
 impl<'a> FontCollection<'a> {
     /// Constructs a font collection from an array of bytes, typically loaded
-    /// from a font file. This array may be owned (e.g. `Vec<u8>`), or borrowed
-    /// (`&[u8]`). As long as `From<T>` is implemented for `Bytes` for some type
-    /// `T`, `T` can be used as input.
-    pub fn from_bytes<B: Into<SharedBytes<'a>>>(bytes: B) -> FontCollection<'a> {
-        FontCollection(bytes.into())
+    /// from a font file, which may be a single font or a TrueType Collection
+    /// holding a number of fonts. This array may be owned (e.g. `Vec<u8>`), or
+    /// borrowed (`&[u8]`). As long as `From<T>` is implemented for `Bytes` for
+    /// some type `T`, `T` can be used as input.
+    ///
+    /// This returns an error if `bytes` does not seem to be font data in a
+    /// format we recognize.
+    pub fn from_bytes<B: Into<SharedBytes<'a>>>(bytes: B) -> Result<FontCollection<'a>> {
+        let bytes = bytes.into();
+        // We should use tt::is_collection once it lands in stb_truetype-rs:
+        // https://github.com/redox-os/stb_truetype-rs/pull/15
+        if !tt::is_font(&bytes) && &bytes[0..4] != b"ttcf" {
+            return Err(Error::UnrecognizedFormat);
+        }
+
+        Ok(FontCollection(bytes))
     }
-    /// In the common case that a font collection consists of only one font,
-    /// this function consumes this font collection and turns it into a font. If
-    /// this is not the case, or the font is not valid (read: not supported by
-    /// this library), `None` is returned.
-    pub fn into_font(self) -> Option<Font<'a>> {
-        if tt::is_font(&self.0) {
-            tt::FontInfo::new(self.0, 0).map(|info| Font { info })
-        } else if tt::get_font_offset_for_index(&self.0, 1).is_none() {
+    /// If this `FontCollection` holds a single font, or a TrueType Collection
+    /// containing only one font, return that as a `Font`. The `FontCollection`
+    /// is consumed.
+    ///
+    /// If this `FontCollection` holds multiple fonts, return a
+    /// `CollectionContainsMultipleFonts` error.
+    ///
+    /// If an error occurs, the `FontCollection` is lost, since this function
+    /// takes ownership of it, and the error values don't give it back. If that
+    /// is a problem, use the `font_at` or `into_fonts` methods instead, which
+    /// borrow the `FontCollection` rather than taking ownership of it.
+    pub fn into_font(self) -> Result<Font<'a>> {
+        let offset = if tt::is_font(&self.0) {
+            0
+        } else if tt::get_font_offset_for_index(&self.0, 1).is_some() {
+            return Err(Error::CollectionContainsMultipleFonts);
+        } else {
             // We now know that either a) `self.0` is a collection with only one
             // font, or b) `get_font_offset_for_index` found data it couldn't
             // recognize. Request the first font's offset, distinguishing
             // those two cases.
-            tt::get_font_offset_for_index(&self.0, 0)
-                .and_then(|offset| tt::FontInfo::new(self.0, offset as usize))
-                .map(|info| Font { info })
-        } else {
-            None
-        }
+            match tt::get_font_offset_for_index(&self.0, 0) {
+                None => return Err(Error::IllFormed),
+                Some(offset) => offset,
+            }
+        };
+        let info = tt::FontInfo::new(self.0, offset as usize).ok_or(Error::IllFormed)?;
+        Ok(Font { info })
     }
     /// Gets the font at index `i` in the font collection, if it exists and is
     /// valid. The produced font borrows the font data that is either borrowed
     /// or owned by this font collection.
-    pub fn font_at(&self, i: usize) -> Option<Font<'a>> {
-        tt::get_font_offset_for_index(&self.0, i as i32)
-            .and_then(|o| tt::FontInfo::new(self.0.clone(), o as usize))
-            .map(|info| Font { info })
+    pub fn font_at(&self, i: usize) -> Result<Font<'a>> {
+        let offset = tt::get_font_offset_for_index(&self.0, i as i32)
+            .ok_or(Error::CollectionIndexOutOfBounds)?;
+        let info = tt::FontInfo::new(self.0.clone(), offset as usize).ok_or(Error::IllFormed)?;
+        Ok(Font { info })
     }
     /// Converts `self` into an `Iterator` yielding each `Font` that exists
     /// within the collection.
@@ -366,12 +389,14 @@ pub struct IntoFontsIter<'a> {
     collection: FontCollection<'a>,
 }
 impl<'a> Iterator for IntoFontsIter<'a> {
-    type Item = Font<'a>;
+    type Item = Result<Font<'a>>;
     fn next(&mut self) -> Option<Self::Item> {
-        self.collection.font_at(self.next_index).map(|font| {
-            self.next_index += 1;
-            font
-        })
+        let result = self.collection.font_at(self.next_index);
+        if let &Err(Error::CollectionIndexOutOfBounds) = &result {
+            return None;
+        }
+        self.next_index += 1;
+        Some(result)
     }
 }
 impl<'a> Font<'a> {
@@ -899,3 +924,54 @@ impl<'a> PositionedGlyph<'a> {
         }
     }
 }
+
+/// The type for errors returned by rusttype.
+#[derive(Debug)]
+pub enum Error {
+    /// Font data presented to rusttype is not in a format that the library
+    /// recognizes.
+    UnrecognizedFormat,
+
+    /// Font data presented to rusttype was ill-formed (lacking necessary
+    /// tables, for example).
+    IllFormed,
+
+    /// The caller tried to access the `i`'th font from a `FontCollection`, but
+    /// the collection doesn't contain that many fonts.
+    CollectionIndexOutOfBounds,
+
+    /// The caller tried to convert a `FontCollection` into a font via `into_font`,
+    /// but the `FontCollection` contains more than one font.
+    CollectionContainsMultipleFonts,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> std::result::Result<(), fmt::Error> {
+        f.write_str(std::error::Error::description(self))
+    }
+}
+
+impl std::error::Error for Error {
+    fn description(&self) -> &str {
+        use self::Error::*;
+        match *self {
+            UnrecognizedFormat => "Font data in unrecognized format",
+            IllFormed => "Font data is ill-formed",
+            CollectionIndexOutOfBounds => "Font collection has no font at the given index",
+            CollectionContainsMultipleFonts => {
+                "Attempted to convert collection into a font, \
+                 but collection contais more than one font"
+            }
+        }
+    }
+}
+
+impl std::convert::From<Error> for std::io::Error {
+    fn from(error: Error) -> Self {
+        std::io::Error::new(std::io::ErrorKind::Other, error)
+    }
+}
+
+/// Either a success value of type `T`, or a `rusttype::Error` value, indicating
+/// how the operation failed.
+pub type Result<T> = std::result::Result<T, Error>;

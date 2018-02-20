@@ -752,6 +752,7 @@ fn cache_test() {
     use point;
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let font = FontCollection::from_bytes(font_data as &[u8])
+        .unwrap()
         .into_font()
         .unwrap();
     let mut cache = Cache::new(32, 32, 0.1, 0.1);
@@ -780,6 +781,7 @@ fn need_to_check_whole_cache() {
     use point;
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let font = FontCollection::from_bytes(font_data as &[u8])
+        .unwrap()
         .into_font()
         .unwrap();
 
@@ -869,7 +871,10 @@ mod cache_bench_tests {
     }
 
     fn test_glyphs() -> Vec<PositionedGlyph<'static>> {
-        let font = FontCollection::from_bytes(FONT_BYTES).into_font().unwrap();
+        let font = FontCollection::from_bytes(FONT_BYTES)
+            .unwrap()
+            .into_font()
+            .unwrap();
         let mut glyphs = vec![];
         // Set of scales, found through brute force, to reproduce GlyphNotCached issue
         // Cache settings also affect this, it occurs when position_tolerance is < 1.0
