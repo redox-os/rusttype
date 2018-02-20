@@ -1,3 +1,7 @@
+## master
+
+* Allow users to get font names from `Font`. (#86)
+
 ##0.4.0
 
 * Add more debugging features
