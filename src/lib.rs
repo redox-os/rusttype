@@ -155,16 +155,6 @@ impl From<Vec<u8>> for SharedBytes<'static> {
 /// Represents a Unicode code point.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Codepoint(pub u32);
-/// Represents either a Unicode code point, or a glyph identifier for a font.
-///
-/// This is used as input for functions that can accept code points or glyph identifiers.
-///
-/// You typically won't construct this type directly, instead relying on `From` and `Into`.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum CodepointOrGlyphId {
-    Codepoint(Codepoint),
-    GlyphId(GlyphId)
-}
 /// Represents a glyph identifier for a particular font. This identifier will not necessarily correspond to
 /// the correct glyph in a font other than the one that it was obtained from.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -271,24 +261,30 @@ impl Scale {
         Scale { x: s, y: s }
     }
 }
-impl From<char> for Codepoint {
-    fn from(c: char) -> Codepoint {
-        Codepoint(c as u32)
+/// A trait for types that can be converted into a `GlyphId`, in the context of
+/// a specific font.
+///
+/// Many `rusttype` functions that operate on characters accept values of any
+/// type that implements `IntoGlyphId`. Such types include `char`, `Codepoint`,
+/// and obviously `GlyphId` itself.
+pub trait IntoGlyphId {
+    /// Convert `self` into a `GlyphId`, consulting the index map of `font` if
+    /// necessary.
+    fn into_glyph_id(self, &Font) -> GlyphId;
+}
+impl IntoGlyphId for char {
+    fn into_glyph_id(self, font: &Font) -> GlyphId {
+        GlyphId(font.info.find_glyph_index(self as u32))
     }
 }
-impl From<Codepoint> for CodepointOrGlyphId {
-    fn from(c: Codepoint) -> CodepointOrGlyphId {
-        CodepointOrGlyphId::Codepoint(c)
+impl IntoGlyphId for Codepoint {
+    fn into_glyph_id(self, font: &Font) -> GlyphId {
+        GlyphId(font.info.find_glyph_index(self.0))
     }
 }
-impl From<GlyphId> for CodepointOrGlyphId {
-    fn from(g: GlyphId) -> CodepointOrGlyphId {
-        CodepointOrGlyphId::GlyphId(g)
-    }
-}
-impl From<char> for CodepointOrGlyphId {
-    fn from(c: char) -> CodepointOrGlyphId {
-        Codepoint(c as u32).into()
+impl IntoGlyphId for GlyphId {
+    fn into_glyph_id(self, _font: &Font) -> GlyphId {
+        self
     }
 }
 impl<'a> FontCollection<'a> {
@@ -378,13 +374,10 @@ impl<'a> Font<'a> {
     /// otherwise `None` is returned.
     ///
     /// Note that code points without corresponding glyphs in this font map to the "undef" glyph, glyph 0.
-    pub fn glyph<C: Into<CodepointOrGlyphId>>(&self, id: C) -> Option<Glyph<'a>> {
-        let gid = match id.into() {
-            CodepointOrGlyphId::Codepoint(Codepoint(c)) => self.info.find_glyph_index(c),
-            CodepointOrGlyphId::GlyphId(GlyphId(gid)) => gid
-        };
+    pub fn glyph<C: IntoGlyphId>(&self, id: C) -> Option<Glyph<'a>> {
+        let gid = id.into_glyph_id(self);
         // font clone either a reference clone, or arc clone
-        Some(Glyph::new(GlyphInner::Proxy(self.clone(), gid)))
+        Some(Glyph::new(GlyphInner::Proxy(self.clone(), gid.0)))
     }
     /// A convenience function.
     ///
@@ -392,7 +385,7 @@ impl<'a> Font<'a> {
     /// by the given iterator `itr`.
     ///
     /// This is equivalent in behaviour to `itr.map(|c| font.glyph(c).unwrap())`.
-    pub fn glyphs_for<I: Iterator>(&self, itr: I) -> GlyphIter<I> where I::Item: Into<CodepointOrGlyphId> {
+    pub fn glyphs_for<I: Iterator>(&self, itr: I) -> GlyphIter<I> where I::Item: IntoGlyphId {
         GlyphIter {
             font: self,
             itr: itr
@@ -453,7 +446,7 @@ impl<'a> Font<'a> {
     }
     /// Returns additional kerning to apply as well as that given by HMetrics for a particular pair of glyphs.
     pub fn pair_kerning<A, B>(&self, scale: Scale, first: A, second: B) -> f32
-        where A: Into<CodepointOrGlyphId>, B: Into<CodepointOrGlyphId>
+        where A: IntoGlyphId, B: IntoGlyphId
     {
         let (first, second) = (self.glyph(first).unwrap(), self.glyph(second).unwrap());
         let factor = self.info.scale_for_pixel_height(scale.y) * (scale.x / scale.y);
@@ -462,11 +455,11 @@ impl<'a> Font<'a> {
     }
 }
 #[derive(Clone)]
-pub struct GlyphIter<'a, I: Iterator> where I::Item: Into<CodepointOrGlyphId> {
+pub struct GlyphIter<'a, I: Iterator> where I::Item: IntoGlyphId {
     font: &'a Font<'a>,
     itr: I
 }
-impl<'a, I: Iterator> Iterator for GlyphIter<'a, I> where I::Item: Into<CodepointOrGlyphId> {
+impl<'a, I: Iterator> Iterator for GlyphIter<'a, I> where I::Item: IntoGlyphId {
     type Item = Glyph<'a>;
     fn next(&mut self) -> Option<Glyph<'a>> {
         self.itr.next().map(|c| self.font.glyph(c).unwrap())
