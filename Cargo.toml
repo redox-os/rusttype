@@ -30,13 +30,13 @@ linked-hash-map = { version = "0.5", optional = true }
 ordered-float = "0.5"
 
 [dev-dependencies]
-glium = "0.17"
+glium = "0.20"
 unicode-normalization = "0.1"
-image = "0.16.0"
+image = "0.18"
 
 [features]
 # Compiles benchmark code, to be avoided normally as this currently requires nightly rust
-bench = []
+bench = ["gpu_cache"]
 gpu_cache = ["linked-hash-map"]
 
 [[example]]

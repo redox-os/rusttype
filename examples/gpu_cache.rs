@@ -121,7 +121,7 @@ Feel free to type out some text, and delete it with Backspace. You can also try 
     loop {
         let (width, dpi_factor) = {
             let window = display.gl_window();
-            (window.get_inner_size_pixels().unwrap().0, window.hidpi_factor())
+            (window.get_inner_size().unwrap().0, window.hidpi_factor())
         };
 
         let mut finished = false;
