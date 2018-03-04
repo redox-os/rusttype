@@ -398,6 +398,10 @@ impl<'a> Font<'a> {
             itr: itr
         }
     }
+    /// Returns an iterator over the names for this font.
+    pub fn font_name_strings(&self) -> tt::FontNameIter<SharedBytes<'a>> {
+        self.info.get_font_name_strings()
+    }
     /// A convenience function for laying out glyphs for a string horizontally. It does not take control
     /// characters like line breaks into account, as treatment of these is likely to depend on the application.
     ///

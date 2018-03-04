@@ -1,3 +1,7 @@
+## master
+
+* Allow users to get font names from `Font`. (#86)
+
 ## 0.4.0
 
 * Add more debugging features
@@ -15,7 +19,7 @@
 * Fixes for the examples (@I1048576)
 * Removed the dependency on ndarray (@I1048576)
 
-# 0.2.0
+## 0.2.0
 
 * Initial GPU caching implementation.
 * Made font data management more flexible.
@@ -29,6 +33,6 @@ Fixed issue #8
 
 Fixed issue #7
 
-# 0.1
+## 0.1
 
 Initial release
