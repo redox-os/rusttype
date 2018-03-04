@@ -302,11 +302,17 @@ impl<'a> FontCollection<'a> {
     /// consumes this font collection and turns it into a font. If this is not the case,
     /// or the font is not valid (read: not supported by this library), `None` is returned.
     pub fn into_font(self) -> Option<Font<'a>> {
-        if tt::is_font(&self.0) && tt::get_font_offset_for_index(&self.0, 1).is_none() {
-            tt::FontInfo::new(self.0, 0).map(
-                |info| Font {
-                    info: info
-                })
+        if tt::is_font(&self.0) {
+            tt::FontInfo::new(self.0, 0)
+                .map(|info| Font { info })
+        } else if tt::get_font_offset_for_index(&self.0, 1).is_none() {
+            // We now know that either a) `self.0` is a collection with only one
+            // font, or b) `get_font_offset_for_index` found data it couldn't
+            // recognize. Request the first font's offset, distinguishing
+            // those two cases.
+            tt::get_font_offset_for_index(&self.0, 0)
+                .and_then(|offset| tt::FontInfo::new(self.0, offset as usize))
+                .map(|info| Font { info })
         } else {
             None
         }
