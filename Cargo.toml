@@ -26,8 +26,9 @@ features = ["gpu_cache"]
 [dependencies]
 arrayvec = "0.4"
 stb_truetype = "0.2.2"
-linked-hash-map = { version = "0.5", optional = true }
 ordered-float = "0.5"
+linked-hash-map = { version = "0.5", optional = true }
+fnv = { version = "1", optional = true }
 
 [dev-dependencies]
 glium = "0.20"
@@ -37,7 +38,7 @@ image = "0.18"
 [features]
 # Compiles benchmark code, to be avoided normally as this currently requires nightly rust
 bench = ["gpu_cache"]
-gpu_cache = ["linked-hash-map"]
+gpu_cache = ["linked-hash-map", "fnv"]
 
 [[example]]
 name = "gpu_cache"
