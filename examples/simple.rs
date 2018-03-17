@@ -1,6 +1,6 @@
 extern crate rusttype;
 
-use rusttype::{FontCollection, Scale, point, PositionedGlyph};
+use rusttype::{point, FontCollection, PositionedGlyph, Scale};
 use std::io::Write;
 
 fn main() {
@@ -13,7 +13,10 @@ fn main() {
     let pixel_height = height.ceil() as usize;
 
     // 2x scale in x direction to counter the aspect ratio of monospace characters.
-    let scale = Scale { x: height*2.0, y: height };
+    let scale = Scale {
+        x: height * 2.0,
+        y: height,
+    };
 
     // The origin of a line of text is at the baseline (roughly where non-descending letters sit).
     // We don't want to clip the text, so we shift it down with an offset when laying it out.
@@ -26,21 +29,25 @@ fn main() {
     let glyphs: Vec<PositionedGlyph> = font.layout("RustType", scale, offset).collect();
 
     // Find the most visually pleasing width to display
-    let width = glyphs.iter().rev()
+    let width = glyphs
+        .iter()
+        .rev()
         .map(|g| g.position().x as f32 + g.unpositioned().h_metrics().advance_width)
-        .next().unwrap_or(0.0).ceil() as usize;
+        .next()
+        .unwrap_or(0.0)
+        .ceil() as usize;
 
     println!("width: {}, height: {}", width, pixel_height);
 
     // Rasterise directly into ASCII art.
     let mut pixel_data = vec![b'@'; width * pixel_height];
     let mapping = b"@%#x+=:-. "; // The approximation of greyscale
-    let mapping_scale = (mapping.len()-1) as f32;
+    let mapping_scale = (mapping.len() - 1) as f32;
     for g in glyphs {
         if let Some(bb) = g.pixel_bounding_box() {
             g.draw(|x, y, v| {
                 // v should be in the range 0.0 to 1.0
-                let i = (v*mapping_scale + 0.5) as usize;
+                let i = (v * mapping_scale + 0.5) as usize;
                 // so something's wrong if you get $ in the output.
                 let c = mapping.get(i).cloned().unwrap_or(b'$');
                 let x = x as i32 + bb.min.x;
@@ -59,7 +66,9 @@ fn main() {
     let stdout = ::std::io::stdout();
     let mut handle = stdout.lock();
     for j in 0..pixel_height {
-        handle.write(&pixel_data[j*width..(j+1)*width]).unwrap();
+        handle
+            .write(&pixel_data[j * width..(j + 1) * width])
+            .unwrap();
         handle.write(b"\n").unwrap();
     }
 }

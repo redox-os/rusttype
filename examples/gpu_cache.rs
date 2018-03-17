@@ -1,18 +1,20 @@
+extern crate arrayvec;
 #[macro_use]
 extern crate glium;
 extern crate rusttype;
-extern crate arrayvec;
 extern crate unicode_normalization;
 
 use glium::{glutin, Surface};
-use rusttype::{FontCollection, Font, Scale, point, vector, PositionedGlyph, Rect};
+use rusttype::{point, vector, Font, FontCollection, PositionedGlyph, Rect, Scale};
 use rusttype::gpu_cache::Cache;
 use std::borrow::Cow;
 
-fn layout_paragraph<'a>(font: &'a Font,
-                        scale: Scale,
-                        width: u32,
-                        text: &str) -> Vec<PositionedGlyph<'a>> {
+fn layout_paragraph<'a>(
+    font: &'a Font,
+    scale: Scale,
+    width: u32,
+    text: &str,
+) -> Vec<PositionedGlyph<'a>> {
     use unicode_normalization::UnicodeNormalization;
     let mut result = Vec::new();
     let v_metrics = font.v_metrics(scale);
@@ -25,7 +27,7 @@ fn layout_paragraph<'a>(font: &'a Font,
                 '\r' => {
                     caret = point(0.0, caret.y + advance_height);
                 }
-                '\n' => {},
+                '\n' => {}
                 _ => {}
             }
             continue;
@@ -55,13 +57,14 @@ fn layout_paragraph<'a>(font: &'a Font,
 
 fn main() {
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-    let font = FontCollection::from_bytes(font_data as &[u8]).into_font().unwrap();
+    let font = FontCollection::from_bytes(font_data as &[u8])
+        .into_font()
+        .unwrap();
 
     let window = glutin::WindowBuilder::new()
         .with_dimensions(512, 512)
         .with_title("RustType GPU cache example");
-    let context = glutin::ContextBuilder::new()
-        .with_vsync(true);
+    let context = glutin::ContextBuilder::new().with_vsync(true);
     let mut events_loop = glutin::EventsLoop::new();
     let display = glium::Display::new(window, context, &events_loop).unwrap();
 
@@ -108,15 +111,17 @@ fn main() {
             data: Cow::Owned(vec![128u8; cache_width as usize * cache_height as usize]),
             width: cache_width,
             height: cache_height,
-            format: glium::texture::ClientFormat::U8
+            format: glium::texture::ClientFormat::U8,
         },
         glium::texture::UncompressedFloatFormat::U8,
-        glium::texture::MipmapsOption::NoMipmap).unwrap();
+        glium::texture::MipmapsOption::NoMipmap,
+    ).unwrap();
     let mut text: String = "A japanese poem:\r
 \r
 色は匂へど散りぬるを我が世誰ぞ常ならむ有為の奥山今日越えて浅き夢見じ酔ひもせず\r
 \r
-Feel free to type out some text, and delete it with Backspace. You can also try resizing this window."
+Feel free to type out some text, and delete it with Backspace. \
+You can also try resizing this window."
         .into();
     loop {
         let (width, dpi_factor) = {
@@ -132,42 +137,53 @@ Feel free to type out some text, and delete it with Backspace. You can also try 
                 match event {
                     WindowEvent::Closed => finished = true,
                     WindowEvent::KeyboardInput {
-                        input: KeyboardInput {
-                            state: ElementState::Pressed,
-                            virtual_keycode: Some(keypress),
-                            .. },
+                        input:
+                            KeyboardInput {
+                                state: ElementState::Pressed,
+                                virtual_keycode: Some(keypress),
+                                ..
+                            },
                         ..
                     } => match keypress {
                         VirtualKeyCode::Escape => finished = true,
-                        VirtualKeyCode::Back => { text.pop(); },
+                        VirtualKeyCode::Back => {
+                            text.pop();
+                        }
                         _ => (),
                     },
                     WindowEvent::ReceivedCharacter(c) => if c != '\u{7f}' && c != '\u{8}' {
                         text.push(c);
                     },
-                    _ => {},
+                    _ => {}
                 }
             }
         });
-        if finished { break }
+        if finished {
+            break;
+        }
 
         let glyphs = layout_paragraph(&font, Scale::uniform(24.0 * dpi_factor), width, &text);
         for glyph in &glyphs {
             cache.queue_glyph(0, glyph.clone());
         }
-        cache.cache_queued(|rect, data| {
-            cache_tex.main_level().write(glium::Rect {
-                left: rect.min.x,
-                bottom: rect.min.y,
-                width: rect.width(),
-                height: rect.height()
-            }, glium::texture::RawImage2d {
-                data: Cow::Borrowed(data),
-                width: rect.width(),
-                height: rect.height(),
-                format: glium::texture::ClientFormat::U8
-            });
-        }).unwrap();
+        cache
+            .cache_queued(|rect, data| {
+                cache_tex.main_level().write(
+                    glium::Rect {
+                        left: rect.min.x,
+                        bottom: rect.min.y,
+                        width: rect.width(),
+                        height: rect.height(),
+                    },
+                    glium::texture::RawImage2d {
+                        data: Cow::Borrowed(data),
+                        width: rect.width(),
+                        height: rect.height(),
+                        format: glium::texture::ClientFormat::U8,
+                    },
+                );
+            })
+            .unwrap();
 
         let uniforms = uniform! {
             tex: cache_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest)
@@ -178,7 +194,7 @@ Feel free to type out some text, and delete it with Backspace. You can also try 
             struct Vertex {
                 position: [f32; 2],
                 tex_coords: [f32; 2],
-                colour: [f32; 4]
+                colour: [f32; 4],
             }
 
             implement_vertex!(Vertex, position, tex_coords, colour);
@@ -188,65 +204,77 @@ Feel free to type out some text, and delete it with Backspace. You can also try 
                 (w as f32, h as f32)
             };
             let origin = point(0.0, 0.0);
-            let vertices: Vec<Vertex> = glyphs.iter().flat_map(|g| {
-                if let Ok(Some((uv_rect, screen_rect))) = cache.rect_for(0, g) {
-                    let gl_rect = Rect {
-                        min: origin
-                            + (vector(screen_rect.min.x as f32 / screen_width - 0.5,
-                                      1.0 - screen_rect.min.y as f32 / screen_height - 0.5)) * 2.0,
-                        max: origin
-                            + (vector(screen_rect.max.x as f32 / screen_width - 0.5,
-                                      1.0 - screen_rect.max.y as f32 / screen_height - 0.5)) * 2.0
-                    };
-                    arrayvec::ArrayVec::<[Vertex; 6]>::from([
-                        Vertex {
-                            position: [gl_rect.min.x, gl_rect.max.y],
-                            tex_coords: [uv_rect.min.x, uv_rect.max.y],
-                            colour: colour
-                        },
-                        Vertex {
-                            position: [gl_rect.min.x,  gl_rect.min.y],
-                            tex_coords: [uv_rect.min.x, uv_rect.min.y],
-                            colour: colour
-                        },
-                        Vertex {
-                            position: [gl_rect.max.x,  gl_rect.min.y],
-                            tex_coords: [uv_rect.max.x, uv_rect.min.y],
-                            colour: colour
-                        },
-                        Vertex {
-                            position: [gl_rect.max.x,  gl_rect.min.y],
-                            tex_coords: [uv_rect.max.x, uv_rect.min.y],
-                            colour: colour },
-                        Vertex {
-                            position: [gl_rect.max.x, gl_rect.max.y],
-                            tex_coords: [uv_rect.max.x, uv_rect.max.y],
-                            colour: colour
-                        },
-                        Vertex {
-                            position: [gl_rect.min.x, gl_rect.max.y],
-                            tex_coords: [uv_rect.min.x, uv_rect.max.y],
-                            colour: colour
-                        }])
-                } else {
-                    arrayvec::ArrayVec::new()
-                }
-            }).collect();
+            let vertices: Vec<Vertex> = glyphs
+                .iter()
+                .flat_map(|g| {
+                    if let Ok(Some((uv_rect, screen_rect))) = cache.rect_for(0, g) {
+                        let gl_rect = Rect {
+                            min: origin
+                                + (vector(
+                                    screen_rect.min.x as f32 / screen_width - 0.5,
+                                    1.0 - screen_rect.min.y as f32 / screen_height - 0.5,
+                                )) * 2.0,
+                            max: origin
+                                + (vector(
+                                    screen_rect.max.x as f32 / screen_width - 0.5,
+                                    1.0 - screen_rect.max.y as f32 / screen_height - 0.5,
+                                )) * 2.0,
+                        };
+                        arrayvec::ArrayVec::<[Vertex; 6]>::from([
+                            Vertex {
+                                position: [gl_rect.min.x, gl_rect.max.y],
+                                tex_coords: [uv_rect.min.x, uv_rect.max.y],
+                                colour: colour,
+                            },
+                            Vertex {
+                                position: [gl_rect.min.x, gl_rect.min.y],
+                                tex_coords: [uv_rect.min.x, uv_rect.min.y],
+                                colour: colour,
+                            },
+                            Vertex {
+                                position: [gl_rect.max.x, gl_rect.min.y],
+                                tex_coords: [uv_rect.max.x, uv_rect.min.y],
+                                colour: colour,
+                            },
+                            Vertex {
+                                position: [gl_rect.max.x, gl_rect.min.y],
+                                tex_coords: [uv_rect.max.x, uv_rect.min.y],
+                                colour: colour,
+                            },
+                            Vertex {
+                                position: [gl_rect.max.x, gl_rect.max.y],
+                                tex_coords: [uv_rect.max.x, uv_rect.max.y],
+                                colour: colour,
+                            },
+                            Vertex {
+                                position: [gl_rect.min.x, gl_rect.max.y],
+                                tex_coords: [uv_rect.min.x, uv_rect.max.y],
+                                colour: colour,
+                            },
+                        ])
+                    } else {
+                        arrayvec::ArrayVec::new()
+                    }
+                })
+                .collect();
 
-            glium::VertexBuffer::new(
-                &display,
-                &vertices).unwrap()
+            glium::VertexBuffer::new(&display, &vertices).unwrap()
         };
 
         let mut target = display.draw();
         target.clear_color(1.0, 1.0, 1.0, 0.0);
-        target.draw(&vertex_buffer,
-                    glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
-                    &program, &uniforms,
-                    &glium::DrawParameters {
-                        blend: glium::Blend::alpha_blending(),
-                        ..Default::default()
-                    }).unwrap();
+        target
+            .draw(
+                &vertex_buffer,
+                glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+                &program,
+                &uniforms,
+                &glium::DrawParameters {
+                    blend: glium::Blend::alpha_blending(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
 
         target.finish().unwrap();
     }

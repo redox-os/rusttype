@@ -102,8 +102,8 @@ extern crate test;
 extern crate unicode_normalization;
 
 extern crate arrayvec;
-extern crate stb_truetype;
 extern crate ordered_float;
+extern crate stb_truetype;
 
 mod geometry;
 mod rasterizer;
@@ -113,7 +113,7 @@ pub mod gpu_cache;
 
 use std::sync::Arc;
 
-pub use geometry::{Rect, Point, point, Vector, vector, Line, Curve};
+pub use geometry::{point, vector, Curve, Line, Point, Rect, Vector};
 use stb_truetype as tt;
 
 /// A collection of fonts read straight from a font file's data. The data in the
@@ -124,7 +124,7 @@ pub struct FontCollection<'a>(SharedBytes<'a>);
 /// A single font. This may or may not own the font data.
 #[derive(Clone)]
 pub struct Font<'a> {
-    info: tt::FontInfo<SharedBytes<'a>>
+    info: tt::FontInfo<SharedBytes<'a>>,
 }
 
 /// `SharedBytes` handles the lifetime of font data used in RustType. The data
@@ -142,7 +142,7 @@ impl<'a> ::std::ops::Deref for SharedBytes<'a> {
     fn deref(&self) -> &[u8] {
         match *self {
             SharedBytes::ByRef(bytes) => bytes,
-            SharedBytes::ByArc(ref bytes) => &**bytes
+            SharedBytes::ByArc(ref bytes) => &**bytes,
         }
     }
 }
@@ -183,13 +183,13 @@ pub struct GlyphId(pub u32);
 /// position it using `positioned`.
 #[derive(Clone)]
 pub struct Glyph<'a> {
-    inner: GlyphInner<'a>
+    inner: GlyphInner<'a>,
 }
 
 #[derive(Clone)]
 enum GlyphInner<'a> {
     Proxy(Font<'a>, u32),
-    Shared(Arc<SharedGlyphData>)
+    Shared(Arc<SharedGlyphData>),
 }
 
 #[derive(Debug)]
@@ -198,7 +198,7 @@ pub struct SharedGlyphData {
     pub extents: Option<Rect<i32>>,
     pub scale_for_1_pixel: f32,
     pub unit_h_metrics: HMetrics,
-    pub shape: Option<Vec<tt::Vertex>>
+    pub shape: Option<Vec<tt::Vertex>>,
 }
 /// The "horizontal metrics" of a glyph. This is useful for calculating the
 /// horizontal offset of a glyph from the previous one in a string when laying a
@@ -210,7 +210,7 @@ pub struct HMetrics {
     pub advance_width: f32,
     /// The horizontal offset between the origin of this glyph and the leftmost
     /// edge/point of the glyph.
-    pub left_side_bearing: f32
+    pub left_side_bearing: f32,
 }
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 /// The "vertical metrics" of a font at a particular scale. This is useful for
@@ -225,7 +225,7 @@ pub struct VMetrics {
     pub descent: f32,
     /// The gap to leave between the descent of one line and the ascent of the
     /// next. This is of course only a guideline given by the font's designers.
-    pub line_gap: f32
+    pub line_gap: f32,
 }
 
 impl From<tt::VMetrics> for VMetrics {
@@ -256,7 +256,7 @@ impl ::std::ops::Mul<f32> for VMetrics {
 pub struct ScaledGlyph<'a> {
     g: Glyph<'a>,
     api_scale: Scale,
-    scale: Vector<f32>
+    scale: Vector<f32>,
 }
 /// A glyph augmented with positioning and scaling information. You can query
 /// such a glyph for information that depends on the scale and position of the
@@ -265,7 +265,7 @@ pub struct ScaledGlyph<'a> {
 pub struct PositionedGlyph<'a> {
     sg: ScaledGlyph<'a>,
     position: Point<f32>,
-    bb: Option<Rect<i32>>
+    bb: Option<Rect<i32>>,
 }
 /// Defines the size of a rendered face of a font, in pixels, horizontally and
 /// vertically. A vertical scale of `y` pixels means that the distance betwen
@@ -278,7 +278,7 @@ pub struct Scale {
     /// Horizontal scale, in pixels.
     pub x: f32,
     /// Vertical scale, in pixels.
-    pub y: f32
+    pub y: f32,
 }
 
 impl Scale {
@@ -327,8 +327,7 @@ impl<'a> FontCollection<'a> {
     /// this library), `None` is returned.
     pub fn into_font(self) -> Option<Font<'a>> {
         if tt::is_font(&self.0) {
-            tt::FontInfo::new(self.0, 0)
-                .map(|info| Font { info })
+            tt::FontInfo::new(self.0, 0).map(|info| Font { info })
         } else if tt::get_font_offset_for_index(&self.0, 1).is_none() {
             // We now know that either a) `self.0` is a collection with only one
             // font, or b) `get_font_offset_for_index` found data it couldn't
@@ -372,7 +371,6 @@ impl<'a> Iterator for IntoFontsIter<'a> {
     }
 }
 impl<'a> Font<'a> {
-
     /// The "vertical metrics" for this font at a given scale. These metrics are
     /// shared by all of the glyphs in the font. See `VMetrics` for more detail.
     pub fn v_metrics(&self, scale: Scale) -> VMetrics {
@@ -418,7 +416,7 @@ impl<'a> Font<'a> {
     pub fn glyphs_for<I: Iterator>(&self, itr: I) -> GlyphIter<I> where I::Item: IntoGlyphId {
         GlyphIter {
             font: self,
-            itr: itr
+            itr: itr,
         }
     }
     /// Returns an iterator over the names for this font.
@@ -469,14 +467,19 @@ impl<'a> Font<'a> {
     ///     })
     /// # ;
     /// ```
-    pub fn layout<'b, 'c>(&'b self, s: &'c str, scale: Scale, start: Point<f32>) -> LayoutIter<'b, 'c> {
+    pub fn layout<'b, 'c>(
+        &'b self,
+        s: &'c str,
+        scale: Scale,
+        start: Point<f32>,
+    ) -> LayoutIter<'b, 'c> {
         LayoutIter {
             font: self,
             chars: s.chars(),
             caret: 0.0,
             scale: scale,
             start: start,
-            last_glyph: None
+            last_glyph: None,
         }
     }
     /// Returns additional kerning to apply as well as that given by HMetrics
@@ -486,14 +489,15 @@ impl<'a> Font<'a> {
     {
         let (first, second) = (self.glyph(first).unwrap(), self.glyph(second).unwrap());
         let factor = self.info.scale_for_pixel_height(scale.y) * (scale.x / scale.y);
-        let kern = self.info.get_glyph_kern_advance(first.id().0, second.id().0);
+        let kern = self.info
+            .get_glyph_kern_advance(first.id().0, second.id().0);
         factor * kern as f32
     }
 }
 #[derive(Clone)]
 pub struct GlyphIter<'a, I: Iterator> where I::Item: IntoGlyphId {
     font: &'a Font<'a>,
-    itr: I
+    itr: I,
 }
 impl<'a, I: Iterator> Iterator for GlyphIter<'a, I> where I::Item: IntoGlyphId {
     type Item = Glyph<'a>;
@@ -508,7 +512,7 @@ pub struct LayoutIter<'a, 'b> {
     caret: f32,
     scale: Scale,
     start: Point<f32>,
-    last_glyph: Option<GlyphId>
+    last_glyph: Option<GlyphId>,
 }
 impl<'a, 'b> Iterator for LayoutIter<'a, 'b> {
     type Item = PositionedGlyph<'a>;
@@ -536,7 +540,7 @@ impl<'a> Glyph<'a> {
     pub fn font(&self) -> Option<&Font<'a>> {
         match self.inner {
             GlyphInner::Proxy(ref f, _) => Some(f),
-            GlyphInner::Shared(_) => None
+            GlyphInner::Shared(_) => None,
         }
     }
     /// The glyph identifier for this glyph.
@@ -564,7 +568,7 @@ impl<'a> Glyph<'a> {
         ScaledGlyph {
             g: self,
             api_scale: scale,
-            scale: vector(scale_x, scale_y)
+            scale: vector(scale_x, scale_y),
         }
     }
     /// Turns a `Glyph<'a>` into a `Glyph<'static>`. This produces a glyph that
@@ -575,23 +579,25 @@ impl<'a> Glyph<'a> {
     /// is equivalent to `clone()`.
     pub fn standalone(&self) -> Glyph<'static> {
         match self.inner {
-            GlyphInner::Proxy(ref font, id) => Glyph::new(GlyphInner::Shared(Arc::new(SharedGlyphData {
-                id: id,
-                scale_for_1_pixel: font.info.scale_for_pixel_height(1.0),
-                unit_h_metrics: {
-                    let hm = font.info.get_glyph_h_metrics(id);
-                    HMetrics {
-                        advance_width: hm.advance_width as f32,
-                        left_side_bearing: hm.left_side_bearing as f32
-                    }
-                },
-                extents: font.info.get_glyph_box(id).map(|bb| Rect {
-                    min: point(bb.x0 as i32, -(bb.y1 as i32)),
-                    max: point(bb.x1 as i32, -(bb.y0 as i32))
-                }),
-                shape: font.info.get_glyph_shape(id)
-            }))),
-            GlyphInner::Shared(ref data) => Glyph::new(GlyphInner::Shared(data.clone()))
+            GlyphInner::Proxy(ref font, id) => {
+                Glyph::new(GlyphInner::Shared(Arc::new(SharedGlyphData {
+                    id: id,
+                    scale_for_1_pixel: font.info.scale_for_pixel_height(1.0),
+                    unit_h_metrics: {
+                        let hm = font.info.get_glyph_h_metrics(id);
+                        HMetrics {
+                            advance_width: hm.advance_width as f32,
+                            left_side_bearing: hm.left_side_bearing as f32,
+                        }
+                    },
+                    extents: font.info.get_glyph_box(id).map(|bb| Rect {
+                        min: point(bb.x0 as i32, -(bb.y1 as i32)),
+                        max: point(bb.x1 as i32, -(bb.y0 as i32)),
+                    }),
+                    shape: font.info.get_glyph_shape(id),
+                })))
+            }
+            GlyphInner::Shared(ref data) => Glyph::new(GlyphInner::Shared(data.clone())),
         }
     }
     /// Get the data from this glyph (such as width, extents, vertices, etc.).
@@ -599,7 +605,7 @@ impl<'a> Glyph<'a> {
     pub fn get_data(&self) -> Option<Arc<SharedGlyphData>> {
         match self.inner {
             GlyphInner::Proxy(_, _) => None,
-            GlyphInner::Shared(ref s) => Some(s.clone())
+            GlyphInner::Shared(ref s) => Some(s.clone()),
         }
     }
 }
@@ -607,12 +613,12 @@ impl<'a> Glyph<'a> {
 #[derive(Copy, Clone, Debug)]
 pub enum Segment {
     Line(Line),
-    Curve(Curve)
+    Curve(Curve),
 }
 /// A closed loop consisting of a sequence of `Segment`s.
 #[derive(Clone, Debug)]
 pub struct Contour {
-    pub segments: Vec<Segment>
+    pub segments: Vec<Segment>,
 }
 impl<'a> ScaledGlyph<'a> {
     /// The glyph identifier for this glyph.
@@ -638,28 +644,27 @@ impl<'a> ScaledGlyph<'a> {
     /// depend on the position of the glyph available.
     pub fn positioned(self, p: Point<f32>) -> PositionedGlyph<'a> {
         let bb = match self.g.inner {
-            GlyphInner::Proxy(ref font, id) => {
-                font.info.get_glyph_bitmap_box_subpixel(id,
-                                                        self.scale.x, self.scale.y,
-                                                        p.x, p.y)
-                    .map(|bb| Rect {
-                        min: point(bb.x0, bb.y0),
-                        max: point(bb.x1, bb.y1)
-                    })
-            }
-            GlyphInner::Shared(ref data) => {
-                data.extents.map(|bb| Rect {
-                    min: point((bb.min.x as f32 * self.scale.x + p.x).floor() as i32,
-                               (bb.min.y as f32 * self.scale.y + p.y).floor() as i32),
-                    max: point((bb.max.x as f32 * self.scale.x + p.x).ceil() as i32,
-                               (bb.max.y as f32 * self.scale.y + p.y).ceil() as i32)
-                })
-            }
+            GlyphInner::Proxy(ref font, id) => font.info
+                .get_glyph_bitmap_box_subpixel(id, self.scale.x, self.scale.y, p.x, p.y)
+                .map(|bb| Rect {
+                    min: point(bb.x0, bb.y0),
+                    max: point(bb.x1, bb.y1),
+                }),
+            GlyphInner::Shared(ref data) => data.extents.map(|bb| Rect {
+                min: point(
+                    (bb.min.x as f32 * self.scale.x + p.x).floor() as i32,
+                    (bb.min.y as f32 * self.scale.y + p.y).floor() as i32,
+                ),
+                max: point(
+                    (bb.max.x as f32 * self.scale.x + p.x).ceil() as i32,
+                    (bb.max.y as f32 * self.scale.y + p.y).ceil() as i32,
+                ),
+            }),
         };
         PositionedGlyph {
             sg: self,
             position: p,
-            bb: bb
+            bb: bb,
         }
     }
     pub fn scale(&self) -> Scale {
@@ -672,15 +677,13 @@ impl<'a> ScaledGlyph<'a> {
                 let hm = font.info.get_glyph_h_metrics(id);
                 HMetrics {
                     advance_width: hm.advance_width as f32 * self.scale.x,
-                    left_side_bearing: hm.left_side_bearing as f32 * self.scale.x
+                    left_side_bearing: hm.left_side_bearing as f32 * self.scale.x,
                 }
             }
-            GlyphInner::Shared(ref data) => {
-                HMetrics {
-                    advance_width: data.unit_h_metrics.advance_width * self.scale.x,
-                    left_side_bearing: data.unit_h_metrics.left_side_bearing * self.scale.y
-                }
-            }
+            GlyphInner::Shared(ref data) => HMetrics {
+                advance_width: data.unit_h_metrics.advance_width * self.scale.x,
+                left_side_bearing: data.unit_h_metrics.left_side_bearing * self.scale.y,
+            },
         }
     }
     fn shape_with_offset(&self, offset: Point<f32>) -> Option<Vec<Contour>> {
@@ -688,39 +691,37 @@ impl<'a> ScaledGlyph<'a> {
         use std::mem::replace;
         match self.g.inner {
             GlyphInner::Proxy(ref font, id) => font.info.get_glyph_shape(id),
-            GlyphInner::Shared(ref data) => data.shape.clone()
+            GlyphInner::Shared(ref data) => data.shape.clone(),
         }.map(|shape| {
             let mut result = Vec::new();
             let mut current = Vec::new();
             let mut last = point(0.0, 0.0);
             for v in shape {
-                let end = point(v.x as f32 * self.scale.x + offset.x,
-                                v.y as f32 * self.scale.y + offset.y);
+                let end = point(
+                    v.x as f32 * self.scale.x + offset.x,
+                    v.y as f32 * self.scale.y + offset.y,
+                );
                 match v.vertex_type() {
-                    VertexType::MoveTo if current.len() != 0 => {
-                        result.push(Contour {
-                            segments: replace(&mut current, Vec::new())
-                        })
-                    }
-                    VertexType::LineTo => {
-                        current.push(Segment::Line(Line {
-                            p: [last, end]
-                        }))
-                    }
+                    VertexType::MoveTo if current.len() != 0 => result.push(Contour {
+                        segments: replace(&mut current, Vec::new()),
+                    }),
+                    VertexType::LineTo => current.push(Segment::Line(Line { p: [last, end] })),
                     VertexType::CurveTo => {
-                        let control = point(v.cx as f32 * self.scale.x + offset.x,
-                                            v.cy as f32 * self.scale.y + offset.y);
+                        let control = point(
+                            v.cx as f32 * self.scale.x + offset.x,
+                            v.cy as f32 * self.scale.y + offset.y,
+                        );
                         current.push(Segment::Curve(Curve {
-                            p: [last, control, end]
+                            p: [last, control, end],
                         }))
                     }
-                    _ => ()
+                    _ => (),
                 }
                 last = end;
             }
             if current.len() > 0 {
                 result.push(Contour {
-                    segments: replace(&mut current, Vec::new())
+                    segments: replace(&mut current, Vec::new()),
                 });
             }
             result
@@ -740,16 +741,20 @@ impl<'a> ScaledGlyph<'a> {
     /// coordinates are relative to the glyph's origin.
     pub fn exact_bounding_box(&self) -> Option<Rect<f32>> {
         match self.g.inner {
-            GlyphInner::Proxy(ref font, id) => font.info.get_glyph_box(id).map(|bb| {
-                Rect {
-                    min: point(bb.x0 as f32 * self.scale.x, -bb.y1 as f32 * self.scale.y),
-                    max: point(bb.x1 as f32 * self.scale.x, -bb.y0 as f32 * self.scale.y)
-                }
+            GlyphInner::Proxy(ref font, id) => font.info.get_glyph_box(id).map(|bb| Rect {
+                min: point(bb.x0 as f32 * self.scale.x, -bb.y1 as f32 * self.scale.y),
+                max: point(bb.x1 as f32 * self.scale.x, -bb.y0 as f32 * self.scale.y),
             }),
             GlyphInner::Shared(ref data) => data.extents.map(|bb| Rect {
-                min: point(bb.min.x as f32 * self.scale.x, bb.min.y as f32 * self.scale.y),
-                max: point(bb.max.x as f32 * self.scale.x, bb.max.y as f32 * self.scale.y)
-            })
+                min: point(
+                    bb.min.x as f32 * self.scale.x,
+                    bb.min.y as f32 * self.scale.y,
+                ),
+                max: point(
+                    bb.max.x as f32 * self.scale.x,
+                    bb.max.y as f32 * self.scale.y,
+                ),
+            }),
         }
     }
     /// Constructs a glyph that owns its data from this glyph. This is similar
@@ -758,7 +763,7 @@ impl<'a> ScaledGlyph<'a> {
         ScaledGlyph {
             g: self.g.standalone(),
             api_scale: self.api_scale,
-            scale: self.scale
+            scale: self.scale,
         }
     }
 }
@@ -821,47 +826,50 @@ impl<'a> PositionedGlyph<'a> {
     /// }
     /// ```
     pub fn draw<O: FnMut(u32, u32, f32)>(&self, o: O) {
-        use geometry::{Line, Curve};
+        use geometry::{Curve, Line};
         use stb_truetype::VertexType;
         let shape = match self.sg.g.inner {
-            GlyphInner::Proxy(ref font, id) => font.info.get_glyph_shape(id).unwrap_or_else(|| Vec::new()),
-            GlyphInner::Shared(ref data) => data.shape.clone().unwrap_or_else(|| Vec::new())
+            GlyphInner::Proxy(ref font, id) => {
+                font.info.get_glyph_shape(id).unwrap_or_else(|| Vec::new())
+            }
+            GlyphInner::Shared(ref data) => data.shape.clone().unwrap_or_else(|| Vec::new()),
         };
         let bb = if let Some(bb) = self.bb.as_ref() {
             bb
         } else {
-            return
+            return;
         };
         let offset = vector(bb.min.x as f32, bb.min.y as f32);
         let mut lines = Vec::new();
         let mut curves = Vec::new();
         let mut last = point(0.0, 0.0);
         for v in shape {
-            let end = point(v.x as f32 * self.sg.scale.x + self.position.x,
-                            -v.y as f32 * self.sg.scale.y + self.position.y)
-                - offset;
+            let end = point(
+                v.x as f32 * self.sg.scale.x + self.position.x,
+                -v.y as f32 * self.sg.scale.y + self.position.y,
+            ) - offset;
             match v.vertex_type() {
-                VertexType::LineTo => {
-                    lines.push(Line {
-                        p: [last, end]
-                    })
-                }
+                VertexType::LineTo => lines.push(Line { p: [last, end] }),
                 VertexType::CurveTo => {
-                    let control = point(v.cx as f32 * self.sg.scale.x + self.position.x,
-                                        -v.cy as f32 * self.sg.scale.y + self.position.y)
-                        - offset;
+                    let control = point(
+                        v.cx as f32 * self.sg.scale.x + self.position.x,
+                        -v.cy as f32 * self.sg.scale.y + self.position.y,
+                    ) - offset;
                     curves.push(Curve {
-                        p: [last, control, end]
+                        p: [last, control, end],
                     })
                 }
                 VertexType::MoveTo => {}
             }
             last = end;
         }
-        rasterizer::rasterize(&lines, &curves,
-                              (bb.max.x - bb.min.x) as u32,
-                              (bb.max.y - bb.min.y) as u32,
-                              o);
+        rasterizer::rasterize(
+            &lines,
+            &curves,
+            (bb.max.x - bb.min.x) as u32,
+            (bb.max.y - bb.min.y) as u32,
+            o,
+        );
     }
     /// Constructs a glyph that owns its data from this glyph. This is similar
     /// to `Glyph::standalone`. See that function for more details.
@@ -869,7 +877,7 @@ impl<'a> PositionedGlyph<'a> {
         PositionedGlyph {
             sg: self.sg.standalone(),
             bb: self.bb,
-            position: self.position
+            position: self.position,
         }
     }
 }
