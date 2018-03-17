@@ -27,11 +27,13 @@
 //! each glyph. For a concrete use case see the `gpu_cache` example.
 
 extern crate linked_hash_map;
+extern crate fnv;
 
 use ::{PositionedGlyph, Rect, Scale, GlyphId, Vector};
 use std::collections::{HashMap, HashSet, BTreeMap};
 use std::collections::Bound::{Included, Unbounded};
 use self::linked_hash_map::LinkedHashMap;
+use self::fnv::FnvBuildHasher;
 use ordered_float::OrderedFloat;
 use std::cmp::{PartialEq, Eq, Ord, PartialOrd, Ordering};
 use std::error;
@@ -163,12 +165,12 @@ pub struct Cache<'font> {
     position_tolerance: f32,
     width: u32,
     height: u32,
-    rows: LinkedHashMap<u32, Row>,
-    space_start_for_end: HashMap<u32, u32>,
-    space_end_for_start: HashMap<u32, u32>,
+    rows: LinkedHashMap<u32, Row, FnvBuildHasher>,
+    space_start_for_end: HashMap<u32, u32, FnvBuildHasher>,
+    space_end_for_start: HashMap<u32, u32, FnvBuildHasher>,
     queue: Vec<(usize, PositionedGlyph<'font>)>,
     queue_retry: bool,
-    all_glyphs: HashMap<(FontId, GlyphId), BTreeMap<PGlyphSpec, (u32, u32)>>,
+    all_glyphs: HashMap<(FontId, GlyphId), BTreeMap<PGlyphSpec, (u32, u32)>, FnvBuildHasher>,
 }
 
 /// Returned from `Cache::rect_for`.
@@ -264,12 +266,12 @@ impl<'font> Cache<'font> {
             position_tolerance: position_tolerance,
             width: width,
             height: height,
-            rows: LinkedHashMap::new(),
-            space_start_for_end: {let mut m = HashMap::new(); m.insert(height, 0); m},
-            space_end_for_start: {let mut m = HashMap::new(); m.insert(0, height); m},
+            rows: LinkedHashMap::default(),
+            space_start_for_end: {let mut m = HashMap::default(); m.insert(height, 0); m},
+            space_end_for_start: {let mut m = HashMap::default(); m.insert(0, height); m},
             queue: Vec::new(),
             queue_retry: false,
-            all_glyphs: HashMap::new()
+            all_glyphs: HashMap::default(),
         }
     }
 
