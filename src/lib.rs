@@ -2,20 +2,24 @@
 //!
 //! The current capabilities of RustType:
 //!
-//! * Reading TrueType formatted fonts and font collections. This includes `*.ttf` as well as a subset
-//!   of `*.otf` font files.
-//! * Retrieving glyph shapes and commonly used properties for a font and its glyphs.
-//! * Laying out glyphs horizontally using horizontal and vertical metrics, and glyph-pair-specific kerning.
-//! * Rasterising glyphs with sub-pixel positioning using an accurate analytical algorithm
-//!   (not based on sampling).
-//! * Managing a font cache on the GPU with the `gpu_cache` module. This keeps recently used glyph renderings
-//!   in a dynamic cache in GPU memory to minimise texture uploads per-frame. It also allows you keep the draw
-//!   call count for text very low, as all glyphs are kept in one GPU texture.
+//! * Reading TrueType formatted fonts and font collections. This includes
+//!   `*.ttf` as well as a subset of `*.otf` font files.
+//! * Retrieving glyph shapes and commonly used properties for a font and its
+//!   glyphs.
+//! * Laying out glyphs horizontally using horizontal and vertical metrics, and
+//!   glyph-pair-specific kerning.
+//! * Rasterising glyphs with sub-pixel positioning using an accurate analytical
+//!   algorithm (not based on sampling).
+//! * Managing a font cache on the GPU with the `gpu_cache` module. This keeps
+//!   recently used glyph renderings in a dynamic cache in GPU memory to
+//!   minimise texture uploads per-frame. It also allows you keep the draw call
+//!   count for text very low, as all glyphs are kept in one GPU texture.
 //!
 //! Notable things that RustType does not support *yet*:
 //!
-//! * OpenType formatted fonts that are not just TrueType fonts (OpenType is a superset of TrueType). Notably
-//!   there is no support yet for cubic Bezier curves used in glyphs.
+//! * OpenType formatted fonts that are not just TrueType fonts (OpenType is a
+//!   superset of TrueType). Notably there is no support yet for cubic Bezier
+//!   curves used in glyphs.
 //! * Font hinting.
 //! * Ligatures of any kind.
 //! * Some less common TrueType sub-formats.
@@ -30,16 +34,19 @@
 //! rusttype = "0.4.1"
 //! ```
 //!
-//! To hit the ground running with RustType, look at the `simple.rs` example supplied with the crate. It
-//! demonstrates loading a font file, rasterising an arbitrary string, and displaying the result as ASCII art.
-//! If you prefer to just look at the documentation, the entry point for loading fonts is `FontCollection`,
-//! from which you can access individual fonts, then their glyphs.
+//! To hit the ground running with RustType, look at the `simple.rs` example
+//! supplied with the crate. It demonstrates loading a font file, rasterising an
+//! arbitrary string, and displaying the result as ASCII art. If you prefer to
+//! just look at the documentation, the entry point for loading fonts is
+//! `FontCollection`, from which you can access individual fonts, then their
+//! glyphs.
 //!
 //! # Glyphs
 //!
-//! The glyph API uses wrapper structs to augment a glyph with
-//! information such as scaling and positioning, making relevant methods that make use of this information
-//! available as appropriate. For example, given a `Glyph` `glyph` obtained directly from a `Font`:
+//! The glyph API uses wrapper structs to augment a glyph with information such
+//! as scaling and positioning, making relevant methods that make use of this
+//! information available as appropriate. For example, given a `Glyph` `glyph`
+//! obtained directly from a `Font`:
 //!
 //! ```no_run
 //! # use rusttype::*;
@@ -57,30 +64,36 @@
 //!
 //! # Unicode terminology
 //!
-//! This crate uses terminology for computerised typography as specified by the Unicode standard. If you are
-//! not sure of the differences between a code point, a character, and a glyph, you may want to check the
-//! [official Unicode glossary](http://unicode.org/glossary/), or alternatively, here's my take on it from a
-//! practical perspective:
+//! This crate uses terminology for computerised typography as specified by the
+//! Unicode standard. If you are not sure of the differences between a code
+//! point, a character, and a glyph, you may want to check the [official Unicode
+//! glossary](http://unicode.org/glossary/), or alternatively, here's my take on
+//! it from a practical perspective:
 //!
-//! * A character is what you would conventionally call a single symbol, independent of its appearance or
-//!   representation in a particular font. Examples include `a`, `A`, `ä`, `å`, `1`, `*`, `Ω`, etc.
-//! * A Unicode code point is the particular number that the Unicode standard associates with a particular
-//!   character.
-//!   Note however that code points also exist for things not conventionally thought of as characters by
-//!   themselves, but can be combined to form characters, such as diacritics like accents. These
-//!   "characters" are known in Unicode as "combining characters".
-//!   E.g., a diaeresis (`¨`) has the code point U+0308. If this code point follows the code point U+0055
-//!   (the letter `u`), this sequence represents the character `ü`. Note that there is also a
-//!   single codepoint for `ü`, U+00FC. This means that what visually looks like the same string can have
-//!   multiple different Unicode representations. Some fonts will have glyphs (see below) for one sequence of
-//!   codepoints, but not another that has the same meaning. To deal with this problem it is recommended to use
+//! * A character is what you would conventionally call a single symbol,
+//!   independent of its appearance or representation in a particular font.
+//!   Examples include `a`, `A`, `ä`, `å`, `1`, `*`, `Ω`, etc.
+//! * A Unicode code point is the particular number that the Unicode standard
+//!   associates with a particular character. Note however that code points also
+//!   exist for things not conventionally thought of as characters by
+//!   themselves, but can be combined to form characters, such as diacritics
+//!   like accents. These "characters" are known in Unicode as "combining
+//!   characters". E.g., a diaeresis (`¨`) has the code point U+0308. If this
+//!   code point follows the code point U+0055 (the letter `u`), this sequence
+//!   represents the character `ü`. Note that there is also a single codepoint
+//!   for `ü`, U+00FC. This means that what visually looks like the same string
+//!   can have multiple different Unicode representations. Some fonts will have
+//!   glyphs (see below) for one sequence of codepoints, but not another that
+//!   has the same meaning. To deal with this problem it is recommended to use
 //!   Unicode normalisation, as provided by, for example, the
-//!   [unicode-normalization](http://crates.io/crates/unicode-normalization) crate, to convert to code point
-//!   sequences that work with the font in question. Typically a font is more likely to support a single code
-//!   point vs. a sequence with the same meaning, so the best normalisation to use is "canonical recomposition",
-//!   known as NFC in the normalisation crate.
-//! * A glyph is a particular font's shape to draw the character for a particular Unicode code point. This will
-//!   have its own identifying number unique to the font, its ID.
+//!   [unicode-normalization](http://crates.io/crates/unicode-normalization)
+//!   crate, to convert to code point sequences that work with the font in
+//!   question. Typically a font is more likely to support a single code point
+//!   vs. a sequence with the same meaning, so the best normalisation to use is
+//!   "canonical recomposition", known as NFC in the normalisation crate.
+//! * A glyph is a particular font's shape to draw the character for a
+//!   particular Unicode code point. This will have its own identifying number
+//!   unique to the font, its ID.
 
 #![cfg_attr(feature = "bench", feature(test))]
 #[cfg(feature = "bench")]
@@ -103,8 +116,9 @@ use std::sync::Arc;
 pub use geometry::{Rect, Point, point, Vector, vector, Line, Curve};
 use stb_truetype as tt;
 
-/// A collection of fonts read straight from a font file's data. The data in the collection is not validated.
-/// This structure may or may not own the font data.
+/// A collection of fonts read straight from a font file's data. The data in the
+/// collection is not validated. This structure may or may not own the font
+/// data.
 #[derive(Clone, Debug)]
 pub struct FontCollection<'a>(SharedBytes<'a>);
 /// A single font. This may or may not own the font data.
@@ -113,9 +127,10 @@ pub struct Font<'a> {
     info: tt::FontInfo<SharedBytes<'a>>
 }
 
-/// `SharedBytes` handles the lifetime of font data used in RustType. The data is either a shared
-/// reference to externally owned data, or managed by reference counting. `SharedBytes` can be
-/// conveniently used with `From` and `Into`, and dereferences to the contained bytes.
+/// `SharedBytes` handles the lifetime of font data used in RustType. The data
+/// is either a shared reference to externally owned data, or managed by
+/// reference counting. `SharedBytes` can be conveniently used with `From` and
+/// `Into`, and dereferences to the contained bytes.
 #[derive(Clone, Debug)]
 pub enum SharedBytes<'a> {
     ByRef(&'a [u8]),
@@ -159,11 +174,13 @@ pub struct Codepoint(pub u32);
 /// the correct glyph in a font other than the one that it was obtained from.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct GlyphId(pub u32);
-/// A single glyph of a font. this may either be a thin wrapper referring to the font and the glyph id, or
-/// it may be a standalone glyph that owns the data needed by it.
+/// A single glyph of a font. this may either be a thin wrapper referring to the
+/// font and the glyph id, or it may be a standalone glyph that owns the data
+/// needed by it.
 ///
-/// A `Glyph` does not have an inherent scale or position associated with it. To augment a glyph with a
-/// size, give it a scale using `scaled`. You can then position it using `positioned`.
+/// A `Glyph` does not have an inherent scale or position associated with it. To
+/// augment a glyph with a size, give it a scale using `scaled`. You can then
+/// position it using `positioned`.
 #[derive(Clone)]
 pub struct Glyph<'a> {
     inner: GlyphInner<'a>
@@ -183,25 +200,31 @@ pub struct SharedGlyphData {
     pub unit_h_metrics: HMetrics,
     pub shape: Option<Vec<tt::Vertex>>
 }
-/// The "horizontal metrics" of a glyph. This is useful for calculating the horizontal offset of a glyph
-/// from the previous one in a string when laying a string out horizontally.
+/// The "horizontal metrics" of a glyph. This is useful for calculating the
+/// horizontal offset of a glyph from the previous one in a string when laying a
+/// string out horizontally.
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct HMetrics {
-    /// The horizontal offset that the origin of the next glyph should be from the origin of this glyph.
+    /// The horizontal offset that the origin of the next glyph should be from
+    /// the origin of this glyph.
     pub advance_width: f32,
-    /// The horizontal offset between the origin of this glyph and the leftmost edge/point of the glyph.
+    /// The horizontal offset between the origin of this glyph and the leftmost
+    /// edge/point of the glyph.
     pub left_side_bearing: f32
 }
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
-/// The "vertical metrics" of a font at a particular scale. This is useful for calculating the amount of
-/// vertical space to give a line of text, and for computing the vertical offset between successive lines.
+/// The "vertical metrics" of a font at a particular scale. This is useful for
+/// calculating the amount of vertical space to give a line of text, and for
+/// computing the vertical offset between successive lines.
 pub struct VMetrics {
-    /// The highest point that any glyph in the font extends to above the baseline. Typically positive.
+    /// The highest point that any glyph in the font extends to above the
+    /// baseline. Typically positive.
     pub ascent: f32,
-    /// The lowest point that any glyph in the font extends to below the baseline. Typically negative.
+    /// The lowest point that any glyph in the font extends to below the
+    /// baseline. Typically negative.
     pub descent: f32,
-    /// The gap to leave between the descent of one line and the ascent of the next. This is of
-    /// course only a guideline given by the font's designers.
+    /// The gap to leave between the descent of one line and the ascent of the
+    /// next. This is of course only a guideline given by the font's designers.
     pub line_gap: f32
 }
 
@@ -227,26 +250,29 @@ impl ::std::ops::Mul<f32> for VMetrics {
     }
 }
 
-/// A glyph augmented with scaling information. You can query such a glyph for information that depends
-/// on the scale of the glyph.
+/// A glyph augmented with scaling information. You can query such a glyph for
+/// information that depends on the scale of the glyph.
 #[derive(Clone)]
 pub struct ScaledGlyph<'a> {
     g: Glyph<'a>,
     api_scale: Scale,
     scale: Vector<f32>
 }
-/// A glyph augmented with positioning and scaling information. You can query such a glyph for information
-/// that depends on the scale and position of the glyph.
+/// A glyph augmented with positioning and scaling information. You can query
+/// such a glyph for information that depends on the scale and position of the
+/// glyph.
 #[derive(Clone)]
 pub struct PositionedGlyph<'a> {
     sg: ScaledGlyph<'a>,
     position: Point<f32>,
     bb: Option<Rect<i32>>
 }
-/// Defines the size of a rendered face of a font, in pixels, horizontally and vertically. A vertical
-/// scale of `y` pixels means that the distance betwen the ascent and descent lines (see `VMetrics`) of the
-/// face will be `y` pixels. If `x` and `y` are equal the scaling is uniform. Non-uniform scaling by a factor
-/// *f* in the horizontal direction is achieved by setting `x` equal to *f* times `y`.
+/// Defines the size of a rendered face of a font, in pixels, horizontally and
+/// vertically. A vertical scale of `y` pixels means that the distance betwen
+/// the ascent and descent lines (see `VMetrics`) of the face will be `y`
+/// pixels. If `x` and `y` are equal the scaling is uniform. Non-uniform scaling
+/// by a factor *f* in the horizontal direction is achieved by setting `x` equal
+/// to *f* times `y`.
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 pub struct Scale {
     /// Horizontal scale, in pixels.
@@ -288,15 +314,17 @@ impl IntoGlyphId for GlyphId {
     }
 }
 impl<'a> FontCollection<'a> {
-    /// Constructs a font collection from an array of bytes, typically loaded from a font file.
-    /// This array may be owned (e.g. `Vec<u8>`), or borrowed (`&[u8]`).
-    /// As long as `From<T>` is implemented for `Bytes` for some type `T`, `T` can be used as input.
+    /// Constructs a font collection from an array of bytes, typically loaded
+    /// from a font file. This array may be owned (e.g. `Vec<u8>`), or borrowed
+    /// (`&[u8]`). As long as `From<T>` is implemented for `Bytes` for some type
+    /// `T`, `T` can be used as input.
     pub fn from_bytes<B: Into<SharedBytes<'a>>>(bytes: B) -> FontCollection<'a> {
         FontCollection(bytes.into())
     }
-    /// In the common case that a font collection consists of only one font, this function
-    /// consumes this font collection and turns it into a font. If this is not the case,
-    /// or the font is not valid (read: not supported by this library), `None` is returned.
+    /// In the common case that a font collection consists of only one font,
+    /// this function consumes this font collection and turns it into a font. If
+    /// this is not the case, or the font is not valid (read: not supported by
+    /// this library), `None` is returned.
     pub fn into_font(self) -> Option<Font<'a>> {
         if tt::is_font(&self.0) {
             tt::FontInfo::new(self.0, 0)
@@ -313,14 +341,16 @@ impl<'a> FontCollection<'a> {
             None
         }
     }
-    /// Gets the font at index `i` in the font collection, if it exists and is valid.
-    /// The produced font borrows the font data that is either borrowed or owned by this font collection.
+    /// Gets the font at index `i` in the font collection, if it exists and is
+    /// valid. The produced font borrows the font data that is either borrowed
+    /// or owned by this font collection.
     pub fn font_at(&self, i: usize) -> Option<Font<'a>> {
         tt::get_font_offset_for_index(&self.0, i as i32)
             .and_then(|o| tt::FontInfo::new(self.0.clone(), o as usize))
             .map(|info| Font { info: info })
     }
-    /// Converts `self` into an `Iterator` yielding each `Font` that exists within the collection.
+    /// Converts `self` into an `Iterator` yielding each `Font` that exists
+    /// within the collection.
     pub fn into_fonts(self) -> IntoFontsIter<'a> {
         IntoFontsIter {
             collection: self,
@@ -343,9 +373,8 @@ impl<'a> Iterator for IntoFontsIter<'a> {
 }
 impl<'a> Font<'a> {
 
-    /// The "vertical metrics" for this font at a given scale. These metrics are shared by all of the glyphs
-    /// in the font.
-    /// See `VMetrics` for more detail.
+    /// The "vertical metrics" for this font at a given scale. These metrics are
+    /// shared by all of the glyphs in the font. See `VMetrics` for more detail.
     pub fn v_metrics(&self, scale: Scale) -> VMetrics {
         let vm = self.info.get_v_metrics();
         let scale = self.info.scale_for_pixel_height(scale.y);
@@ -363,15 +392,16 @@ impl<'a> Font<'a> {
         self.info.units_per_em()
     }
 
-    /// The number of glyphs present in this font. Glyph identifiers for this font will always be in the range
-    /// `0..self.glyph_count()`
+    /// The number of glyphs present in this font. Glyph identifiers for this
+    /// font will always be in the range `0..self.glyph_count()`
     pub fn glyph_count(&self) -> usize {
         self.info.get_num_glyphs() as usize
     }
 
-    /// Returns the corresponding glyph for a Unicode code point or a glyph id for this font.
-    /// If id corresponds to a glyph identifier, the identifier must be valid (smaller than `self.glyph_count()`),
-    /// otherwise `None` is returned.
+    /// Returns the corresponding glyph for a Unicode code point or a glyph id
+    /// for this font. If id corresponds to a glyph identifier, the identifier
+    /// must be valid (smaller than `self.glyph_count()`), otherwise `None` is
+    /// returned.
     ///
     /// Note that code points without corresponding glyphs in this font map to the "undef" glyph, glyph 0.
     pub fn glyph<C: IntoGlyphId>(&self, id: C) -> Option<Glyph<'a>> {
@@ -381,8 +411,8 @@ impl<'a> Font<'a> {
     }
     /// A convenience function.
     ///
-    /// Returns an iterator that produces the glyphs corresponding to the code points or glyph ids produced
-    /// by the given iterator `itr`.
+    /// Returns an iterator that produces the glyphs corresponding to the code
+    /// points or glyph ids produced by the given iterator `itr`.
     ///
     /// This is equivalent in behaviour to `itr.map(|c| font.glyph(c).unwrap())`.
     pub fn glyphs_for<I: Iterator>(&self, itr: I) -> GlyphIter<I> where I::Item: IntoGlyphId {
@@ -395,18 +425,23 @@ impl<'a> Font<'a> {
     pub fn font_name_strings(&self) -> tt::FontNameIter<SharedBytes<'a>> {
         self.info.get_font_name_strings()
     }
-    /// A convenience function for laying out glyphs for a string horizontally. It does not take control
-    /// characters like line breaks into account, as treatment of these is likely to depend on the application.
+    /// A convenience function for laying out glyphs for a string horizontally.
+    /// It does not take control characters like line breaks into account, as
+    /// treatment of these is likely to depend on the application.
     ///
-    /// Note that this function does not perform Unicode normalisation. Composite characters (such as ö
-    /// constructed from two code points, ¨ and o), will not be normalised to single code points. So if a font
-    /// does not contain a glyph for each separate code point, but does contain one for the normalised single
-    /// code point (which is common), the desired glyph will not be produced, despite being present in the font.
-    /// Deal with this by performing Unicode normalisation on the input string before passing it to `layout`.
-    /// The crate [unicode-normalization](http://crates.io/crates/unicode-normalization) is perfect for this
-    /// purpose.
+    /// Note that this function does not perform Unicode normalisation.
+    /// Composite characters (such as ö constructed from two code points, ¨ and
+    /// o), will not be normalised to single code points. So if a font does not
+    /// contain a glyph for each separate code point, but does contain one for
+    /// the normalised single code point (which is common), the desired glyph
+    /// will not be produced, despite being present in the font. Deal with this
+    /// by performing Unicode normalisation on the input string before passing
+    /// it to `layout`. The crate
+    /// [unicode-normalization](http://crates.io/crates/unicode-normalization)
+    /// is perfect for this purpose.
     ///
-    /// Calling this function is equivalent to a longer sequence of operations involving `glyphs_for`, e.g.
+    /// Calling this function is equivalent to a longer sequence of operations
+    /// involving `glyphs_for`, e.g.
     ///
     /// ```no_run
     /// # use rusttype::*;
@@ -444,7 +479,8 @@ impl<'a> Font<'a> {
             last_glyph: None
         }
     }
-    /// Returns additional kerning to apply as well as that given by HMetrics for a particular pair of glyphs.
+    /// Returns additional kerning to apply as well as that given by HMetrics
+    /// for a particular pair of glyphs.
     pub fn pair_kerning<A, B>(&self, scale: Scale, first: A, second: B) -> f32
         where A: IntoGlyphId, B: IntoGlyphId
     {
@@ -493,9 +529,10 @@ impl<'a> Glyph<'a> {
     fn new(inner: GlyphInner<'a>) -> Glyph<'a> {
         Glyph { inner }
     }
-    /// The font to which this glyph belongs. If the glyph is a standalone glyph that owns its resources,
-    /// it no longer has a reference to the font which it was created from (using `standalone()`). In which
-    /// case, `None` is returned.
+    /// The font to which this glyph belongs. If the glyph is a standalone glyph
+    /// that owns its resources, it no longer has a reference to the font which
+    /// it was created from (using `standalone()`). In which case, `None` is
+    /// returned.
     pub fn font(&self) -> Option<&Font<'a>> {
         match self.inner {
             GlyphInner::Proxy(ref f, _) => Some(f),
@@ -509,8 +546,8 @@ impl<'a> Glyph<'a> {
             GlyphInner::Shared(ref data) => GlyphId(data.id),
         }
     }
-    /// Augments this glyph with scaling information, making methods that depend on the scale of the glyph
-    /// available.
+    /// Augments this glyph with scaling information, making methods that depend
+    /// on the scale of the glyph available.
     pub fn scaled(self, scale: Scale) -> ScaledGlyph<'a> {
         let (scale_x, scale_y) = match self.inner {
             GlyphInner::Proxy(ref font, _) => {
@@ -530,10 +567,12 @@ impl<'a> Glyph<'a> {
             scale: vector(scale_x, scale_y)
         }
     }
-    /// Turns a `Glyph<'a>` into a `Glyph<'static>`. This produces a glyph that owns its resources,
-    /// extracted from the font. This glyph can outlive the font that it comes from.
+    /// Turns a `Glyph<'a>` into a `Glyph<'static>`. This produces a glyph that
+    /// owns its resources, extracted from the font. This glyph can outlive the
+    /// font that it comes from.
     ///
-    /// Calling `standalone()` on a standalone glyph shares the resources, and is equivalent to `clone()`.
+    /// Calling `standalone()` on a standalone glyph shares the resources, and
+    /// is equivalent to `clone()`.
     pub fn standalone(&self) -> Glyph<'static> {
         match self.inner {
             GlyphInner::Proxy(ref font, id) => Glyph::new(GlyphInner::Shared(Arc::new(SharedGlyphData {
@@ -580,9 +619,10 @@ impl<'a> ScaledGlyph<'a> {
     pub fn id(&self) -> GlyphId {
         self.g.id()
     }
-    /// The font to which this glyph belongs. If the glyph is a standalone glyph that owns its resources,
-    /// it no longer has a reference to the font which it was created from (using `standalone()`). In which
-    /// case, `None` is returned.
+    /// The font to which this glyph belongs. If the glyph is a standalone glyph
+    /// that owns its resources, it no longer has a reference to the font which
+    /// it was created from (using `standalone()`). In which case, `None` is
+    /// returned.
     pub fn font(&self) -> Option<&Font<'a>> {
         self.g.font()
     }
@@ -594,8 +634,8 @@ impl<'a> ScaledGlyph<'a> {
     pub fn unscaled(&self) -> &Glyph<'a> {
         &self.g
     }
-    /// Augments this glyph with positioning information, making methods that depend on the position of the
-    /// glyph available.
+    /// Augments this glyph with positioning information, making methods that
+    /// depend on the position of the glyph available.
     pub fn positioned(self, p: Point<f32>) -> PositionedGlyph<'a> {
         let bb = match self.g.inner {
             GlyphInner::Proxy(ref font, id) => {
@@ -686,15 +726,18 @@ impl<'a> ScaledGlyph<'a> {
             result
         })
     }
-    /// Produces a list of the contours that make up the shape of this glyph. Each contour consists of
-    /// a sequence of segments. Each segment is either a straight `Line` or a `Curve`.
+    /// Produces a list of the contours that make up the shape of this glyph.
+    /// Each contour consists of a sequence of segments. Each segment is either
+    /// a straight `Line` or a `Curve`.
     ///
-    /// The winding of the produced contours is clockwise for closed shapes, anticlockwise for holes.
+    /// The winding of the produced contours is clockwise for closed shapes,
+    /// anticlockwise for holes.
     pub fn shape(&self) -> Option<Vec<Contour>> {
         self.shape_with_offset(point(0.0, 0.0))
     }
-    /// The bounding box of the shape of this glyph, not to be confused with `pixel_bounding_box`, the
-    /// conservative pixel-boundary bounding box. The coordinates are relative to the glyph's origin.
+    /// The bounding box of the shape of this glyph, not to be confused with
+    /// `pixel_bounding_box`, the conservative pixel-boundary bounding box. The
+    /// coordinates are relative to the glyph's origin.
     pub fn exact_bounding_box(&self) -> Option<Rect<f32>> {
         match self.g.inner {
             GlyphInner::Proxy(ref font, id) => font.info.get_glyph_box(id).map(|bb| {
@@ -709,8 +752,8 @@ impl<'a> ScaledGlyph<'a> {
             })
         }
     }
-    /// Constructs a glyph that owns its data from this glyph. This is similar to `Glyph::standalone`. See
-    /// that function for more details.
+    /// Constructs a glyph that owns its data from this glyph. This is similar
+    /// to `Glyph::standalone`. See that function for more details.
     pub fn standalone(&self) -> ScaledGlyph<'static> {
         ScaledGlyph {
             g: self.g.standalone(),
@@ -725,9 +768,10 @@ impl<'a> PositionedGlyph<'a> {
     pub fn id(&self) -> GlyphId {
         self.sg.id()
     }
-    /// The font to which this glyph belongs. If the glyph is a standalone glyph that owns its resources,
-    /// it no longer has a reference to the font which it was created from (using `standalone()`). In which
-    /// case, `None` is returned.
+    /// The font to which this glyph belongs. If the glyph is a standalone glyph
+    /// that owns its resources, it no longer has a reference to the font which
+    /// it was created from (using `standalone()`). In which case, `None` is
+    /// returned.
     pub fn font(&self) -> Option<&Font<'a>> {
         self.sg.font()
     }
@@ -739,12 +783,14 @@ impl<'a> PositionedGlyph<'a> {
     pub fn into_unpositioned(self) -> ScaledGlyph<'a> {
         self.sg
     }
-    /// The conservative pixel-boundary bounding box for this glyph. This is the smallest rectangle
-    /// aligned to pixel boundaries that encloses the shape of this glyph at this position.
+    /// The conservative pixel-boundary bounding box for this glyph. This is the
+    /// smallest rectangle aligned to pixel boundaries that encloses the shape
+    /// of this glyph at this position.
     pub fn pixel_bounding_box(&self) -> Option<Rect<i32>> {
         self.bb
     }
-    /// Similar to `ScaledGlyph::shape()`, but with the position of the glyph taken into account.
+    /// Similar to `ScaledGlyph::shape()`, but with the position of the glyph
+    /// taken into account.
     pub fn shape(&self) -> Option<Vec<Contour>> {
         self.sg.shape_with_offset(self.position)
     }
@@ -754,15 +800,17 @@ impl<'a> PositionedGlyph<'a> {
     pub fn position(&self) -> Point<f32> {
         self.position
     }
-    /// Rasterises this glyph. For each pixel in the rect given by `pixel_bounding_box()`, `o` is called:
+    /// Rasterises this glyph. For each pixel in the rect given by
+    /// `pixel_bounding_box()`, `o` is called:
     ///
     /// ```ignore
     /// o(x, y, v)
     /// ```
     ///
-    /// where `x` and `y` are the coordinates of the pixel relative to the `min` coordinates of the bounding box,
-    /// and `v` is the analytically calculated coverage of the pixel by the shape of the glyph.
-    /// Calls to `o` proceed in horizontal scanline order, similar to this pseudo-code:
+    /// where `x` and `y` are the coordinates of the pixel relative to the `min`
+    /// coordinates of the bounding box, and `v` is the analytically calculated
+    /// coverage of the pixel by the shape of the glyph. Calls to `o` proceed in
+    /// horizontal scanline order, similar to this pseudo-code:
     ///
     /// ```ignore
     /// let bb = glyph.pixel_bounding_box();
@@ -815,8 +863,8 @@ impl<'a> PositionedGlyph<'a> {
                               (bb.max.y - bb.min.y) as u32,
                               o);
     }
-    /// Constructs a glyph that owns its data from this glyph. This is similar to `Glyph::standalone`. See
-    /// that function for more details.
+    /// Constructs a glyph that owns its data from this glyph. This is similar
+    /// to `Glyph::standalone`. See that function for more details.
     pub fn standalone(&self) -> PositionedGlyph<'static> {
         PositionedGlyph {
             sg: self.sg.standalone(),
