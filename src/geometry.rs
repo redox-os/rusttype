@@ -2,9 +2,10 @@ use std::ops;
 
 /// A point in 2-dimensional space, with each dimension of type `N`.
 ///
-/// Legal operations on points are addition and subtraction by vectors, and subtraction between points, to give
-/// a vector representing the offset between the two points. Combined with the legal operations on vectors,
-/// meaningful manipulations of vectors and points can be performed.
+/// Legal operations on points are addition and subtraction by vectors, and
+/// subtraction between points, to give a vector representing the offset between
+/// the two points. Combined with the legal operations on vectors, meaningful
+/// manipulations of vectors and points can be performed.
 ///
 /// For example, to interpolate between two points by a factor `t`:
 ///
@@ -21,8 +22,9 @@ pub struct Point<N> {
 
 /// A vector in 2-dimensional space, with each dimension of type `N`.
 ///
-/// Legal operations on vectors are addition and subtraction by vectors, addition by points (to give points),
-/// and multiplication and division by scalars.
+/// Legal operations on vectors are addition and subtraction by vectors,
+/// addition by points (to give points), and multiplication and division by
+/// scalars.
 #[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct Vector<N> {
     pub x: N,
@@ -140,7 +142,8 @@ impl<N: ops::Add<Output=N>> ops::Add<Point<N>> for Vector<N> {
 pub struct Line {
     pub p: [Point<f32>; 2]
 }
-/// A quadratic Bezier curve, starting at `p[0]`, ending at `p[2]`, with control point `p[1]`.
+/// A quadratic Bezier curve, starting at `p[0]`, ending at `p[2]`, with control
+/// point `p[1]`.
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Curve {
     pub p: [Point<f32>; 3]
@@ -297,7 +300,8 @@ pub enum RealQuadraticSolution {
 }
 
 impl RealQuadraticSolution {
-    /// If there are two solutions, this function ensures that they are in order (first < second)
+    /// If there are two solutions, this function ensures that they are in order
+    /// (first < second)
     pub fn in_order(self) -> RealQuadraticSolution {
         use self::RealQuadraticSolution::*;
         match self {

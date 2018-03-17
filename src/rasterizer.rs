@@ -264,7 +264,8 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(lines: &[Line], curves: &[Curve],
         // sort scanline for traversal
         scanline_lines.sort_by_key(|a| OrderedFloat((a.1).0));
         scanline_curves.sort_by_key(|a| OrderedFloat((a.1).0));
-        // Iterate through x, slice scanline segments into each cell. Evaluate, accumulate and output.
+        // Iterate through x, slice scanline segments into each cell.
+        // Evaluate, accumulate and output.
         {
             let mut next_line = 0; let mut next_curve = 0;
             let mut x = 0;

@@ -1,30 +1,38 @@
-//! This module provides capabilities for managing a cache of rendered glyphs in GPU memory, with the goal of
-//! minimisng the size and frequency of glyph uploads to GPU memory from the CPU.
-//! 
-//! This module is optional, and not compiled by default. To use it enable the `gpu_cache` feature in your 
-//! Cargo.toml.
+//! This module provides capabilities for managing a cache of rendered glyphs in
+//! GPU memory, with the goal of minimisng the size and frequency of glyph
+//! uploads to GPU memory from the CPU.
 //!
-//! Typical applications that render directly with hardware graphics APIs (e.g. games) need text rendering.
-//! There is not yet a performant solution for high quality text rendering directly on the GPU that isn't
-//! experimental research work. Quality is often critical for legibility, so many applications use text or
-//! individual characters that have been rendered on the CPU. This is done either ahead-of-time, giving a
-//! fixed set of fonts, characters, and sizes that can be used at runtime, or dynamically as text is required.
-//! This latter scenario is more flexible and the focus of this module.
+//! This module is optional, and not compiled by default. To use it enable the
+//! `gpu_cache` feature in your Cargo.toml.
+//!
+//! Typical applications that render directly with hardware graphics APIs (e.g.
+//! games) need text rendering. There is not yet a performant solution for high
+//! quality text rendering directly on the GPU that isn't experimental research
+//! work. Quality is often critical for legibility, so many applications use
+//! text or individual characters that have been rendered on the CPU. This is
+//! done either ahead-of-time, giving a fixed set of fonts, characters, and
+//! sizes that can be used at runtime, or dynamically as text is required. This
+//! latter scenario is more flexible and the focus of this module.
 
-//! To minimise the CPU load and texture upload bandwidth saturation, recently used glyphs should be cached
-//! on the GPU for use by future frames. This module provides a mechanism for maintaining such a cache in the
-//! form of a single packed 2D GPU texture. When a rendered glyph is requested, it is either retrieved from its
-//! location in the texture if it is present or room is made in the cache (if necessary),
-//! the CPU renders the glyph then it is uploaded into a gap in the texture to be available for GPU rendering.
-//! This cache uses a Least Recently Used (LRU) cache eviction scheme - glyphs in the cache that have not been
-//! used recently are as a rule of thumb not likely to be used again soon, so they are the best candidates for
-//! eviction to make room for required glyphs.
+//! To minimise the CPU load and texture upload bandwidth saturation, recently
+//! used glyphs should be cached on the GPU for use by future frames. This
+//! module provides a mechanism for maintaining such a cache in the form of a
+//! single packed 2D GPU texture. When a rendered glyph is requested, it is
+//! either retrieved from its location in the texture if it is present or room
+//! is made in the cache (if necessary), the CPU renders the glyph then it is
+//! uploaded into a gap in the texture to be available for GPU rendering. This
+//! cache uses a Least Recently Used (LRU) cache eviction scheme - glyphs in the
+//! cache that have not been used recently are as a rule of thumb not likely to
+//! be used again soon, so they are the best candidates for eviction to make
+//! room for required glyphs.
 //!
-//! The API for the cache does not assume a particular graphics API. The intended usage is to queue up glyphs
-//! that need to be present for the current frame using `Cache::queue_glyph`, update the cache to ensure that
-//! the queued glyphs are present using `Cache::cache_queued` (providing a function for uploading pixel data),
-//! then when it's time to render call `Cache::rect_for` to get the UV coordinates in the cache texture for
-//! each glyph. For a concrete use case see the `gpu_cache` example.
+//! The API for the cache does not assume a particular graphics API. The
+//! intended usage is to queue up glyphs that need to be present for the current
+//! frame using `Cache::queue_glyph`, update the cache to ensure that the queued
+//! glyphs are present using `Cache::cache_queued` (providing a function for
+//! uploading pixel data), then when it's time to render call `Cache::rect_for`
+//! to get the UV coordinates in the cache texture for each glyph. For a
+//! concrete use case see the `gpu_cache` example.
 
 extern crate linked_hash_map;
 
@@ -157,7 +165,8 @@ struct Row {
     glyphs: Vec<(PGlyphSpec, Rect<u32>, ByteArray2d)>
 }
 
-/// An implementation of a dynamic GPU glyph cache. See the module documentation for more information.
+/// An implementation of a dynamic GPU glyph cache. See the module documentation
+/// for more information.
 pub struct Cache<'font> {
     scale_tolerance: f32,
     position_tolerance: f32,
@@ -193,10 +202,11 @@ impl error::Error for CacheReadErr {
 /// Returned from `Cache::cache_queued`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CacheWriteErr {
-    /// At least one of the queued glyphs is too big to fit into the cache, even if all other glyphs are removed.
+    /// At least one of the queued glyphs is too big to fit into the cache, even
+    /// if all other glyphs are removed.
     GlyphTooLarge,
-    /// Not all of the requested glyphs can fit into the cache, even if the cache is completely cleared before
-    /// the attempt.
+    /// Not all of the requested glyphs can fit into the cache, even if the
+    /// cache is completely cleared before the attempt.
     NoRoomForWholeQueue
 }
 impl fmt::Display for CacheWriteErr {
@@ -228,23 +238,28 @@ fn normalise_pixel_offset(mut offset: Vector<f32>) -> Vector<f32> {
 }
 
 impl<'font> Cache<'font> {
-    /// Constructs a new cache. Note that this is just the CPU side of the cache. The GPU texture is managed
-    /// by the user.
+    /// Constructs a new cache. Note that this is just the CPU side of the
+    /// cache. The GPU texture is managed by the user.
     ///
-    /// `width` and `height` specify the dimensions of the 2D texture that will hold the cache contents on the
-    /// GPU. This must match the dimensions of the actual texture used, otherwise `cache_queued` will try to
-    /// cache into coordinates outside the bounds of the texture. If you need to change the dimensions of the
-    /// cache texture (e.g. due to high cache pressure), construct a new `Cache` and discard the old one.
+    /// `width` and `height` specify the dimensions of the 2D texture that will
+    /// hold the cache contents on the GPU. This must match the dimensions of
+    /// the actual texture used, otherwise `cache_queued` will try to cache into
+    /// coordinates outside the bounds of the texture. If you need to change the
+    /// dimensions of the cache texture (e.g. due to high cache pressure),
+    /// construct a new `Cache` and discard the old one.
     ///
-    /// `scale_tolerance` and `position_tolerance` specify the tolerances (maximum allowed difference)
-    /// for judging whether an existing glyph
-    /// in the cache is close enough to the requested glyph in scale and subpixel offset to be used in its
-    /// place. Due to floating point inaccuracies that can affect user code it is not recommended to set these
-    /// parameters too close to zero as effectively identical glyphs could end up duplicated in the cache.
-    /// Both `scale_tolerance` and `position_tolerance` are measured in pixels. Note that since `pixel_tolerance`
-    /// is a tolerance of subpixel offsets, setting it to 1.0 or higher is effectively a "don't care" option.
-    /// A typical application will produce results with no perceptible inaccuracies with `scale_tolerance`
-    /// and `position_tolerance` set to 0.1. Depending on the target DPI higher tolerance may be acceptable.
+    /// `scale_tolerance` and `position_tolerance` specify the tolerances
+    /// (maximum allowed difference) for judging whether an existing glyph in
+    /// the cache is close enough to the requested glyph in scale and subpixel
+    /// offset to be used in its place. Due to floating point inaccuracies that
+    /// can affect user code it is not recommended to set these parameters too
+    /// close to zero as effectively identical glyphs could end up duplicated in
+    /// the cache. Both `scale_tolerance` and `position_tolerance` are measured
+    /// in pixels. Note that since `pixel_tolerance` is a tolerance of subpixel
+    /// offsets, setting it to 1.0 or higher is effectively a "don't care"
+    /// option. A typical application will produce results with no perceptible
+    /// inaccuracies with `scale_tolerance` and `position_tolerance` set to 0.1.
+    /// Depending on the target DPI higher tolerance may be acceptable.
     ///
     /// # Panics
     ///
@@ -273,7 +288,8 @@ impl<'font> Cache<'font> {
         }
     }
 
-    /// Sets the scale tolerance for the cache. See the documentation for `Cache::new` for more information.
+    /// Sets the scale tolerance for the cache. See the documentation for
+    /// `Cache::new` for more information.
     ///
     /// # Panics
     ///
@@ -287,8 +303,8 @@ impl<'font> Cache<'font> {
     pub fn scale_tolerance(&self) -> f32 {
         self.scale_tolerance
     }
-    /// Sets the subpixel position tolerance for the cache. See the documentation for `Cache::new` for more
-    /// information.
+    /// Sets the subpixel position tolerance for the cache. See the
+    /// documentation for `Cache::new` for more information.
     ///
     /// # Panics
     ///
@@ -302,14 +318,14 @@ impl<'font> Cache<'font> {
     pub fn position_tolerance(&self) -> f32 {
         self.position_tolerance
     }
-    /// Returns the cache texture dimensions assumed by the cache. For proper operation this should
-    /// match the dimensions of the used GPU texture.
+    /// Returns the cache texture dimensions assumed by the cache. For proper
+    /// operation this should match the dimensions of the used GPU texture.
     pub fn dimensions(&self) -> (u32, u32) {
         (self.width, self.height)
     }
-    /// Queue a glyph for caching by the next call to `cache_queued`. `font_id` is used to
-    /// disambiguate glyphs from different fonts. The user should ensure that `font_id` is unique to the
-    /// font the glyph is from.
+    /// Queue a glyph for caching by the next call to `cache_queued`. `font_id`
+    /// is used to disambiguate glyphs from different fonts. The user should
+    /// ensure that `font_id` is unique to the font the glyph is from.
     pub fn queue_glyph(&mut self, font_id: usize, glyph: PositionedGlyph<'font>) {
         if glyph.pixel_bounding_box().is_some() {
             self.queue.push((font_id, glyph));
@@ -328,15 +344,17 @@ impl<'font> Cache<'font> {
     pub fn clear_queue(&mut self) {
         self.queue.clear();
     }
-    /// Caches the queued glyphs. If this is unsuccessful, the queue is untouched.
-    /// Any glyphs cached by previous calls to this function may be removed from the cache to make
-    /// room for the newly queued glyphs. Thus if you want to ensure that a glyph is in the cache,
-    /// the most recently cached queue must have contained that glyph.
+    /// Caches the queued glyphs. If this is unsuccessful, the queue is
+    /// untouched. Any glyphs cached by previous calls to this function may be
+    /// removed from the cache to make room for the newly queued glyphs. Thus if
+    /// you want to ensure that a glyph is in the cache, the most recently
+    /// cached queue must have contained that glyph.
     ///
-    /// `uploader` is the user-provided function that should perform the texture uploads to the GPU.
-    /// The information provided is the rectangular region to insert the pixel data into, and the pixel data
-    /// itself. This data is provided in horizontal scanline format (row major), with stride equal to the
-    /// rectangle width.
+    /// `uploader` is the user-provided function that should perform the texture
+    /// uploads to the GPU. The information provided is the rectangular region
+    /// to insert the pixel data into, and the pixel data itself. This data is
+    /// provided in horizontal scanline format (row major), with stride equal to
+    /// the rectangle width.
     pub fn cache_queued<F: FnMut(Rect<u32>, &[u8])>(
         &mut self,
         mut uploader: F,
@@ -551,15 +569,19 @@ impl<'font> Cache<'font> {
         }
     }
 
-    /// Retrieves the (floating point) texture coordinates of the quad for a glyph in the cache,
-    /// as well as the pixel-space (integer) coordinates that this region should be drawn at.
-    /// In the majority of cases these pixel-space coordinates should be identical to the bounding box of the
-    /// input glyph. They only differ if the cache has returned a substitute glyph that is deemed close enough
-    /// to the requested glyph as specified by the cache tolerance parameters.
+    /// Retrieves the (floating point) texture coordinates of the quad for a
+    /// glyph in the cache, as well as the pixel-space (integer) coordinates
+    /// that this region should be drawn at. In the majority of cases these
+    /// pixel-space coordinates should be identical to the bounding box of the
+    /// input glyph. They only differ if the cache has returned a substitute
+    /// glyph that is deemed close enough to the requested glyph as specified by
+    /// the cache tolerance parameters.
     ///
-    /// A sucessful result is `Some` if the glyph is not an empty glyph (no shape, and thus no rect to return).
+    /// A sucessful result is `Some` if the glyph is not an empty glyph (no
+    /// shape, and thus no rect to return).
     ///
-    /// Ensure that `font_id` matches the `font_id` that was passed to `queue_glyph` with this `glyph`.
+    /// Ensure that `font_id` matches the `font_id` that was passed to
+    /// `queue_glyph` with this `glyph`.
     pub fn rect_for<'a>(
         &'a self,
         font_id: usize,
