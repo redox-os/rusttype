@@ -781,7 +781,7 @@ fn need_to_check_whole_cache() {
         .into_font()
         .unwrap();
 
-    let glyph = font.glyph('l').unwrap();
+    let glyph = font.glyph('l');
 
     let small = glyph.clone().scaled(Scale::uniform(10.0));
     let large = glyph.clone().scaled(Scale::uniform(10.05));
@@ -899,11 +899,7 @@ mod cache_bench_tests {
                 }
                 continue;
             }
-            let base_glyph = if let Some(glyph) = font.glyph(c) {
-                glyph
-            } else {
-                continue;
-            };
+            let base_glyph = font.glyph(c);
             if let Some(id) = last_glyph_id.take() {
                 caret.x += font.pair_kerning(scale, id, base_glyph.id());
             }

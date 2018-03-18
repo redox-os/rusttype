@@ -396,23 +396,27 @@ impl<'a> Font<'a> {
     }
 
     /// Returns the corresponding glyph for a Unicode code point or a glyph id
-    /// for this font. If id corresponds to a glyph identifier, the identifier
-    /// must be valid (smaller than `self.glyph_count()`), otherwise `None` is
-    /// returned.
+    /// for this font.
     ///
-    /// Note that code points without corresponding glyphs in this font map to the "undef" glyph,
-    /// glyph 0.
-    pub fn glyph<C: IntoGlyphId>(&self, id: C) -> Option<Glyph<'a>> {
+    /// If `id` is a `GlyphId`, it must be valid for this font; otherwise, this
+    /// function panics. `GlyphId`s should always be produced by looking up some
+    /// other sort of designator (like a Unicode code point) in a font, and
+    /// should only be used to index the font they were produced for.
+    ///
+    /// Note that code points without corresponding glyphs in this font map to
+    /// the ".notdef" glyph, glyph 0.
+    pub fn glyph<C: IntoGlyphId>(&self, id: C) -> Glyph<'a> {
         let gid = id.into_glyph_id(self);
+        assert!((gid.0 as usize) < self.glyph_count());
         // font clone either a reference clone, or arc clone
-        Some(Glyph::new(GlyphInner::Proxy(self.clone(), gid.0)))
+        Glyph::new(GlyphInner::Proxy(self.clone(), gid.0))
     }
     /// A convenience function.
     ///
     /// Returns an iterator that produces the glyphs corresponding to the code
     /// points or glyph ids produced by the given iterator `itr`.
     ///
-    /// This is equivalent in behaviour to `itr.map(|c| font.glyph(c).unwrap())`.
+    /// This is equivalent in behaviour to `itr.map(|c| font.glyph(c))`.
     pub fn glyphs_for<I: Iterator>(&self, itr: I) -> GlyphIter<I>
     where
         I::Item: IntoGlyphId,
@@ -489,7 +493,7 @@ impl<'a> Font<'a> {
         A: IntoGlyphId,
         B: IntoGlyphId,
     {
-        let (first, second) = (self.glyph(first).unwrap(), self.glyph(second).unwrap());
+        let (first, second) = (self.glyph(first), self.glyph(second));
         let factor = self.info.scale_for_pixel_height(scale.y) * (scale.x / scale.y);
         let kern = self.info
             .get_glyph_kern_advance(first.id().0, second.id().0);
@@ -510,7 +514,7 @@ where
 {
     type Item = Glyph<'a>;
     fn next(&mut self) -> Option<Glyph<'a>> {
-        self.itr.next().map(|c| self.font.glyph(c).unwrap())
+        self.itr.next().map(|c| self.font.glyph(c))
     }
 }
 #[derive(Clone)]
@@ -526,7 +530,7 @@ impl<'a, 'b> Iterator for LayoutIter<'a, 'b> {
     type Item = PositionedGlyph<'a>;
     fn next(&mut self) -> Option<PositionedGlyph<'a>> {
         self.chars.next().map(|c| {
-            let g = self.font.glyph(c).unwrap().scaled(self.scale);
+            let g = self.font.glyph(c).scaled(self.scale);
             if let Some(last) = self.last_glyph {
                 self.caret += self.font.pair_kerning(self.scale, last, g.id());
             }
