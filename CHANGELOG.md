@@ -1,5 +1,11 @@
 ## master
 
+## 0.4.3
+
+* Improve gpu_cache performance
+
+## 0.4.2
+
 * Allow users to get font names from `Font`. (#86)
 
 ## 0.4.0
