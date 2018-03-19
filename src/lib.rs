@@ -103,6 +103,9 @@
 extern crate test;
 #[cfg(test)]
 extern crate unicode_normalization;
+#[cfg(test)]
+#[macro_use]
+extern crate lazy_static;
 
 #[macro_use]
 extern crate approx;

@@ -812,26 +812,35 @@ mod cache_bench_tests {
     use super::*;
     use {point, Font, FontCollection, Scale};
 
-    const FONT_ID: usize = 0;
-    const FONT_BYTES: &[u8] = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+    lazy_static! {
+        static ref FONTS: Vec<Font<'static>> = vec![
+            include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
+            include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8],
+            include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8],
+        ].into_iter()
+            .map(|bytes| FontCollection::from_bytes(bytes).into_font().unwrap())
+            .collect();
+    }
+
     const TEST_STR: &str = include_str!("../tests/lipsum.txt");
 
     /// Reproduces Err(GlyphNotCached) issue & serves as a general purpose
     /// cache benchmark
     #[bench]
     fn cache_bench_tolerance_p1(b: &mut ::test::Bencher) {
-        let glyphs = test_glyphs();
+        let font_id = 0;
+        let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
         let mut cache = Cache::new(768, 768, 0.1, 0.1);
 
         b.iter(|| {
             for glyph in &glyphs {
-                cache.queue_glyph(FONT_ID, glyph.clone());
+                cache.queue_glyph(font_id, glyph.clone());
             }
 
             cache.cache_queued(|_, _| {}).expect("cache_queued");
 
             for (index, glyph) in glyphs.iter().enumerate() {
-                let rect = cache.rect_for(FONT_ID, glyph);
+                let rect = cache.rect_for(font_id, glyph);
                 assert!(
                     rect.is_ok(),
                     "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
@@ -845,18 +854,19 @@ mod cache_bench_tests {
 
     #[bench]
     fn cache_bench_tolerance_1(b: &mut ::test::Bencher) {
-        let glyphs = test_glyphs();
+        let font_id = 0;
+        let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
         let mut cache = Cache::new(768, 768, 0.1, 1.0);
 
         b.iter(|| {
             for glyph in &glyphs {
-                cache.queue_glyph(FONT_ID, glyph.clone());
+                cache.queue_glyph(font_id, glyph.clone());
             }
 
             cache.cache_queued(|_, _| {}).expect("cache_queued");
 
             for (index, glyph) in glyphs.iter().enumerate() {
-                let rect = cache.rect_for(FONT_ID, glyph);
+                let rect = cache.rect_for(font_id, glyph);
                 assert!(
                     rect.is_ok(),
                     "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
@@ -868,13 +878,54 @@ mod cache_bench_tests {
         });
     }
 
-    fn test_glyphs() -> Vec<PositionedGlyph<'static>> {
-        let font = FontCollection::from_bytes(FONT_BYTES).into_font().unwrap();
+    #[bench]
+    fn cache_bench_tolerance_p1_multifont(b: &mut ::test::Bencher) {
+        let up_to_index = TEST_STR
+            .char_indices()
+            .nth(TEST_STR.chars().count() / FONTS.len())
+            .unwrap()
+            .0;
+        // Use a smaller amount of the test string, to offset the extra font-glyph bench load
+        let string = &TEST_STR[..up_to_index];
+
+        let font_glyphs: Vec<_> = FONTS
+            .iter()
+            .enumerate()
+            .map(|(id, font)| (id, test_glyphs(font, string)))
+            .collect();
+        let mut cache = Cache::new(768, 768, 0.1, 0.1);
+
+        b.iter(|| {
+            for &(font_id, ref glyphs) in &font_glyphs {
+                for glyph in glyphs {
+                    cache.queue_glyph(font_id, glyph.clone());
+                }
+            }
+
+            cache.cache_queued(|_, _| {}).expect("cache_queued");
+
+            for &(font_id, ref glyphs) in &font_glyphs {
+                for (index, glyph) in glyphs.iter().enumerate() {
+                    let rect = cache.rect_for(font_id, glyph);
+                    assert!(
+                        rect.is_ok(),
+                        "Gpu cache rect lookup failed ({:?}) for font {} glyph index {}, id {}",
+                        rect,
+                        font_id,
+                        index,
+                        glyph.id().0
+                    );
+                }
+            }
+        });
+    }
+
+    fn test_glyphs<'a>(font: &Font<'a>, string: &str) -> Vec<PositionedGlyph<'a>> {
         let mut glyphs = vec![];
         // Set of scales, found through brute force, to reproduce GlyphNotCached issue
         // Cache settings also affect this, it occurs when position_tolerance is < 1.0
         for scale in &[25_f32, 24.5, 25.01, 24.7, 24.99] {
-            for glyph in layout_paragraph(&font, Scale::uniform(*scale), 500, TEST_STR) {
+            for glyph in layout_paragraph(font, Scale::uniform(*scale), 500, string) {
                 glyphs.push(glyph);
             }
         }
