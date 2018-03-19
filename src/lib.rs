@@ -95,12 +95,17 @@
 //!   particular Unicode code point. This will have its own identifying number
 //!   unique to the font, its ID.
 
+#![allow(unknown_lints)]
+#![warn(clippy)]
+#![allow(cyclomatic_complexity, doc_markdown, cast_lossless, many_single_char_names)]
 #![cfg_attr(feature = "bench", feature(test))]
 #[cfg(feature = "bench")]
 extern crate test;
 #[cfg(test)]
 extern crate unicode_normalization;
 
+#[macro_use]
+extern crate approx;
 extern crate arrayvec;
 extern crate ordered_float;
 extern crate stb_truetype;
@@ -715,7 +720,7 @@ impl<'a> ScaledGlyph<'a> {
                     v.y as f32 * self.scale.y + offset.y,
                 );
                 match v.vertex_type() {
-                    VertexType::MoveTo if current.len() != 0 => result.push(Contour {
+                    VertexType::MoveTo if !current.is_empty() => result.push(Contour {
                         segments: replace(&mut current, Vec::new()),
                     }),
                     VertexType::LineTo => current.push(Segment::Line(Line { p: [last, end] })),
@@ -732,7 +737,7 @@ impl<'a> ScaledGlyph<'a> {
                 }
                 last = end;
             }
-            if current.len() > 0 {
+            if !current.is_empty() {
                 result.push(Contour {
                     segments: replace(&mut current, Vec::new()),
                 });
@@ -843,9 +848,9 @@ impl<'a> PositionedGlyph<'a> {
         use stb_truetype::VertexType;
         let shape = match self.sg.g.inner {
             GlyphInner::Proxy(ref font, id) => {
-                font.info.get_glyph_shape(id).unwrap_or_else(|| Vec::new())
+                font.info.get_glyph_shape(id).unwrap_or_else(Vec::new)
             }
-            GlyphInner::Shared(ref data) => data.shape.clone().unwrap_or_else(|| Vec::new()),
+            GlyphInner::Shared(ref data) => data.shape.clone().unwrap_or_else(Vec::new),
         };
         let bb = if let Some(bb) = self.bb.as_ref() {
             bb

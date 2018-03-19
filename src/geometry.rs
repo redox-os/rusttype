@@ -327,25 +327,22 @@ pub fn solve_quadratic_real(a: f32, b: f32, c: f32) -> RealQuadraticSolution {
         }
     } else if discriminant < 0.0 {
         RealQuadraticSolution::None
-    } else {
-        // discriminant == 0.0
-        if b == 0.0 {
-            if a == 0.0 {
-                if c == 0.0 {
-                    RealQuadraticSolution::All
-                } else {
-                    RealQuadraticSolution::None
-                }
+    } else if b == 0.0 {
+        if a == 0.0 {
+            if c == 0.0 {
+                RealQuadraticSolution::All
             } else {
-                RealQuadraticSolution::Touch(0.0)
+                RealQuadraticSolution::None
             }
         } else {
-            RealQuadraticSolution::Touch(2.0 * c / -b)
+            RealQuadraticSolution::Touch(0.0)
         }
+    } else {
+        RealQuadraticSolution::Touch(2.0 * c / -b)
     }
 }
 
 #[test]
 fn quadratic_test() {
-    solve_quadratic_real(-0.0000001, -2.0, 10.0);
+    solve_quadratic_real(-0.000_000_1, -2.0, 10.0);
 }
