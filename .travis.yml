@@ -1,19 +1,23 @@
 language: rust
-script:
-  - cargo build --verbose
-  - cargo test --verbose
-  - cargo build --verbose --features="gpu_cache"
-  - cargo test --verbose --features="gpu_cache"
-after_success: |
-  [ $TRAVIS_BRANCH = master ] &&
-  [ $TRAVIS_PULL_REQUEST = false ] &&
-  cargo doc --no-deps &&
-  echo "<meta http-equiv=refresh content=0;url=`echo rusttype | cut -d '/' -f 2`/index.html>" > target/doc/index.html &&
-  git clone https://github.com/davisp/ghp-import &&
-  ./ghp-import/ghp_import.py target/doc &&
-  git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
+cache:
+  cargo: true
+rust:
+- stable
+- nightly
 env:
-  global:
-    secure: J3rhRklfCWRTEwWlPFCctqtXYEOxUGD7zWfdpBLvme0EwYPz1jyZl/Wk8ZJ4jPumlmdHJ7yixeX3WVclJVTiCNZBr50BRwo7p+qzwwW8YMEAUWEa+rPUtEfJ8+MMc6AxRQPrMnv69a32lZfcs0Kmr2EskE76neiaAECE9zFG2JY+2wQ7EZluIH857NxsoXFObJoaIultYAIGOtLpUdki0T3osohltd4tXaz21BOD61SSxlx8URbQwMDGqrylrComp6ZqM+bQjXwfOI1urpoK/CS/toAcN9Z/alBnNwoWA2Y6Qd7EytDgNkc8V8kF6wQMD3NI2NCY4Rtcggo7EyWezexm2eIBMz5OASOIhqViMEaYUS6OrUnOaDo61AN63/UEwSl6v5Vg67vcVfBvLCXQPEgT2DLduM8Nws2QciBScvwTPD4/+t70aeahf6hSTmNMD2yIwzasKrbkb60uMUEJs2HlSFgArRCqJG4+W8OttrpoRXAr5pSYRX+b4W1XEtzyXvlVZ9uwkrmjH9b1yULvWvxXUVZCjXCIlV9CBc8VUFk9qMDHwHZqKkaoSWJlBiGcgoWvW1ca0ca1tsK1vK3vg9LIVP7JctrugYN8B7mzDwK6ZM+YmJ5E4TF2nnYmUdLdMcScfhyGUq3x17L7KgAVu+QS+Z+JKpimIapiYnqjF/s=
-notifications:
-  email: false
+- RUST_BACKTRACE=full
+matrix:
+  allow_failures:
+  - rust: nightly
+  fast_finish: true
+script: |
+  #!/bin/bash
+  cargo build --verbose
+  cargo test --verbose
+  cargo build --verbose --features 'gpu_cache'
+  if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then
+    # test nightly-only bench code
+    cargo test --all-features
+  else
+    cargo test --features 'gpu_cache'
+  fi
