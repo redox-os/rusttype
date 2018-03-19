@@ -42,7 +42,7 @@ impl Iterator for LineSliceIter {
             ::std::mem::swap(&mut lower_t, &mut upper_t);
         }
         self.i += 1;
-        if lower_t != upper_t {
+        if !relative_eq!(lower_t, upper_t) {
             let p = &self.l.p;
             let v = p[1] - p[0];
             Some(
@@ -124,10 +124,10 @@ impl Iterator for CurveSliceIter {
                     c.min(1.0).max(0.0),
                     d.min(1.0).max(0.0),
                 );
-                if a != b {
+                if !relative_eq!(a, b) {
                     result.push(self.curve.cut_from_to(a, b));
                 }
-                if c != d {
+                if !relative_eq!(c, d) {
                     result.push(self.curve.cut_from_to(c, d));
                 }
             }
@@ -140,7 +140,7 @@ impl Iterator for CurveSliceIter {
                 let (a, b) = if a > b { (b, a) } else { (a, b) };
                 let a = a.min(1.0).max(0.0);
                 let b = b.min(1.0).max(0.0);
-                if a != b {
+                if !relative_eq!(a, b) {
                     result.push(self.curve.cut_from_to(a, b));
                 }
             }
@@ -156,7 +156,6 @@ impl Iterator for CurveSliceIter {
             },
             _ => unreachable!(), // impossible
         }
-        //println!("{:?}", result);
         Some(result.into_iter())
     }
 }
@@ -219,8 +218,8 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
     let mut scanline_curves = Vec::new();
     let mut curves_to_remove = Vec::new();
     while y < height
-        && (next_line != lines.len() || next_curve != curves.len() || active_lines_y.len() > 0
-            || active_curves_y.len() > 0)
+        && (next_line != lines.len() || next_curve != curves.len() || !active_lines_y.is_empty()
+            || !active_curves_y.is_empty())
     {
         let lower = y as f32;
         let upper = (y + 1) as f32;
@@ -249,7 +248,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
         // get y sliced segments for this scanline
         scanline_lines.clear();
         scanline_curves.clear();
-        for (k, itr) in active_lines_y.iter_mut() {
+        for (k, itr) in &mut active_lines_y {
             if let Some(itr) = itr.next() {
                 for line in itr {
                     scanline_lines.push((line, line.x_bounds()))
@@ -258,7 +257,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
                 lines_to_remove.push(*k);
             }
         }
-        for (k, itr) in active_curves_y.iter_mut() {
+        for (k, itr) in &mut active_curves_y {
             if let Some(itr) = itr.next() {
                 for curve in itr {
                     scanline_curves.push((curve, curve.x_bounds()))
@@ -288,7 +287,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
             active_curves_x.clear();
             while x < width
                 && (next_line != scanline_lines.len() || next_curve != scanline_curves.len()
-                    || active_lines_x.len() > 0 || active_curves_x.len() > 0)
+                    || !active_lines_x.is_empty() || !active_curves_x.is_empty())
             {
                 let offset = vector(x as f32, y as f32);
                 let lower = x as f32;
@@ -321,7 +320,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
                 //process x sliced segments for this pixel
                 let mut pixel_value = acc;
                 let mut pixel_acc = 0.0;
-                for (k, itr) in active_lines_x.iter_mut() {
+                for (k, itr) in &mut active_lines_x {
                     if let Some(itr) = itr.next() {
                         for mut line in itr {
                             let p = &mut line.p;
@@ -337,7 +336,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
                         lines_to_remove.push(*k);
                     }
                 }
-                for (k, itr) in active_curves_x.iter_mut() {
+                for (k, itr) in &mut active_curves_x {
                     if let Some(itr) = itr.next() {
                         for mut curve in itr {
                             let p = &mut curve.p;

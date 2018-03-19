@@ -47,7 +47,15 @@ use std::collections::Bound::{Included, Unbounded};
 use std::error;
 use std::fmt;
 
+/// Texture coordinates (floating point) of the quad for a glyph in the cache,
+/// as well as the pixel-space (integer) coordinates that this region should be
+/// drawn at.
+pub type TextureCoords = (Rect<f32>, Rect<i32>);
 type FontId = usize;
+
+/// Indicates where a glyph texture is stored in the cache
+/// (row position, glyph index in row)
+type TextureRowGlyphIndex = (u32, u32);
 
 #[derive(Copy, Clone, Debug)]
 struct PGlyphSpec {
@@ -184,7 +192,8 @@ pub struct Cache<'font> {
     space_end_for_start: HashMap<u32, u32, FnvBuildHasher>,
     queue: Vec<(usize, PositionedGlyph<'font>)>,
     queue_retry: bool,
-    all_glyphs: HashMap<(FontId, GlyphId), BTreeMap<PGlyphSpec, (u32, u32)>, FnvBuildHasher>,
+    all_glyphs:
+        HashMap<(FontId, GlyphId), BTreeMap<PGlyphSpec, TextureRowGlyphIndex>, FnvBuildHasher>,
 }
 
 /// Returned from `Cache::rect_for`.
@@ -571,7 +580,7 @@ impl<'font> Cache<'font> {
 
             self.all_glyphs
                 .entry(spec.key())
-                .or_insert_with(|| BTreeMap::new())
+                .or_insert_with(BTreeMap::new)
                 .insert(spec, (row_top, row.glyphs.len() as u32 - 1));
         }
         if queue_success {
@@ -604,7 +613,7 @@ impl<'font> Cache<'font> {
         &'a self,
         font_id: usize,
         glyph: &PositionedGlyph,
-    ) -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr> {
+    ) -> Result<Option<TextureCoords>, CacheReadErr> {
         use point;
         use vector;
         let glyph_bb = match glyph.pixel_bounding_box() {
@@ -754,16 +763,9 @@ fn cache_test() {
         ("Hello World!", 14.0),
         ("Hello World!", 10.0),
     ];
-    for i in 0..strings.len() {
-        println!("Caching {:?}", strings[i]);
-        for glyph in font.layout(
-            strings[i].0,
-            Scale {
-                x: strings[i].1,
-                y: strings[i].1,
-            },
-            point(0.0, 0.0),
-        ) {
+    for &(string, scale) in &strings {
+        println!("Caching {:?}", (string, scale));
+        for glyph in font.layout(string, Scale::uniform(scale), point(0.0, 0.0)) {
             cache.queue_glyph(0, glyph);
         }
         cache.cache_queued(|_, _| {}).unwrap();
