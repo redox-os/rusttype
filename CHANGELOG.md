@@ -1,5 +1,12 @@
 ## master
 
+## 0.5.0
+
+* Let functions like `Font::glyph` and `Font::pair_kerning` work with both
+  characters and glyph ids by having them accept any type that implements the
+  new `IntoGlyphId` trait. This replaces the `CodepointOrGlyph` enum, which
+  didn't seem widely used.
+
 ## 0.4.3
 
 * Improve gpu_cache performance
