@@ -32,11 +32,11 @@ pub struct Vector<N> {
 }
 /// A convenience function for generating `Point`s.
 pub fn point<N>(x: N, y: N) -> Point<N> {
-    Point { x: x, y: y }
+    Point { x, y }
 }
 /// A convenience function for generating `Vector`s.
 pub fn vector<N>(x: N, y: N) -> Vector<N> {
-    Vector { x: x, y: y }
+    Vector { x, y }
 }
 
 impl<N: ops::Sub<Output = N>> ops::Sub for Point<N> {
@@ -148,7 +148,8 @@ pub struct Line {
 pub struct Curve {
     pub p: [Point<f32>; 3],
 }
-/// A rectangle, with top-left corner at `min`, and bottom-right corner at `max`.
+/// A rectangle, with top-left corner at `min`, and bottom-right corner at
+/// `max`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Rect<N> {
     pub min: Point<N>,

@@ -18,9 +18,10 @@ fn main() {
         y: height,
     };
 
-    // The origin of a line of text is at the baseline (roughly where non-descending letters sit).
-    // We don't want to clip the text, so we shift it down with an offset when laying it out.
-    // v_metrics.ascent is the distance between the baseline and the highest edge of any glyph in
+    // The origin of a line of text is at the baseline (roughly where
+    // non-descending letters sit). We don't want to clip the text, so we shift
+    // it down with an offset when laying it out. v_metrics.ascent is the
+    // distance between the baseline and the highest edge of any glyph in
     // the font. That's enough to guarantee that there's no clipping.
     let v_metrics = font.v_metrics(scale);
     let offset = point(0.0, v_metrics.ascent);

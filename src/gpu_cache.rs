@@ -34,16 +34,16 @@
 //! to get the UV coordinates in the cache texture for each glyph. For a
 //! concrete use case see the `gpu_cache` example.
 
-extern crate linked_hash_map;
 extern crate fnv;
+extern crate linked_hash_map;
 
-use {GlyphId, PositionedGlyph, Rect, Scale, Vector};
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::collections::Bound::{Included, Unbounded};
-use self::linked_hash_map::LinkedHashMap;
 use self::fnv::FnvBuildHasher;
+use self::linked_hash_map::LinkedHashMap;
+use {GlyphId, PositionedGlyph, Rect, Scale, Vector};
 use ordered_float::OrderedFloat;
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::Bound::{Included, Unbounded};
 use std::error;
 use std::fmt;
 
@@ -78,7 +78,8 @@ impl Ord for PGlyphSpec {
 }
 
 impl PGlyphSpec {
-    /// Returns if this cached glyph can be considered to match another at input tolerances
+    /// Returns if this cached glyph can be considered to match another at
+    /// input tolerances
     fn matches(&self, other: &PGlyphSpec, scale_tolerance: f32, position_tolerance: f32) -> bool {
         self.font_id == other.font_id && self.glyph_id == other.glyph_id
             && (self.scale.x - other.scale.x).abs() < scale_tolerance
@@ -130,8 +131,8 @@ impl ByteArray2d {
     pub fn zeros(row: usize, col: usize) -> Self {
         ByteArray2d {
             inner_array: vec![0; row * col],
-            row: row,
-            col: col,
+            row,
+            col,
         }
     }
 
@@ -281,13 +282,21 @@ impl<'font> Cache<'font> {
         let scale_tolerance = scale_tolerance.max(0.001);
         let position_tolerance = position_tolerance.max(0.001);
         Cache {
-            scale_tolerance: scale_tolerance,
-            position_tolerance: position_tolerance,
-            width: width,
-            height: height,
+            scale_tolerance,
+            position_tolerance,
+            width,
+            height,
             rows: LinkedHashMap::default(),
-            space_start_for_end: {let mut m = HashMap::default(); m.insert(height, 0); m},
-            space_end_for_start: {let mut m = HashMap::default(); m.insert(0, height); m},
+            space_start_for_end: {
+                let mut m = HashMap::default();
+                m.insert(height, 0);
+                m
+            },
+            space_end_for_start: {
+                let mut m = HashMap::default();
+                m.insert(0, height);
+                m
+            },
             queue: Vec::new(),
             queue_retry: false,
             all_glyphs: HashMap::default(),
@@ -365,8 +374,8 @@ impl<'font> Cache<'font> {
         &mut self,
         mut uploader: F,
     ) -> Result<(), CacheWriteErr> {
-        use vector;
         use point;
+        use vector;
         let mut in_use_rows = HashSet::new();
         // tallest first gives better packing
         // can use 'sort_unstable' as order of equal elements is unimportant
@@ -376,11 +385,12 @@ impl<'font> Cache<'font> {
         'per_glyph: for &(font_id, ref glyph) in &self.queue {
             // Check to see if it's already cached, or a close enough version is:
             // (Note that the search for "close enough" here is conservative - there may be
-            // a close enough glyph that isn't found; identical glyphs however will always be found)
+            // a close enough glyph that isn't found; identical glyphs however will always
+            // be found)
             let p = glyph.position();
             let pfract = normalise_pixel_offset(vector(p.x.fract(), p.y.fract()));
             let spec = PGlyphSpec {
-                font_id: font_id,
+                font_id,
                 glyph_id: glyph.id(),
                 scale: glyph.scale(),
                 offset: pfract,
@@ -484,7 +494,7 @@ impl<'font> Cache<'font> {
                         if !in_use_rows.contains(self.rows.front().unwrap().0) {
                             // Remove row
                             let (top, row) = self.rows.pop_front().unwrap();
-                            for (spec, _, _) in row.glyphs {
+                            for (spec, ..) in row.glyphs {
                                 if let Some(ref mut c) = self.all_glyphs.get_mut(&spec.key()) {
                                     c.remove(&spec);
                                 }
@@ -533,7 +543,7 @@ impl<'font> Cache<'font> {
                     gap_start,
                     Row {
                         width: 0,
-                        height: height,
+                        height,
                         glyphs: Vec::new(),
                     },
                 );
@@ -595,8 +605,8 @@ impl<'font> Cache<'font> {
         font_id: usize,
         glyph: &PositionedGlyph,
     ) -> Result<Option<(Rect<f32>, Rect<i32>)>, CacheReadErr> {
-        use vector;
         use point;
+        use vector;
         let glyph_bb = match glyph.pixel_bounding_box() {
             Some(bb) => bb,
             None => return Ok(None),
@@ -605,7 +615,7 @@ impl<'font> Cache<'font> {
         let target_offset =
             normalise_pixel_offset(vector(target_position.x.fract(), target_position.y.fract()));
         let target_spec = PGlyphSpec {
-            font_id: font_id,
+            font_id,
             glyph_id: glyph.id(),
             scale: glyph.scale(),
             offset: target_offset,
@@ -718,7 +728,7 @@ impl<'font> Cache<'font> {
         let min = point(ideal_min.x.round() as i32, ideal_min.y.round() as i32);
         let bb_offset = min - local_bb.min;
         let bb = Rect {
-            min: min,
+            min,
             max: local_bb.max + bb_offset,
         };
         Ok(Some((uv_rect, bb)))
@@ -804,7 +814,8 @@ mod cache_bench_tests {
     const FONT_BYTES: &[u8] = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     const TEST_STR: &str = include_str!("../tests/lipsum.txt");
 
-    /// Reproduces Err(GlyphNotCached) issue & serves as a general purpose cache benchmark
+    /// Reproduces Err(GlyphNotCached) issue & serves as a general purpose
+    /// cache benchmark
     #[bench]
     fn cache_bench_tolerance_p1(b: &mut ::test::Bencher) {
         let glyphs = test_glyphs();

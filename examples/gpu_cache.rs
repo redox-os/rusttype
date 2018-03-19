@@ -224,32 +224,32 @@ You can also try resizing this window."
                             Vertex {
                                 position: [gl_rect.min.x, gl_rect.max.y],
                                 tex_coords: [uv_rect.min.x, uv_rect.max.y],
-                                colour: colour,
+                                colour,
                             },
                             Vertex {
                                 position: [gl_rect.min.x, gl_rect.min.y],
                                 tex_coords: [uv_rect.min.x, uv_rect.min.y],
-                                colour: colour,
+                                colour,
                             },
                             Vertex {
                                 position: [gl_rect.max.x, gl_rect.min.y],
                                 tex_coords: [uv_rect.max.x, uv_rect.min.y],
-                                colour: colour,
+                                colour,
                             },
                             Vertex {
                                 position: [gl_rect.max.x, gl_rect.min.y],
                                 tex_coords: [uv_rect.max.x, uv_rect.min.y],
-                                colour: colour,
+                                colour,
                             },
                             Vertex {
                                 position: [gl_rect.max.x, gl_rect.max.y],
                                 tex_coords: [uv_rect.max.x, uv_rect.max.y],
-                                colour: colour,
+                                colour,
                             },
                             Vertex {
                                 position: [gl_rect.min.x, gl_rect.max.y],
                                 tex_coords: [uv_rect.min.x, uv_rect.max.y],
-                                colour: colour,
+                                colour,
                             },
                         ])
                     } else {

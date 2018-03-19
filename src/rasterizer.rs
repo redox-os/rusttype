@@ -1,5 +1,5 @@
-use geometry::*;
 use arrayvec;
+use geometry::*;
 use ordered_float::OrderedFloat;
 
 trait SliceUp: Sized {
@@ -63,7 +63,7 @@ impl SliceUp for Line {
         let p = &self.p;
         LineSliceIter {
             l: *self,
-            planes: planes,
+            planes,
             i: 0,
             m: p[1].x - p[0].x,
             c: p[0].x,
@@ -73,7 +73,7 @@ impl SliceUp for Line {
         let p = &self.p;
         LineSliceIter {
             l: *self,
-            planes: planes,
+            planes,
             i: 0,
             m: p[1].y - p[0].y,
             c: p[0].y,
@@ -96,9 +96,9 @@ impl Iterator for CurveSliceIter {
     type Item = CurveIter;
     fn next(&mut self) -> Option<Self::Item> {
         use arrayvec::ArrayVec;
+        use geometry::Cut;
         use geometry::RealQuadraticSolution as RQS;
         use geometry::solve_quadratic_real as solve;
-        use geometry::Cut;
         if self.i >= self.planes.count {
             return None;
         }
@@ -175,7 +175,7 @@ impl SliceUp for Curve {
         let p = &self.p;
         CurveSliceIter {
             curve: *self,
-            planes: planes,
+            planes,
             i: 0,
             a: p[0].x - 2.0 * p[1].x + p[2].x,
             b: 2.0 * (p[1].x - p[0].x),
@@ -186,7 +186,7 @@ impl SliceUp for Curve {
         let p = &self.p;
         CurveSliceIter {
             curve: *self,
-            planes: planes,
+            planes,
             i: 0,
             a: p[0].y - 2.0 * p[1].y + p[2].y,
             b: 2.0 * (p[1].y - p[0].y),

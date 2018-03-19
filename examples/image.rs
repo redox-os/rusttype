@@ -1,8 +1,8 @@
 extern crate image;
 extern crate rusttype;
 
-use rusttype::{point, FontCollection, Scale};
 use image::{DynamicImage, Rgba};
+use rusttype::{point, FontCollection, Scale};
 
 fn main() {
     // Load the font

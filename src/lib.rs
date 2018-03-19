@@ -111,10 +111,9 @@ mod rasterizer;
 #[cfg(feature = "gpu_cache")]
 pub mod gpu_cache;
 
-use std::sync::Arc;
-
 pub use geometry::{point, vector, Curve, Line, Point, Rect, Vector};
 use stb_truetype as tt;
+use std::sync::Arc;
 
 /// A collection of fonts read straight from a font file's data. The data in the
 /// collection is not validated. This structure may or may not own the font
@@ -346,7 +345,7 @@ impl<'a> FontCollection<'a> {
     pub fn font_at(&self, i: usize) -> Option<Font<'a>> {
         tt::get_font_offset_for_index(&self.0, i as i32)
             .and_then(|o| tt::FontInfo::new(self.0.clone(), o as usize))
-            .map(|info| Font { info: info })
+            .map(|info| Font { info })
     }
     /// Converts `self` into an `Iterator` yielding each `Font` that exists
     /// within the collection.
@@ -477,8 +476,8 @@ impl<'a> Font<'a> {
             font: self,
             chars: s.chars(),
             caret: 0.0,
-            scale: scale,
-            start: start,
+            scale,
+            start,
             last_glyph: None,
         }
     }
@@ -581,7 +580,7 @@ impl<'a> Glyph<'a> {
         match self.inner {
             GlyphInner::Proxy(ref font, id) => {
                 Glyph::new(GlyphInner::Shared(Arc::new(SharedGlyphData {
-                    id: id,
+                    id,
                     scale_for_1_pixel: font.info.scale_for_pixel_height(1.0),
                     unit_h_metrics: {
                         let hm = font.info.get_glyph_h_metrics(id);
@@ -604,7 +603,7 @@ impl<'a> Glyph<'a> {
     /// Only possible if the glyph is a shared glyph.
     pub fn get_data(&self) -> Option<Arc<SharedGlyphData>> {
         match self.inner {
-            GlyphInner::Proxy(_, _) => None,
+            GlyphInner::Proxy(..) => None,
             GlyphInner::Shared(ref s) => Some(s.clone()),
         }
     }
@@ -664,13 +663,14 @@ impl<'a> ScaledGlyph<'a> {
         PositionedGlyph {
             sg: self,
             position: p,
-            bb: bb,
+            bb,
         }
     }
     pub fn scale(&self) -> Scale {
         self.api_scale
     }
-    /// Retrieves the "horizontal metrics" of this glyph. See `HMetrics` for more detail.
+    /// Retrieves the "horizontal metrics" of this glyph. See `HMetrics` for
+    /// more detail.
     pub fn h_metrics(&self) -> HMetrics {
         match self.g.inner {
             GlyphInner::Proxy(ref font, id) => {
