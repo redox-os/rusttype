@@ -169,8 +169,8 @@ impl From<Vec<u8>> for SharedBytes<'static> {
 /// Represents a Unicode code point.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Codepoint(pub u32);
-/// Represents a glyph identifier for a particular font. This identifier will not necessarily correspond to
-/// the correct glyph in a font other than the one that it was obtained from.
+/// Represents a glyph identifier for a particular font. This identifier will not necessarily
+/// correspond to the correct glyph in a font other than the one that it was obtained from.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct GlyphId(pub u32);
 /// A single glyph of a font. this may either be a thin wrapper referring to the
@@ -400,7 +400,8 @@ impl<'a> Font<'a> {
     /// must be valid (smaller than `self.glyph_count()`), otherwise `None` is
     /// returned.
     ///
-    /// Note that code points without corresponding glyphs in this font map to the "undef" glyph, glyph 0.
+    /// Note that code points without corresponding glyphs in this font map to the "undef" glyph,
+    /// glyph 0.
     pub fn glyph<C: IntoGlyphId>(&self, id: C) -> Option<Glyph<'a>> {
         let gid = id.into_glyph_id(self);
         // font clone either a reference clone, or arc clone
@@ -412,11 +413,11 @@ impl<'a> Font<'a> {
     /// points or glyph ids produced by the given iterator `itr`.
     ///
     /// This is equivalent in behaviour to `itr.map(|c| font.glyph(c).unwrap())`.
-    pub fn glyphs_for<I: Iterator>(&self, itr: I) -> GlyphIter<I> where I::Item: IntoGlyphId {
-        GlyphIter {
-            font: self,
-            itr: itr,
-        }
+    pub fn glyphs_for<I: Iterator>(&self, itr: I) -> GlyphIter<I>
+    where
+        I::Item: IntoGlyphId,
+    {
+        GlyphIter { font: self, itr }
     }
     /// Returns an iterator over the names for this font.
     pub fn font_name_strings(&self) -> tt::FontNameIter<SharedBytes<'a>> {
@@ -484,7 +485,9 @@ impl<'a> Font<'a> {
     /// Returns additional kerning to apply as well as that given by HMetrics
     /// for a particular pair of glyphs.
     pub fn pair_kerning<A, B>(&self, scale: Scale, first: A, second: B) -> f32
-        where A: IntoGlyphId, B: IntoGlyphId
+    where
+        A: IntoGlyphId,
+        B: IntoGlyphId,
     {
         let (first, second) = (self.glyph(first).unwrap(), self.glyph(second).unwrap());
         let factor = self.info.scale_for_pixel_height(scale.y) * (scale.x / scale.y);
@@ -494,11 +497,17 @@ impl<'a> Font<'a> {
     }
 }
 #[derive(Clone)]
-pub struct GlyphIter<'a, I: Iterator> where I::Item: IntoGlyphId {
+pub struct GlyphIter<'a, I: Iterator>
+where
+    I::Item: IntoGlyphId,
+{
     font: &'a Font<'a>,
     itr: I,
 }
-impl<'a, I: Iterator> Iterator for GlyphIter<'a, I> where I::Item: IntoGlyphId {
+impl<'a, I: Iterator> Iterator for GlyphIter<'a, I>
+where
+    I::Item: IntoGlyphId,
+{
     type Item = Glyph<'a>;
     fn next(&mut self) -> Option<Glyph<'a>> {
         self.itr.next().map(|c| self.font.glyph(c).unwrap())
