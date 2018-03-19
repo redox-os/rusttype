@@ -2,9 +2,10 @@ use std::ops;
 
 /// A point in 2-dimensional space, with each dimension of type `N`.
 ///
-/// Legal operations on points are addition and subtraction by vectors, and subtraction between points, to give
-/// a vector representing the offset between the two points. Combined with the legal operations on vectors,
-/// meaningful manipulations of vectors and points can be performed.
+/// Legal operations on points are addition and subtraction by vectors, and
+/// subtraction between points, to give a vector representing the offset between
+/// the two points. Combined with the legal operations on vectors, meaningful
+/// manipulations of vectors and points can be performed.
 ///
 /// For example, to interpolate between two points by a factor `t`:
 ///
@@ -16,42 +17,43 @@ use std::ops;
 #[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct Point<N> {
     pub x: N,
-    pub y: N
+    pub y: N,
 }
 
 /// A vector in 2-dimensional space, with each dimension of type `N`.
 ///
-/// Legal operations on vectors are addition and subtraction by vectors, addition by points (to give points),
-/// and multiplication and division by scalars.
+/// Legal operations on vectors are addition and subtraction by vectors,
+/// addition by points (to give points), and multiplication and division by
+/// scalars.
 #[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct Vector<N> {
     pub x: N,
-    pub y: N
+    pub y: N,
 }
 /// A convenience function for generating `Point`s.
 pub fn point<N>(x: N, y: N) -> Point<N> {
-    Point { x: x, y: y }
+    Point { x, y }
 }
 /// A convenience function for generating `Vector`s.
 pub fn vector<N>(x: N, y: N) -> Vector<N> {
-    Vector { x: x, y: y }
+    Vector { x, y }
 }
 
-impl<N: ops::Sub<Output=N>> ops::Sub for Point<N> {
+impl<N: ops::Sub<Output = N>> ops::Sub for Point<N> {
     type Output = Vector<N>;
     fn sub(self, rhs: Point<N>) -> Vector<N> {
         vector(self.x - rhs.x, self.y - rhs.y)
     }
 }
 
-impl<N: ops::Add<Output=N>> ops::Add for Vector<N> {
+impl<N: ops::Add<Output = N>> ops::Add for Vector<N> {
     type Output = Vector<N>;
     fn add(self, rhs: Vector<N>) -> Vector<N> {
         vector(self.x + rhs.x, self.y + rhs.y)
     }
 }
 
-impl<N: ops::Sub<Output=N>> ops::Sub for Vector<N> {
+impl<N: ops::Sub<Output = N>> ops::Sub for Vector<N> {
     type Output = Vector<N>;
     fn sub(self, rhs: Vector<N>) -> Vector<N> {
         vector(self.x - rhs.x, self.y - rhs.y)
@@ -114,21 +116,21 @@ impl ops::Div<Vector<f64>> for f64 {
     }
 }
 
-impl<N: ops::Add<Output=N>> ops::Add<Vector<N>> for Point<N> {
+impl<N: ops::Add<Output = N>> ops::Add<Vector<N>> for Point<N> {
     type Output = Point<N>;
     fn add(self, rhs: Vector<N>) -> Point<N> {
         point(self.x + rhs.x, self.y + rhs.y)
     }
 }
 
-impl<N: ops::Sub<Output=N>> ops::Sub<Vector<N>> for Point<N> {
+impl<N: ops::Sub<Output = N>> ops::Sub<Vector<N>> for Point<N> {
     type Output = Point<N>;
     fn sub(self, rhs: Vector<N>) -> Point<N> {
         point(self.x - rhs.x, self.y - rhs.y)
     }
 }
 
-impl<N: ops::Add<Output=N>> ops::Add<Point<N>> for Vector<N> {
+impl<N: ops::Add<Output = N>> ops::Add<Point<N>> for Vector<N> {
     type Output = Point<N>;
     fn add(self, rhs: Point<N>) -> Point<N> {
         point(self.x + rhs.x, self.y + rhs.y)
@@ -138,20 +140,22 @@ impl<N: ops::Add<Output=N>> ops::Add<Point<N>> for Vector<N> {
 /// A straight line between two points, `p[0]` and `p[1]`
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Line {
-    pub p: [Point<f32>; 2]
+    pub p: [Point<f32>; 2],
 }
-/// A quadratic Bezier curve, starting at `p[0]`, ending at `p[2]`, with control point `p[1]`.
+/// A quadratic Bezier curve, starting at `p[0]`, ending at `p[2]`, with control
+/// point `p[1]`.
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub struct Curve {
-    pub p: [Point<f32>; 3]
+    pub p: [Point<f32>; 3],
 }
-/// A rectangle, with top-left corner at `min`, and bottom-right corner at `max`.
+/// A rectangle, with top-left corner at `min`, and bottom-right corner at
+/// `max`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Rect<N> {
     pub min: Point<N>,
-    pub max: Point<N>
+    pub max: Point<N>,
 }
-impl<N: ops::Sub<Output=N> + Copy> Rect<N> {
+impl<N: ops::Sub<Output = N> + Copy> Rect<N> {
     pub fn width(&self) -> N {
         self.max.x - self.min.x
     }
@@ -166,7 +170,7 @@ pub trait BoundingBox<N> {
         let (min_y, max_y) = self.y_bounds();
         Rect {
             min: point(min_x, min_y),
-            max: point(max_x, max_y)
+            max: point(max_x, max_y),
         }
     }
     fn x_bounds(&self) -> (N, N);
@@ -202,7 +206,7 @@ impl BoundingBox<f32> for Curve {
         } else {
             let t = (p[0].x - p[1].x) / (p[0].x - 2.0 * p[1].x + p[2].x);
             let _1mt = 1.0 - t;
-            let inflection = _1mt*_1mt*p[0].x + 2.0*_1mt*t*p[1].x + t*t*p[2].x;
+            let inflection = _1mt * _1mt * p[0].x + 2.0 * _1mt * t * p[1].x + t * t * p[2].x;
             if p[1].x < p[0].x {
                 (inflection, p[0].x.max(p[2].x))
             } else {
@@ -220,7 +224,7 @@ impl BoundingBox<f32> for Curve {
         } else {
             let t = (p[0].y - p[1].y) / (p[0].y - 2.0 * p[1].y + p[2].y);
             let _1mt = 1.0 - t;
-            let inflection = _1mt*_1mt*p[0].y + 2.0*_1mt*t*p[1].y + t*t*p[2].y;
+            let inflection = _1mt * _1mt * p[0].y + 2.0 * _1mt * t * p[1].y + t * t * p[2].y;
             if p[1].y < p[0].y {
                 (inflection, p[0].y.max(p[2].y))
             } else {
@@ -234,7 +238,7 @@ pub trait Cut: Sized {
     fn cut_to(self, t: f32) -> Self;
     fn cut_from(self, t: f32) -> Self;
     fn cut_from_to(self, t0: f32, t1: f32) -> Self {
-        self.cut_from(t0).cut_to((t1-t0)/(1.0-t0))
+        self.cut_from(t0).cut_to((t1 - t0) / (1.0 - t0))
     }
 }
 
@@ -243,19 +247,15 @@ impl Cut for Curve {
         let p = self.p;
         let a = p[0] + t * (p[1] - p[0]);
         let b = p[1] + t * (p[2] - p[1]);
-        let c = a + t * (b-a);
-        Curve {
-            p: [p[0], a, c]
-        }
+        let c = a + t * (b - a);
+        Curve { p: [p[0], a, c] }
     }
     fn cut_from(self, t: f32) -> Curve {
         let p = self.p;
         let a = p[0] + t * (p[1] - p[0]);
         let b = p[1] + t * (p[2] - p[1]);
-        let c = a + t * (b-a);
-        Curve {
-            p: [c, b, p[2]]
-        }
+        let c = a + t * (b - a);
+        Curve { p: [c, b, p[2]] }
     }
 }
 
@@ -263,20 +263,20 @@ impl Cut for Line {
     fn cut_to(self, t: f32) -> Line {
         let p = self.p;
         Line {
-            p: [p[0], p[0] + t * (p[1] - p[0])]
+            p: [p[0], p[0] + t * (p[1] - p[0])],
         }
     }
     fn cut_from(self, t: f32) -> Line {
         let p = self.p;
         Line {
-            p:[p[0] + t * (p[1] - p[0]), p[1]]
+            p: [p[0] + t * (p[1] - p[0]), p[1]],
         }
     }
     fn cut_from_to(self, t0: f32, t1: f32) -> Line {
         let p = self.p;
         let v = p[1] - p[0];
         Line {
-            p: [p[0] + t0 * v, p[0] + t1 * v]
+            p: [p[0] + t0 * v, p[0] + t1 * v],
         }
     }
 }
@@ -293,30 +293,31 @@ pub enum RealQuadraticSolution {
     /// No solutions
     None,
     /// All real numbers are solutions since a == b == c == 0.0
-    All
+    All,
 }
 
 impl RealQuadraticSolution {
-    /// If there are two solutions, this function ensures that they are in order (first < second)
+    /// If there are two solutions, this function ensures that they are in order
+    /// (first < second)
     pub fn in_order(self) -> RealQuadraticSolution {
         use self::RealQuadraticSolution::*;
         match self {
-            Two(x, y) => if x < y { Two(x, y) } else { Two(y, x) },
-            other => other
+            Two(x, y) => if x < y {
+                Two(x, y)
+            } else {
+                Two(y, x)
+            },
+            other => other,
         }
     }
 }
 
 /// Solve a real quadratic equation, giving all real solutions, if any.
 pub fn solve_quadratic_real(a: f32, b: f32, c: f32) -> RealQuadraticSolution {
-    let discriminant = b*b - 4.0 * a * c;
+    let discriminant = b * b - 4.0 * a * c;
     if discriminant > 0.0 {
         let sqrt_d = discriminant.sqrt();
-        let common = -b + if b >= 0.0 {
-            -sqrt_d
-        } else {
-            sqrt_d
-        };
+        let common = -b + if b >= 0.0 { -sqrt_d } else { sqrt_d };
         let x1 = 2.0 * c / common;
         if a == 0.0 {
             RealQuadraticSolution::One(x1)
@@ -326,7 +327,8 @@ pub fn solve_quadratic_real(a: f32, b: f32, c: f32) -> RealQuadraticSolution {
         }
     } else if discriminant < 0.0 {
         RealQuadraticSolution::None
-    } else { // discriminant == 0.0
+    } else {
+        // discriminant == 0.0
         if b == 0.0 {
             if a == 0.0 {
                 if c == 0.0 {

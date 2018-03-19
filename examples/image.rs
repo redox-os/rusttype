@@ -1,8 +1,8 @@
-extern crate rusttype;
 extern crate image;
+extern crate rusttype;
 
-use rusttype::{FontCollection, Scale, point};
-use image::{Rgba, DynamicImage};
+use image::{DynamicImage, Rgba};
+use rusttype::{point, FontCollection, Scale};
 
 fn main() {
     // Load the font
@@ -16,7 +16,7 @@ fn main() {
 
     // The font size to use
     let size = 32.0;
-    let scale = Scale {x: size, y: size};
+    let scale = Scale { x: size, y: size };
 
     // The text to render
     let text = "This is RustType rendered into a png!";
@@ -31,13 +31,17 @@ fn main() {
     for glyph in font.layout(text, scale, start) {
         if let Some(bounding_box) = glyph.pixel_bounding_box() {
             // Draw the glyph into the image per-pixel by using the draw closure
-            glyph.draw(|x, y, v| image.put_pixel(
-                // Offset the position by the glyph bounding box
-                x + bounding_box.min.x as u32,
-                y + bounding_box.min.y as u32,
-                // Turn the coverage into an alpha value
-                Rgba {data: [colour.0, colour.1, colour.2, (v * 255.0) as u8]}
-            ));
+            glyph.draw(|x, y, v| {
+                image.put_pixel(
+                    // Offset the position by the glyph bounding box
+                    x + bounding_box.min.x as u32,
+                    y + bounding_box.min.y as u32,
+                    // Turn the coverage into an alpha value
+                    Rgba {
+                        data: [colour.0, colour.1, colour.2, (v * 255.0) as u8],
+                    },
+                )
+            });
         }
     }
 
