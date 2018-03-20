@@ -392,7 +392,7 @@ impl<'a> Iterator for IntoFontsIter<'a> {
     type Item = Result<Font<'a>>;
     fn next(&mut self) -> Option<Self::Item> {
         let result = self.collection.font_at(self.next_index);
-        if let &Err(Error::CollectionIndexOutOfBounds) = &result {
+        if let Err(Error::CollectionIndexOutOfBounds) = result {
             return None;
         }
         self.next_index += 1;
