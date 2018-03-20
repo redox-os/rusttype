@@ -5,7 +5,7 @@ extern crate rusttype;
 extern crate unicode_normalization;
 
 use glium::{glutin, Surface};
-use rusttype::{point, vector, Font, FontCollection, PositionedGlyph, Rect, Scale};
+use rusttype::{point, vector, Font, PositionedGlyph, Rect, Scale};
 use rusttype::gpu_cache::Cache;
 use std::borrow::Cow;
 
@@ -53,10 +53,7 @@ fn layout_paragraph<'a>(
 
 fn main() {
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-    let font = FontCollection::from_bytes(font_data as &[u8])
-        .unwrap()
-        .into_font()
-        .unwrap();
+    let font = Font::from_bytes(font_data as &[u8]).unwrap();
 
     let window = glutin::WindowBuilder::new()
         .with_dimensions(512, 512)

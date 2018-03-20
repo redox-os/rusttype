@@ -13,6 +13,7 @@
 * Introduce `rusttype::Error`, which implements `std::error::Error`, `Debug` and
   `Display`, and can be converted to `std::io::Error`.
 * Use `Result<_, rusttype::Error>` to report failures in FontCollection, Font and associated iterators.
+* Add `Font::from_bytes` method similar to `FontCollection::from_bytes` for 1 font collections.
 * Improve gpu_cache performance ~2-6%
 
 ## 0.4.3

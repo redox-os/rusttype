@@ -782,7 +782,7 @@ fn need_to_check_whole_cache() {
 #[cfg(test)]
 mod cache_bench_tests {
     use super::*;
-    use {point, Font, FontCollection, Scale};
+    use {point, Font, Scale};
 
     lazy_static! {
         static ref FONTS: Vec<Font<'static>> = vec![
@@ -790,7 +790,7 @@ mod cache_bench_tests {
             include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8],
             include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8],
         ].into_iter()
-            .map(|bytes| FontCollection::from_bytes(bytes).and_then(|c| c.into_font()).unwrap())
+            .map(|bytes| Font::from_bytes(bytes).unwrap())
             .collect();
     }
 
