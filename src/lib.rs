@@ -403,6 +403,12 @@ impl<'a> Iterator for IntoFontsIter<'a> {
     }
 }
 impl<'a> Font<'a> {
+    /// Constructs a font from an array of bytes, this is a shortcut for
+    /// `FontCollection::from_bytes` for collections comprised of a single font.
+    pub fn from_bytes<B: Into<SharedBytes<'a>>>(bytes: B) -> Result<Font<'a>, Error> {
+        FontCollection::from_bytes(bytes).and_then(|c| c.into_font())
+    }
+
     /// The "vertical metrics" for this font at a given scale. These metrics are
     /// shared by all of the glyphs in the font. See `VMetrics` for more detail.
     pub fn v_metrics(&self, scale: Scale) -> VMetrics {
