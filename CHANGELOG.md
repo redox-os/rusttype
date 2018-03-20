@@ -6,15 +6,15 @@
   characters and glyph ids by having them accept any type that implements the
   new `IntoGlyphId` trait. This replaces the `CodepointOrGlyph` enum, which
   didn't seem widely used.
-
 * Make `Font::glyph` always return a `Glyph`, not `Option<Glyph>`. Passing a
   `char` the font doesn't cover returns a `.notdef` glyph (id 0), as it did
   before. Passing an invalid glyph id now panics, like a bad array index: glyph
   ids should only be used to index the font they were looked up for.
+* Improve gpu_cache performance ~2-6%
 
 ## 0.4.3
 
-* Improve gpu_cache performance
+* Improve gpu_cache performance ~6-17%
 
 ## 0.4.2
 
