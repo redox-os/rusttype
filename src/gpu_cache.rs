@@ -790,7 +790,7 @@ mod cache_bench_tests {
             include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8],
             include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8],
         ].into_iter()
-            .map(|bytes| FontCollection::from_bytes(bytes).into_font().unwrap())
+            .map(|bytes| FontCollection::from_bytes(bytes).and_then(|c| c.into_font()).unwrap())
             .collect();
     }
 

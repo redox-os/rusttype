@@ -330,7 +330,7 @@ impl<'a> FontCollection<'a> {
     ///
     /// This returns an error if `bytes` does not seem to be font data in a
     /// format we recognize.
-    pub fn from_bytes<B: Into<SharedBytes<'a>>>(bytes: B) -> Result<FontCollection<'a>> {
+    pub fn from_bytes<B: Into<SharedBytes<'a>>>(bytes: B) -> Result<FontCollection<'a>, Error> {
         let bytes = bytes.into();
         // We should use tt::is_collection once it lands in stb_truetype-rs:
         // https://github.com/redox-os/stb_truetype-rs/pull/15
@@ -351,7 +351,7 @@ impl<'a> FontCollection<'a> {
     /// takes ownership of it, and the error values don't give it back. If that
     /// is a problem, use the `font_at` or `into_fonts` methods instead, which
     /// borrow the `FontCollection` rather than taking ownership of it.
-    pub fn into_font(self) -> Result<Font<'a>> {
+    pub fn into_font(self) -> Result<Font<'a>, Error> {
         let offset = if tt::is_font(&self.0) {
             0
         } else if tt::get_font_offset_for_index(&self.0, 1).is_some() {
@@ -372,7 +372,7 @@ impl<'a> FontCollection<'a> {
     /// Gets the font at index `i` in the font collection, if it exists and is
     /// valid. The produced font borrows the font data that is either borrowed
     /// or owned by this font collection.
-    pub fn font_at(&self, i: usize) -> Result<Font<'a>> {
+    pub fn font_at(&self, i: usize) -> Result<Font<'a>, Error> {
         let offset = tt::get_font_offset_for_index(&self.0, i as i32)
             .ok_or(Error::CollectionIndexOutOfBounds)?;
         let info = tt::FontInfo::new(self.0.clone(), offset as usize).ok_or(Error::IllFormed)?;
@@ -392,7 +392,7 @@ pub struct IntoFontsIter<'a> {
     collection: FontCollection<'a>,
 }
 impl<'a> Iterator for IntoFontsIter<'a> {
-    type Item = Result<Font<'a>>;
+    type Item = Result<Font<'a>, Error>;
     fn next(&mut self) -> Option<Self::Item> {
         let result = self.collection.font_at(self.next_index);
         if let Err(Error::CollectionIndexOutOfBounds) = result {
@@ -974,7 +974,3 @@ impl std::convert::From<Error> for std::io::Error {
         std::io::Error::new(std::io::ErrorKind::Other, error)
     }
 }
-
-/// Either a success value of type `T`, or a `rusttype::Error` value, indicating
-/// how the operation failed.
-pub type Result<T> = std::result::Result<T, Error>;
