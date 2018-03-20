@@ -7,8 +7,6 @@ rust:
 env:
 - RUST_BACKTRACE=full
 matrix:
-  allow_failures:
-  - rust: nightly
   fast_finish: true
 script: |
   #!/bin/bash
