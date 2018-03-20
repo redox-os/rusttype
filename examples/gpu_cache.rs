@@ -54,6 +54,7 @@ fn layout_paragraph<'a>(
 fn main() {
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let font = FontCollection::from_bytes(font_data as &[u8])
+        .unwrap()
         .into_font()
         .unwrap();
 

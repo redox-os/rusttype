@@ -722,6 +722,7 @@ fn cache_test() {
     use point;
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let font = FontCollection::from_bytes(font_data as &[u8])
+        .unwrap()
         .into_font()
         .unwrap();
     let mut cache = Cache::new(32, 32, 0.1, 0.1);
@@ -750,6 +751,7 @@ fn need_to_check_whole_cache() {
     use point;
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let font = FontCollection::from_bytes(font_data as &[u8])
+        .unwrap()
         .into_font()
         .unwrap();
 
@@ -788,7 +790,7 @@ mod cache_bench_tests {
             include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8],
             include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8],
         ].into_iter()
-            .map(|bytes| FontCollection::from_bytes(bytes).into_font().unwrap())
+            .map(|bytes| FontCollection::from_bytes(bytes).and_then(|c| c.into_font()).unwrap())
             .collect();
     }
 

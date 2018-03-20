@@ -7,9 +7,12 @@ use rusttype::{point, FontCollection, Scale};
 fn main() {
     // Load the font
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-    let collection = FontCollection::from_bytes(font_data as &[u8]);
+    let collection =
+        FontCollection::from_bytes(font_data as &[u8]).expect("Error building FontCollection");
     // This only succeeds if collection consists of one font
-    let font = collection.into_font().unwrap();
+    let font = collection
+        .into_font()
+        .expect("Error converting FontCollection to Font");
 
     // Create a new rgba image
     let mut image = DynamicImage::new_rgba8(500, 100).to_rgba();
