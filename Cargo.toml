@@ -33,8 +33,9 @@ fnv = { version = "1", optional = true }
 
 [dev-dependencies]
 glium = "0.20"
-unicode-normalization = "0.1"
 image = "0.18"
+lazy_static = "1"
+unicode-normalization = "0.1"
 
 [features]
 # Compiles benchmark code, to be avoided normally as this currently requires nightly rust

@@ -37,11 +37,11 @@
 extern crate fnv;
 extern crate linked_hash_map;
 
-use self::fnv::FnvBuildHasher;
+use self::fnv::{FnvBuildHasher, FnvHashMap};
 use self::linked_hash_map::LinkedHashMap;
 use {GlyphId, PositionedGlyph, Rect, Scale, Vector};
 use ordered_float::OrderedFloat;
-use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
+use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::collections::Bound::{Included, Unbounded};
 use std::error;
@@ -57,74 +57,65 @@ type FontId = usize;
 /// (row position, glyph index in row)
 type TextureRowGlyphIndex = (u32, u32);
 
-#[derive(Copy, Clone, Debug)]
-struct PGlyphSpec {
-    font_id: FontId,
-    glyph_id: GlyphId,
-    scale: Scale,
-    offset: Vector<f32>,
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+struct GlyphScaleOffset {
+    scale: (OrderedFloat<f32>, OrderedFloat<f32>),
+    offset: (OrderedFloat<f32>, OrderedFloat<f32>),
 }
 
-impl PartialEq for PGlyphSpec {
-    fn eq(&self, other: &PGlyphSpec) -> bool {
-        self.to_orderable() == other.to_orderable()
+impl PartialOrd for GlyphScaleOffset {
+    fn partial_cmp(&self, other: &GlyphScaleOffset) -> Option<Ordering> {
+        (self.scale, self.offset).partial_cmp(&(other.scale, other.offset))
     }
 }
 
-impl Eq for PGlyphSpec {}
-
-impl PartialOrd for PGlyphSpec {
-    fn partial_cmp(&self, other: &PGlyphSpec) -> Option<Ordering> {
-        self.to_orderable().partial_cmp(&other.to_orderable())
+impl Ord for GlyphScaleOffset {
+    fn cmp(&self, other: &GlyphScaleOffset) -> Ordering {
+        (self.scale, self.offset).cmp(&(other.scale, other.offset))
     }
 }
 
-impl Ord for PGlyphSpec {
-    fn cmp(&self, other: &PGlyphSpec) -> Ordering {
-        self.to_orderable().cmp(&other.to_orderable())
+impl GlyphScaleOffset {
+    fn new(scale: Scale, offset: Vector<f32>) -> Self {
+        Self {
+            scale: (OrderedFloat(scale.x), OrderedFloat(scale.y)),
+            offset: (OrderedFloat(offset.x), OrderedFloat(offset.y)),
+        }
     }
-}
 
-impl PGlyphSpec {
+    fn offset(&self) -> Vector<f32> {
+        Vector {
+            x: *self.offset.0,
+            y: *self.offset.1,
+        }
+    }
+
     /// Returns if this cached glyph can be considered to match another at
     /// input tolerances
-    fn matches(&self, other: &PGlyphSpec, scale_tolerance: f32, position_tolerance: f32) -> bool {
-        self.font_id == other.font_id && self.glyph_id == other.glyph_id
-            && (self.scale.x - other.scale.x).abs() < scale_tolerance
-            && (self.scale.y - other.scale.y).abs() < scale_tolerance
-            && (self.offset.x - other.offset.x).abs() < position_tolerance
-            && (self.offset.y - other.offset.y).abs() < position_tolerance
-    }
-
-    fn key(&self) -> (FontId, GlyphId) {
-        (self.font_id, self.glyph_id)
-    }
-
-    /// Returns a data view that is implicitly equal-able/hash-able/orderable
-    fn to_orderable(
+    #[inline]
+    fn matches(
         &self,
-    ) -> (
-        usize,
-        GlyphId,
-        OrderedFloat<f32>,
-        OrderedFloat<f32>,
-        OrderedFloat<f32>,
-        OrderedFloat<f32>,
-    ) {
-        let PGlyphSpec {
-            font_id,
-            glyph_id,
-            scale,
-            offset,
-        } = *self;
-        (
-            font_id,
-            glyph_id,
-            OrderedFloat(scale.x),
-            OrderedFloat(scale.y),
-            OrderedFloat(offset.x),
-            OrderedFloat(offset.y),
-        )
+        other: &GlyphScaleOffset,
+        scale_tolerance: f32,
+        position_tolerance: f32,
+    ) -> bool {
+        (*self.scale.0 - *other.scale.0).abs() < scale_tolerance
+            && (*self.scale.1 - *other.scale.1).abs() < scale_tolerance
+            && (*self.offset.0 - *other.offset.0).abs() < position_tolerance
+            && (*self.offset.1 - *other.offset.1).abs() < position_tolerance
+    }
+
+    #[inline]
+    fn match_distance(
+        &self,
+        other: &GlyphScaleOffset,
+        scale_tolerance: f32,
+        position_tolerance: f32,
+    ) -> f32 {
+        ((*self.scale.0 - *other.scale.0) / scale_tolerance).abs()
+            + ((*self.scale.1 - *other.scale.1) / scale_tolerance).abs()
+            + ((*self.offset.0 - *other.offset.0) / position_tolerance).abs()
+            + ((*self.offset.1 - *other.offset.1) / position_tolerance).abs()
     }
 }
 
@@ -177,7 +168,7 @@ impl ::std::ops::IndexMut<(usize, usize)> for ByteArray2d {
 struct Row {
     height: u32,
     width: u32,
-    glyphs: Vec<(PGlyphSpec, Rect<u32>, ByteArray2d)>,
+    glyphs: Vec<(GlyphScaleOffset, Rect<u32>, ByteArray2d)>,
 }
 
 /// An implementation of a dynamic GPU glyph cache. See the module documentation
@@ -188,12 +179,11 @@ pub struct Cache<'font> {
     width: u32,
     height: u32,
     rows: LinkedHashMap<u32, Row, FnvBuildHasher>,
-    space_start_for_end: HashMap<u32, u32, FnvBuildHasher>,
-    space_end_for_start: HashMap<u32, u32, FnvBuildHasher>,
-    queue: Vec<(usize, PositionedGlyph<'font>)>,
+    space_start_for_end: FnvHashMap<u32, u32>,
+    space_end_for_start: FnvHashMap<u32, u32>,
+    queue: Vec<(FontId, PositionedGlyph<'font>)>,
     queue_retry: bool,
-    all_glyphs:
-        HashMap<(FontId, GlyphId), BTreeMap<PGlyphSpec, TextureRowGlyphIndex>, FnvBuildHasher>,
+    all_glyphs: FnvHashMap<(FontId, GlyphId), BTreeMap<GlyphScaleOffset, TextureRowGlyphIndex>>,
 }
 
 /// Returned from `Cache::rect_for`.
@@ -385,7 +375,8 @@ impl<'font> Cache<'font> {
     ) -> Result<(), CacheWriteErr> {
         use point;
         use vector;
-        let mut in_use_rows = HashSet::new();
+
+        let mut in_use_rows = HashSet::with_capacity(self.rows.len());
         // tallest first gives better packing
         // can use 'sort_unstable' as order of equal elements is unimportant
         self.queue
@@ -398,12 +389,8 @@ impl<'font> Cache<'font> {
             // be found)
             let p = glyph.position();
             let pfract = normalise_pixel_offset(vector(p.x.fract(), p.y.fract()));
-            let spec = PGlyphSpec {
-                font_id,
-                glyph_id: glyph.id(),
-                scale: glyph.scale(),
-                offset: pfract,
-            };
+            let font_glyph = (font_id, glyph.id());
+            let spec = GlyphScaleOffset::new(glyph.scale(), pfract);
 
             {
                 let cached = self.all_glyphs.get(&(font_id, glyph.id()));
@@ -412,13 +399,8 @@ impl<'font> Cache<'font> {
                         .rev()
                         .next()
                         .and_then(|(l, &(lrow, _))| {
-                            if l.font_id == spec.font_id && l.glyph_id == spec.glyph_id
-                                && (l.scale.x - spec.scale.x).abs() < self.scale_tolerance
-                                && (l.scale.y - spec.scale.y).abs() < self.scale_tolerance
-                                && (spec.offset.x - l.offset.x).abs() < self.position_tolerance
-                                && (spec.offset.y - l.offset.y).abs() < self.position_tolerance
-                            {
-                                Some((l.scale, l.offset, lrow))
+                            if spec.matches(l, self.scale_tolerance, self.position_tolerance) {
+                                Some((l, lrow))
                             } else {
                                 None
                             }
@@ -428,13 +410,8 @@ impl<'font> Cache<'font> {
                     tree.range((Included(&spec), Unbounded))
                         .next()
                         .and_then(|(u, &(urow, _))| {
-                            if u.font_id == spec.font_id && u.glyph_id == spec.glyph_id
-                                && (u.scale.x - spec.scale.x).abs() < self.scale_tolerance
-                                && (u.scale.y - spec.scale.y).abs() < self.scale_tolerance
-                                && (spec.offset.x - u.offset.x).abs() < self.position_tolerance
-                                && (spec.offset.y - u.offset.y).abs() < self.position_tolerance
-                            {
-                                Some((u.scale, u.offset, urow))
+                            if spec.matches(u, self.scale_tolerance, self.position_tolerance) {
+                                Some((u, urow))
                             } else {
                                 None
                             }
@@ -442,29 +419,31 @@ impl<'font> Cache<'font> {
                 });
                 match (lower, upper) {
                     (None, None) => {} // No match
-                    (None, Some((_, _, row))) | (Some((_, _, row)), None) => {
+                    (None, Some((_, row))) | (Some((_, row)), None) => {
                         // just one match
                         self.rows.get_refresh(&row);
                         in_use_rows.insert(row);
                         continue 'per_glyph;
                     }
-                    (Some((_, _, row1)), Some((_, _, row2))) if row1 == row2 => {
+                    (Some((_, row1)), Some((_, row2))) if row1 == row2 => {
                         // two matches, but the same row
                         self.rows.get_refresh(&row1);
                         in_use_rows.insert(row1);
                         continue 'per_glyph;
                     }
-                    (Some((scale1, offset1, row1)), Some((scale2, offset2, row2))) => {
+                    (Some((lower, l_row)), Some((upper, u_row))) => {
                         // two definitely distinct matches
-                        let v1 = ((scale1.x - spec.scale.x) / self.scale_tolerance).abs()
-                            + ((scale1.y - spec.scale.y) / self.scale_tolerance).abs()
-                            + ((offset1.x - spec.offset.x) / self.position_tolerance).abs()
-                            + ((offset1.y - spec.offset.y) / self.position_tolerance).abs();
-                        let v2 = ((scale2.x - spec.scale.x) / self.scale_tolerance).abs()
-                            + ((scale2.y - spec.scale.y) / self.scale_tolerance).abs()
-                            + ((offset2.x - spec.offset.x) / self.position_tolerance).abs()
-                            + ((offset2.y - spec.offset.y) / self.position_tolerance).abs();
-                        let row = if v1 < v2 { row1 } else { row2 };
+                        let l_dist = lower.match_distance(
+                            &spec,
+                            self.scale_tolerance,
+                            self.position_tolerance,
+                        );
+                        let u_dist = upper.match_distance(
+                            &spec,
+                            self.scale_tolerance,
+                            self.position_tolerance,
+                        );
+                        let row = if l_dist < u_dist { l_row } else { u_row };
                         self.rows.get_refresh(&row);
                         in_use_rows.insert(row);
                         continue 'per_glyph;
@@ -504,7 +483,7 @@ impl<'font> Cache<'font> {
                             // Remove row
                             let (top, row) = self.rows.pop_front().unwrap();
                             for (spec, ..) in row.glyphs {
-                                if let Some(ref mut c) = self.all_glyphs.get_mut(&spec.key()) {
+                                if let Some(ref mut c) = self.all_glyphs.get_mut(&font_glyph) {
                                     c.remove(&spec);
                                 }
                             }
@@ -579,7 +558,7 @@ impl<'font> Cache<'font> {
             in_use_rows.insert(row_top);
 
             self.all_glyphs
-                .entry(spec.key())
+                .entry(font_glyph)
                 .or_insert_with(BTreeMap::new)
                 .insert(spec, (row_top, row.glyphs.len() as u32 - 1));
         }
@@ -623,14 +602,11 @@ impl<'font> Cache<'font> {
         let target_position = glyph.position();
         let target_offset =
             normalise_pixel_offset(vector(target_position.x.fract(), target_position.y.fract()));
-        let target_spec = PGlyphSpec {
-            font_id,
-            glyph_id: glyph.id(),
-            scale: glyph.scale(),
-            offset: target_offset,
-        };
 
-        let glyphs = self.all_glyphs.get(&target_spec.key());
+        let font_glyph = (font_id, glyph.id());
+        let target_spec = GlyphScaleOffset::new(glyph.scale(), target_offset);
+
+        let glyphs = self.all_glyphs.get(&font_glyph);
         let (lower, upper) = glyphs
             .map(|glyphs| {
                 let mut left_range = glyphs.range((Unbounded, Included(&target_spec))).rev();
@@ -690,22 +666,16 @@ impl<'font> Cache<'font> {
                     return Ok(Some((uv_rect, glyph_bb)));
                 } else {
                     // Two close-enough matches. Figure out which is closest.
-                    let l_measure = ((lmatch_spec.scale.x - target_spec.scale.x)
-                        / self.scale_tolerance)
-                        .abs()
-                        + ((lmatch_spec.scale.y - target_spec.scale.y) / self.scale_tolerance).abs()
-                        + ((lmatch_spec.offset.x - target_spec.offset.x) / self.position_tolerance)
-                            .abs()
-                        + ((lmatch_spec.offset.y - target_spec.offset.y) / self.position_tolerance)
-                            .abs();
-                    let u_measure = ((umatch_spec.scale.x - target_spec.scale.x)
-                        / self.scale_tolerance)
-                        .abs()
-                        + ((umatch_spec.scale.y - target_spec.scale.y) / self.scale_tolerance).abs()
-                        + ((umatch_spec.offset.x - target_spec.offset.x) / self.position_tolerance)
-                            .abs()
-                        + ((umatch_spec.offset.y - target_spec.offset.y) / self.position_tolerance)
-                            .abs();
+                    let l_measure = lmatch_spec.match_distance(
+                        &target_spec,
+                        self.scale_tolerance,
+                        self.position_tolerance,
+                    );
+                    let u_measure = umatch_spec.match_distance(
+                        &target_spec,
+                        self.scale_tolerance,
+                        self.position_tolerance,
+                    );
                     if l_measure < u_measure {
                         (lmatch_spec, lrow, lindex)
                     } else {
@@ -728,11 +698,11 @@ impl<'font> Cache<'font> {
         let local_bb = glyph
             .unpositioned()
             .clone()
-            .positioned(point(0.0, 0.0) + match_spec.offset)
+            .positioned(point(0.0, 0.0) + match_spec.offset())
             .pixel_bounding_box()
             .unwrap();
         let min_from_origin = point(local_bb.min.x as f32, local_bb.min.y as f32)
-            - (point(0.0, 0.0) + match_spec.offset);
+            - (point(0.0, 0.0) + match_spec.offset());
         let ideal_min = min_from_origin + target_position;
         let min = point(ideal_min.x.round() as i32, ideal_min.y.round() as i32);
         let bb_offset = min - local_bb.min;
@@ -814,26 +784,35 @@ mod cache_bench_tests {
     use super::*;
     use {point, Font, FontCollection, Scale};
 
-    const FONT_ID: usize = 0;
-    const FONT_BYTES: &[u8] = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+    lazy_static! {
+        static ref FONTS: Vec<Font<'static>> = vec![
+            include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
+            include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8],
+            include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8],
+        ].into_iter()
+            .map(|bytes| FontCollection::from_bytes(bytes).into_font().unwrap())
+            .collect();
+    }
+
     const TEST_STR: &str = include_str!("../tests/lipsum.txt");
 
     /// Reproduces Err(GlyphNotCached) issue & serves as a general purpose
     /// cache benchmark
     #[bench]
     fn cache_bench_tolerance_p1(b: &mut ::test::Bencher) {
-        let glyphs = test_glyphs();
+        let font_id = 0;
+        let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
         let mut cache = Cache::new(768, 768, 0.1, 0.1);
 
         b.iter(|| {
             for glyph in &glyphs {
-                cache.queue_glyph(FONT_ID, glyph.clone());
+                cache.queue_glyph(font_id, glyph.clone());
             }
 
             cache.cache_queued(|_, _| {}).expect("cache_queued");
 
             for (index, glyph) in glyphs.iter().enumerate() {
-                let rect = cache.rect_for(FONT_ID, glyph);
+                let rect = cache.rect_for(font_id, glyph);
                 assert!(
                     rect.is_ok(),
                     "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
@@ -847,18 +826,19 @@ mod cache_bench_tests {
 
     #[bench]
     fn cache_bench_tolerance_1(b: &mut ::test::Bencher) {
-        let glyphs = test_glyphs();
+        let font_id = 0;
+        let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
         let mut cache = Cache::new(768, 768, 0.1, 1.0);
 
         b.iter(|| {
             for glyph in &glyphs {
-                cache.queue_glyph(FONT_ID, glyph.clone());
+                cache.queue_glyph(font_id, glyph.clone());
             }
 
             cache.cache_queued(|_, _| {}).expect("cache_queued");
 
             for (index, glyph) in glyphs.iter().enumerate() {
-                let rect = cache.rect_for(FONT_ID, glyph);
+                let rect = cache.rect_for(font_id, glyph);
                 assert!(
                     rect.is_ok(),
                     "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
@@ -870,16 +850,55 @@ mod cache_bench_tests {
         });
     }
 
-    fn test_glyphs() -> Vec<PositionedGlyph<'static>> {
-        let font = FontCollection::from_bytes(FONT_BYTES)
+    #[bench]
+    fn cache_bench_tolerance_p1_multifont(b: &mut ::test::Bencher) {
+        let up_to_index = TEST_STR
+            .char_indices()
+            .nth(TEST_STR.chars().count() / FONTS.len())
             .unwrap()
-            .into_font()
-            .unwrap();
+            .0;
+        // Use a smaller amount of the test string, to offset the extra font-glyph
+        // bench load
+        let string = &TEST_STR[..up_to_index];
+
+        let font_glyphs: Vec<_> = FONTS
+            .iter()
+            .enumerate()
+            .map(|(id, font)| (id, test_glyphs(font, string)))
+            .collect();
+        let mut cache = Cache::new(768, 768, 0.1, 0.1);
+
+        b.iter(|| {
+            for &(font_id, ref glyphs) in &font_glyphs {
+                for glyph in glyphs {
+                    cache.queue_glyph(font_id, glyph.clone());
+                }
+            }
+
+            cache.cache_queued(|_, _| {}).expect("cache_queued");
+
+            for &(font_id, ref glyphs) in &font_glyphs {
+                for (index, glyph) in glyphs.iter().enumerate() {
+                    let rect = cache.rect_for(font_id, glyph);
+                    assert!(
+                        rect.is_ok(),
+                        "Gpu cache rect lookup failed ({:?}) for font {} glyph index {}, id {}",
+                        rect,
+                        font_id,
+                        index,
+                        glyph.id().0
+                    );
+                }
+            }
+        });
+    }
+
+    fn test_glyphs<'a>(font: &Font<'a>, string: &str) -> Vec<PositionedGlyph<'a>> {
         let mut glyphs = vec![];
         // Set of scales, found through brute force, to reproduce GlyphNotCached issue
         // Cache settings also affect this, it occurs when position_tolerance is < 1.0
         for scale in &[25_f32, 24.5, 25.01, 24.7, 24.99] {
-            for glyph in layout_paragraph(&font, Scale::uniform(*scale), 500, TEST_STR) {
+            for glyph in layout_paragraph(font, Scale::uniform(*scale), 500, string) {
                 glyphs.push(glyph);
             }
         }
