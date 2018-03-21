@@ -6,7 +6,7 @@ extern crate unicode_normalization;
 
 use glium::{glutin, Surface};
 use rusttype::{point, vector, Font, PositionedGlyph, Rect, Scale};
-use rusttype::gpu_cache::Cache;
+use rusttype::gpu_cache::CacheBuilder;
 use std::borrow::Cow;
 
 fn layout_paragraph<'a>(
@@ -65,7 +65,11 @@ fn main() {
     let dpi_factor = display.gl_window().hidpi_factor();
 
     let (cache_width, cache_height) = (512 * dpi_factor as u32, 512 * dpi_factor as u32);
-    let mut cache = Cache::new(cache_width, cache_height, 0.1, 0.1);
+    let mut cache = CacheBuilder {
+        width: cache_width,
+        height: cache_height,
+        ..CacheBuilder::default()
+    }.build();
 
     let program = program!(
         &display,
