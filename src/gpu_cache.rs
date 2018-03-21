@@ -13,7 +13,7 @@
 //! done either ahead-of-time, giving a fixed set of fonts, characters, and
 //! sizes that can be used at runtime, or dynamically as text is required. This
 //! latter scenario is more flexible and the focus of this module.
-
+//!
 //! To minimise the CPU load and texture upload bandwidth saturation, recently
 //! used glyphs should be cached on the GPU for use by future frames. This
 //! module provides a mechanism for maintaining such a cache in the form of a
@@ -33,6 +33,10 @@
 //! uploading pixel data), then when it's time to render call `Cache::rect_for`
 //! to get the UV coordinates in the cache texture for each glyph. For a
 //! concrete use case see the `gpu_cache` example.
+//!
+//! All glyphs are packed in texture with a bottom & right padding of a single
+//! zero alpha pixel to avoid bleeding from interpolated shader texture lookups
+//! near edges.
 
 extern crate fnv;
 extern crate linked_hash_map;
@@ -41,6 +45,7 @@ use self::fnv::{FnvBuildHasher, FnvHashMap};
 use self::linked_hash_map::LinkedHashMap;
 use {GlyphId, PositionedGlyph, Rect, Scale, Vector};
 use ordered_float::OrderedFloat;
+use point;
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::collections::Bound::{Included, Unbounded};
@@ -178,6 +183,19 @@ struct GlyphTexInfo {
     font_glyph: (FontId, GlyphId),
     scale_offset: GlyphScaleOffset,
     tex_coords: Rect<u32>,
+}
+
+trait PaddingAware {
+    fn unpadded(self) -> Self;
+}
+
+impl PaddingAware for Rect<u32> {
+    /// A padded texture has 1 extra pixel on the bottom & right
+    fn unpadded(mut self) -> Self {
+        self.max.x -= 1;
+        self.max.y -= 1;
+        self
+    }
 }
 
 /// An implementation of a dynamic GPU glyph cache. See the module documentation
@@ -384,7 +402,6 @@ impl<'font> Cache<'font> {
         &mut self,
         mut uploader: F,
     ) -> Result<(), CacheWriteErr> {
-        use point;
         use vector;
 
         let mut in_use_rows = HashSet::with_capacity(self.rows.len());
@@ -462,8 +479,11 @@ impl<'font> Cache<'font> {
                 }
             }
             // Not cached, so add it:
-            let bb = glyph.pixel_bounding_box().unwrap();
-            let (width, height) = (bb.width() as u32, bb.height() as u32);
+            let (width, height) = {
+                let bb = glyph.pixel_bounding_box().unwrap();
+                // `+ 1` is bottom & right glyph padding
+                (bb.width() as u32 + 1, bb.height() as u32 + 1)
+            };
             if width >= self.width || height >= self.height {
                 return Result::Err(CacheWriteErr::GlyphTooLarge);
             }
@@ -612,7 +632,6 @@ impl<'font> Cache<'font> {
         font_id: usize,
         glyph: &PositionedGlyph,
     ) -> Result<Option<TextureCoords>, CacheReadErr> {
-        use point;
         use vector;
         let glyph_bb = match glyph.pixel_bounding_box() {
             Some(bb) => bb,
@@ -664,22 +683,24 @@ impl<'font> Cache<'font> {
             })
             .unwrap_or((None, None));
 
-        let (width, height) = (self.width as f32, self.height as f32);
+        let (tex_width, tex_height) = (self.width as f32, self.height as f32);
         let (match_spec, row, index) = match (lower, upper) {
             (None, None) => return Err(CacheReadErr::GlyphNotCached),
             (Some(match_), None) | (None, Some(match_)) => match_, // one match
             (Some((lmatch_spec, lrow, lindex)), Some((umatch_spec, urow, uindex))) => {
                 if lrow == urow && lindex == uindex {
                     // both matches are really the same one, and match the input
-                    let tex_rect = self.rows[&lrow].glyphs[lindex as usize].tex_coords;
+                    let tex_rect = self.rows[&lrow].glyphs[lindex as usize]
+                        .tex_coords
+                        .unpadded();
                     let uv_rect = Rect {
                         min: point(
-                            tex_rect.min.x as f32 / width,
-                            tex_rect.min.y as f32 / height,
+                            tex_rect.min.x as f32 / tex_width,
+                            tex_rect.min.y as f32 / tex_height,
                         ),
                         max: point(
-                            tex_rect.max.x as f32 / width,
-                            tex_rect.max.y as f32 / height,
+                            tex_rect.max.x as f32 / tex_width,
+                            tex_rect.max.y as f32 / tex_height,
                         ),
                     };
                     return Ok(Some((uv_rect, glyph_bb)));
@@ -703,15 +724,15 @@ impl<'font> Cache<'font> {
                 }
             }
         };
-        let tex_rect = self.rows[&row].glyphs[index as usize].tex_coords;
+        let tex_rect = self.rows[&row].glyphs[index as usize].tex_coords.unpadded();
         let uv_rect = Rect {
             min: point(
-                tex_rect.min.x as f32 / width,
-                tex_rect.min.y as f32 / height,
+                tex_rect.min.x as f32 / tex_width,
+                tex_rect.min.y as f32 / tex_height,
             ),
             max: point(
-                tex_rect.max.x as f32 / width,
-                tex_rect.max.y as f32 / height,
+                tex_rect.max.x as f32 / tex_width,
+                tex_rect.max.y as f32 / tex_height,
             ),
         };
         let local_bb = glyph
@@ -738,7 +759,6 @@ impl<'font> Cache<'font> {
 fn cache_test() {
     use FontCollection;
     use Scale;
-    use point;
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let font = FontCollection::from_bytes(font_data as &[u8])
         .unwrap()
@@ -767,7 +787,6 @@ fn cache_test() {
 fn need_to_check_whole_cache() {
     use FontCollection;
     use Scale;
-    use point;
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let font = FontCollection::from_bytes(font_data as &[u8])
         .unwrap()
