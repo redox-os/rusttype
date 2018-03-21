@@ -1,10 +1,13 @@
 ## master
 
+* Add gpu cache glyph padding option to fix texture bleeding from other
+  glyphs when using interpolated texture coordinates near edges. Use
+  `CacheBuilder` to construct a `Cache` that makes use of padding.
 * Inlining performance improvements.
 
 ## 0.5.1
 
-* Fix tree removal on row clear
+* Fix tree removal on row clear (gpu_cache).
 
 ## 0.5.0
 
@@ -18,8 +21,10 @@
   ids should only be used to index the font they were looked up for.
 * Introduce `rusttype::Error`, which implements `std::error::Error`, `Debug` and
   `Display`, and can be converted to `std::io::Error`.
-* Use `Result<_, rusttype::Error>` to report failures in FontCollection, Font and associated iterators.
-* Add `Font::from_bytes` method similar to `FontCollection::from_bytes` for 1 font collections.
+* Use `Result<_, rusttype::Error>` to report failures in FontCollection, Font
+  and associated iterators.
+* Add `Font::from_bytes` method similar to `FontCollection::from_bytes` for 1
+  font collections.
 * Improve gpu_cache performance ~2-6%
 
 ## 0.4.3
