@@ -165,10 +165,19 @@ impl ::std::ops::IndexMut<(usize, usize)> for ByteArray2d {
     }
 }
 
+/// Row of pixel data
 struct Row {
+    /// Row pixel height
     height: u32,
+    /// Pixel width current in use by glyphs
     width: u32,
-    glyphs: Vec<(GlyphScaleOffset, Rect<u32>, ByteArray2d)>,
+    glyphs: Vec<GlyphTexInfo>,
+}
+
+struct GlyphTexInfo {
+    font_glyph: (FontId, GlyphId),
+    scale_offset: GlyphScaleOffset,
+    tex_coords: Rect<u32>,
 }
 
 /// An implementation of a dynamic GPU glyph cache. See the module documentation
@@ -179,7 +188,9 @@ pub struct Cache<'font> {
     width: u32,
     height: u32,
     rows: LinkedHashMap<u32, Row, FnvBuildHasher>,
+    /// Mapping of row gaps bottom -> top
     space_start_for_end: FnvHashMap<u32, u32>,
+    /// Mapping of row gaps top -> bottom
     space_end_for_start: FnvHashMap<u32, u32>,
     queue: Vec<(FontId, PositionedGlyph<'font>)>,
     queue_retry: bool,
@@ -482,11 +493,15 @@ impl<'font> Cache<'font> {
                         if !in_use_rows.contains(self.rows.front().unwrap().0) {
                             // Remove row
                             let (top, row) = self.rows.pop_front().unwrap();
-                            for (spec, ..) in row.glyphs {
-                                if let Some(ref mut c) = self.all_glyphs.get_mut(&font_glyph) {
-                                    c.remove(&spec);
+
+                            for g in row.glyphs {
+                                if let Some(ref mut tex_info) =
+                                    self.all_glyphs.get_mut(&g.font_glyph)
+                                {
+                                    tex_info.remove(&g.scale_offset);
                                 }
                             }
+
                             let (mut new_start, mut new_end) = (top, top + row.height);
                             // Update the free space maps
                             if let Some(end) = self.space_end_for_start.remove(&new_end) {
@@ -547,13 +562,17 @@ impl<'font> Cache<'font> {
             // draw the glyph into main memory
             let mut pixels = ByteArray2d::zeros(height as usize, width as usize);
             glyph.draw(|x, y, v| {
-                let v = ((v * 255.0) + 0.5).floor().max(0.0).min(255.0) as u8;
+                let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
                 pixels[(y as usize, x as usize)] = v;
             });
             // transfer
             uploader(rect, pixels.as_slice());
             // add the glyph to the row
-            row.glyphs.push((spec, rect, pixels));
+            row.glyphs.push(GlyphTexInfo {
+                font_glyph,
+                scale_offset: spec,
+                tex_coords: rect,
+            });
             row.width += width;
             in_use_rows.insert(row_top);
 
@@ -652,7 +671,7 @@ impl<'font> Cache<'font> {
             (Some((lmatch_spec, lrow, lindex)), Some((umatch_spec, urow, uindex))) => {
                 if lrow == urow && lindex == uindex {
                     // both matches are really the same one, and match the input
-                    let tex_rect = self.rows[&lrow].glyphs[lindex as usize].1;
+                    let tex_rect = self.rows[&lrow].glyphs[lindex as usize].tex_coords;
                     let uv_rect = Rect {
                         min: point(
                             tex_rect.min.x as f32 / width,
@@ -684,7 +703,7 @@ impl<'font> Cache<'font> {
                 }
             }
         };
-        let tex_rect = self.rows[&row].glyphs[index as usize].1;
+        let tex_rect = self.rows[&row].glyphs[index as usize].tex_coords;
         let uv_rect = Rect {
             min: point(
                 tex_rect.min.x as f32 / width,
