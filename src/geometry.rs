@@ -31,10 +31,12 @@ pub struct Vector<N> {
     pub y: N,
 }
 /// A convenience function for generating `Point`s.
+#[inline]
 pub fn point<N>(x: N, y: N) -> Point<N> {
     Point { x, y }
 }
 /// A convenience function for generating `Vector`s.
+#[inline]
 pub fn vector<N>(x: N, y: N) -> Vector<N> {
     Vector { x, y }
 }
