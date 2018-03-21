@@ -1,5 +1,7 @@
 ## master
 
+* Inlining performance improvements.
+
 ## 0.5.1
 
 * Fix tree removal on row clear
