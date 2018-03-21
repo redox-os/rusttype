@@ -1,8 +1,9 @@
 ## master
 
 * Inlining performance improvements.
-* Add gpu cache glyph padding to fix texture bleeding from other glyphs when
-  using interpolated texture coordinates near edges.
+* Add gpu cache glyph padding option to fix texture bleeding from other
+  glyphs when using interpolated texture coordinates near edges. Use
+  `CacheBuilder` to construct a `Cache` that makes use of padding.
 
 ## 0.5.1
 
