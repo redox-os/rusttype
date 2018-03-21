@@ -955,8 +955,10 @@ mod cache_bench_tests {
         let font_id = 0;
         let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
         let mut cache = CacheBuilder{
-            width: 768,
-            height: 768,
+            width: 1024,
+            height: 1024,
+            scale_tolerance: 0.1,
+            position_tolerance: 0.1,
             ..CacheBuilder::default()
         }.build();
 
@@ -985,8 +987,10 @@ mod cache_bench_tests {
         let font_id = 0;
         let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
         let mut cache = CacheBuilder{
-            width: 768,
-            height: 768,
+            width: 1024,
+            height: 1024,
+            scale_tolerance: 0.1,
+            position_tolerance: 1.0,
             ..CacheBuilder::default()
         }.build();
 
@@ -1027,8 +1031,10 @@ mod cache_bench_tests {
             .map(|(id, font)| (id, test_glyphs(font, string)))
             .collect();
         let mut cache = CacheBuilder{
-            width: 768,
-            height: 768,
+            width: 1024,
+            height: 1024,
+            scale_tolerance: 0.1,
+            position_tolerance: 0.1,
             ..CacheBuilder::default()
         }.build();
 
