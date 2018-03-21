@@ -1,5 +1,7 @@
 ## master
 
+## 0.5.2
+
 * Add gpu cache glyph padding option to fix texture bleeding from other
   glyphs when using interpolated texture coordinates near edges. Use
   `CacheBuilder` to construct a `Cache` that makes use of padding.
