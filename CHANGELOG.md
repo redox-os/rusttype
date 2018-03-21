@@ -1,5 +1,9 @@
 ## master
 
+## 0.5.1
+
+* Fix tree removal on row clear
+
 ## 0.5.0
 
 * Let functions like `Font::glyph` and `Font::pair_kerning` work with both
