@@ -34,9 +34,9 @@
 //! to get the UV coordinates in the cache texture for each glyph. For a
 //! concrete use case see the `gpu_cache` example.
 //!
-//! All glyphs are packed in texture with a bottom & right padding of a single
-//! zero alpha pixel to avoid bleeding from interpolated shader texture lookups
-//! near edges.
+//! Cache dimensions are immutable. If you need to change the dimensions of the
+//! cache texture (e.g. due to high cache pressure), construct a new `Cache`
+//! and discard the old one.
 
 extern crate fnv;
 extern crate linked_hash_map;
@@ -190,8 +190,10 @@ trait PaddingAware {
 }
 
 impl PaddingAware for Rect<u32> {
-    /// A padded texture has 1 extra pixel on the bottom & right
+    /// A padded texture has 1 extra pixel on all sides
     fn unpadded(mut self) -> Self {
+        self.min.x += 1;
+        self.min.y += 1;
         self.max.x -= 1;
         self.max.y -= 1;
         self
@@ -213,6 +215,140 @@ pub struct Cache<'font> {
     queue: Vec<(FontId, PositionedGlyph<'font>)>,
     queue_retry: bool,
     all_glyphs: FnvHashMap<(FontId, GlyphId), BTreeMap<GlyphScaleOffset, TextureRowGlyphIndex>>,
+    pad_glyphs: bool,
+}
+
+/// Builder for a `Cache`.
+///
+/// # Example
+///
+/// ```
+/// use rusttype::gpu_cache::CacheBuilder;
+///
+/// let default_cache = CacheBuilder {
+///     width: 256,
+///     height: 256,
+///     scale_tolerance: 0.1,
+///     position_tolerance: 0.1,
+///     pad_glyphs: true,
+/// }.build();
+///
+/// let bigger_cache = CacheBuilder {
+///     width: 1024,
+///     height: 1024,
+///     ..CacheBuilder::default()
+/// }.build();
+/// # let (_, _) = (default_cache, bigger_cache);
+/// ```
+#[derive(Debug, Clone)]
+pub struct CacheBuilder {
+    /// Along with `height` specifies the dimensions of the 2D texture that will
+    /// hold the cache contents on the GPU.
+    ///
+    /// This must match the dimensions of the actual texture used, otherwise
+    /// `cache_queued` will try to cache into coordinates outside the bounds of
+    /// the texture.
+    pub width: u32,
+    /// Along with `width` specifies the dimensions of the 2D texture that will
+    /// hold the cache contents on the GPU.
+    ///
+    /// This must match the dimensions of the actual texture used, otherwise
+    /// `cache_queued` will try to cache into coordinates outside the bounds of
+    /// the texture.
+    pub height: u32,
+    /// Specifies the tolerances (maximum allowed difference) for judging
+    /// whether an existing glyph in the cache is close enough to the
+    /// requested glyph in scale to be used in its place. Due to floating
+    /// point inaccuracies that can affect user code it is not recommended
+    /// to set these parameters too close to zero as effectively identical
+    /// glyphs could end up duplicated in the cache.
+    ///
+    /// Both `scale_tolerance` and `position_tolerance` are measured in pixels.
+    ///
+    /// A typical application will produce results with no perceptible
+    /// inaccuracies with `scale_tolerance` and `position_tolerance` set to
+    /// 0.1. Depending on the target DPI higher tolerance may be acceptable.
+    pub scale_tolerance: f32,
+    /// Specifies the tolerances (maximum allowed difference) for judging
+    /// whether an existing glyph in the cache is close enough to the requested
+    /// glyph in subpixel offset to be used in its place. Due to floating point
+    /// inaccuracies that can affect user code it is not recommended to set
+    /// these parameters too close to zero as effectively identical glyphs
+    /// could end up duplicated in the cache.
+    ///
+    /// Both `scale_tolerance` and `position_tolerance` are measured in pixels.
+    ///
+    /// Note that since `position_tolerance` is a tolerance of subpixel
+    /// offsets, setting it to 1.0 or higher is effectively a "don't care"
+    /// option.
+    ///
+    /// A typical application will produce results with no perceptible
+    /// inaccuracies with `scale_tolerance` and `position_tolerance` set to
+    /// 0.1. Depending on the target DPI higher tolerance may be acceptable.
+    pub position_tolerance: f32,
+    /// Pack glyphs in texture with a padding of a single zero alpha pixel to
+    /// avoid bleeding from interpolated shader texture lookups near edges.
+    ///
+    /// If glyphs are never transformed this may be set to `false` to slightly
+    /// improve the glyph packing.
+    pub pad_glyphs: bool,
+}
+
+impl Default for CacheBuilder {
+    fn default() -> Self {
+        Self {
+            width: 256,
+            height: 256,
+            scale_tolerance: 0.1,
+            position_tolerance: 0.1,
+            pad_glyphs: true,
+        }
+    }
+}
+
+impl CacheBuilder {
+    /// Constructs a new cache. Note that this is just the CPU side of the
+    /// cache. The GPU texture is managed by the user.
+    ///
+    /// # Panics
+    ///
+    /// `scale_tolerance` or `position_tolerance` are less than or equal to
+    /// zero.
+    pub fn build<'a>(self) -> Cache<'a> {
+        let CacheBuilder {
+            width,
+            height,
+            scale_tolerance,
+            position_tolerance,
+            pad_glyphs,
+        } = self;
+        assert!(scale_tolerance >= 0.0);
+        assert!(position_tolerance >= 0.0);
+        let scale_tolerance = scale_tolerance.max(0.001);
+        let position_tolerance = position_tolerance.max(0.001);
+
+        Cache {
+            scale_tolerance,
+            position_tolerance,
+            width,
+            height,
+            rows: LinkedHashMap::default(),
+            space_start_for_end: {
+                let mut m = HashMap::default();
+                m.insert(height, 0);
+                m
+            },
+            space_end_for_start: {
+                let mut m = HashMap::default();
+                m.insert(0, height);
+                m
+            },
+            queue: Vec::new(),
+            queue_retry: false,
+            all_glyphs: HashMap::default(),
+            pad_glyphs,
+        }
+    }
 }
 
 /// Returned from `Cache::rect_for`.
@@ -273,66 +409,29 @@ fn normalise_pixel_offset(mut offset: Vector<f32>) -> Vector<f32> {
 }
 
 impl<'font> Cache<'font> {
-    /// Constructs a new cache. Note that this is just the CPU side of the
-    /// cache. The GPU texture is managed by the user.
-    ///
-    /// `width` and `height` specify the dimensions of the 2D texture that will
-    /// hold the cache contents on the GPU. This must match the dimensions of
-    /// the actual texture used, otherwise `cache_queued` will try to cache into
-    /// coordinates outside the bounds of the texture. If you need to change the
-    /// dimensions of the cache texture (e.g. due to high cache pressure),
-    /// construct a new `Cache` and discard the old one.
-    ///
-    /// `scale_tolerance` and `position_tolerance` specify the tolerances
-    /// (maximum allowed difference) for judging whether an existing glyph in
-    /// the cache is close enough to the requested glyph in scale and subpixel
-    /// offset to be used in its place. Due to floating point inaccuracies that
-    /// can affect user code it is not recommended to set these parameters too
-    /// close to zero as effectively identical glyphs could end up duplicated in
-    /// the cache. Both `scale_tolerance` and `position_tolerance` are measured
-    /// in pixels. Note that since `pixel_tolerance` is a tolerance of subpixel
-    /// offsets, setting it to 1.0 or higher is effectively a "don't care"
-    /// option. A typical application will produce results with no perceptible
-    /// inaccuracies with `scale_tolerance` and `position_tolerance` set to 0.1.
-    /// Depending on the target DPI higher tolerance may be acceptable.
+    /// Legacy `Cache` construction, use `CacheBuilder` for more options.
     ///
     /// # Panics
     ///
-    /// `scale_tolerance` or `position_tolerance` are less than or equal to zero.
+    /// `scale_tolerance` or `position_tolerance` are less than or equal to
+    /// zero.
     pub fn new<'a>(
         width: u32,
         height: u32,
         scale_tolerance: f32,
         position_tolerance: f32,
     ) -> Cache<'a> {
-        assert!(scale_tolerance >= 0.0);
-        assert!(position_tolerance >= 0.0);
-        let scale_tolerance = scale_tolerance.max(0.001);
-        let position_tolerance = position_tolerance.max(0.001);
-        Cache {
-            scale_tolerance,
-            position_tolerance,
+        CacheBuilder {
             width,
             height,
-            rows: LinkedHashMap::default(),
-            space_start_for_end: {
-                let mut m = HashMap::default();
-                m.insert(height, 0);
-                m
-            },
-            space_end_for_start: {
-                let mut m = HashMap::default();
-                m.insert(0, height);
-                m
-            },
-            queue: Vec::new(),
-            queue_retry: false,
-            all_glyphs: HashMap::default(),
-        }
+            scale_tolerance,
+            position_tolerance,
+            pad_glyphs: false,
+        }.build()
     }
 
     /// Sets the scale tolerance for the cache. See the documentation for
-    /// `Cache::new` for more information.
+    /// `CacheBuilder` for more information.
     ///
     /// # Panics
     ///
@@ -347,7 +446,7 @@ impl<'font> Cache<'font> {
         self.scale_tolerance
     }
     /// Sets the subpixel position tolerance for the cache. See the
-    /// documentation for `Cache::new` for more information.
+    /// documentation for `CacheBuilder` for more information.
     ///
     /// # Panics
     ///
@@ -481,8 +580,11 @@ impl<'font> Cache<'font> {
             // Not cached, so add it:
             let (width, height) = {
                 let bb = glyph.pixel_bounding_box().unwrap();
-                // `+ 1` is bottom & right glyph padding
-                (bb.width() as u32 + 1, bb.height() as u32 + 1)
+                if self.pad_glyphs {
+                    (bb.width() as u32 + 2, bb.height() as u32 + 2)
+                } else {
+                    (bb.width() as u32, bb.height() as u32)
+                }
             };
             if width >= self.width || height >= self.height {
                 return Result::Err(CacheWriteErr::GlyphTooLarge);
@@ -581,10 +683,18 @@ impl<'font> Cache<'font> {
             };
             // draw the glyph into main memory
             let mut pixels = ByteArray2d::zeros(height as usize, width as usize);
-            glyph.draw(|x, y, v| {
-                let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
-                pixels[(y as usize, x as usize)] = v;
-            });
+            if self.pad_glyphs {
+                glyph.draw(|x, y, v| {
+                    let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
+                    // `+ 1` accounts for top/left glyph padding
+                    pixels[(y as usize + 1, x as usize + 1)] = v;
+                });
+            } else {
+                glyph.draw(|x, y, v| {
+                    let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
+                    pixels[(y as usize, x as usize)] = v;
+                });
+            }
             // transfer
             uploader(rect, pixels.as_slice());
             // add the glyph to the row
@@ -690,9 +800,10 @@ impl<'font> Cache<'font> {
             (Some((lmatch_spec, lrow, lindex)), Some((umatch_spec, urow, uindex))) => {
                 if lrow == urow && lindex == uindex {
                     // both matches are really the same one, and match the input
-                    let tex_rect = self.rows[&lrow].glyphs[lindex as usize]
-                        .tex_coords
-                        .unpadded();
+                    let mut tex_rect = self.rows[&lrow].glyphs[lindex as usize].tex_coords;
+                    if self.pad_glyphs {
+                        tex_rect = tex_rect.unpadded();
+                    }
                     let uv_rect = Rect {
                         min: point(
                             tex_rect.min.x as f32 / tex_width,
@@ -724,7 +835,10 @@ impl<'font> Cache<'font> {
                 }
             }
         };
-        let tex_rect = self.rows[&row].glyphs[index as usize].tex_coords.unpadded();
+        let mut tex_rect = self.rows[&row].glyphs[index as usize].tex_coords;
+        if self.pad_glyphs {
+            tex_rect = tex_rect.unpadded();
+        }
         let uv_rect = Rect {
             min: point(
                 tex_rect.min.x as f32 / tex_width,
@@ -840,7 +954,11 @@ mod cache_bench_tests {
     fn cache_bench_tolerance_p1(b: &mut ::test::Bencher) {
         let font_id = 0;
         let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
-        let mut cache = Cache::new(768, 768, 0.1, 0.1);
+        let mut cache = CacheBuilder{
+            width: 768,
+            height: 768,
+            ..CacheBuilder::default()
+        }.build();
 
         b.iter(|| {
             for glyph in &glyphs {
@@ -866,7 +984,11 @@ mod cache_bench_tests {
     fn cache_bench_tolerance_1(b: &mut ::test::Bencher) {
         let font_id = 0;
         let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
-        let mut cache = Cache::new(768, 768, 0.1, 1.0);
+        let mut cache = CacheBuilder{
+            width: 768,
+            height: 768,
+            ..CacheBuilder::default()
+        }.build();
 
         b.iter(|| {
             for glyph in &glyphs {
@@ -904,7 +1026,11 @@ mod cache_bench_tests {
             .enumerate()
             .map(|(id, font)| (id, test_glyphs(font, string)))
             .collect();
-        let mut cache = Cache::new(768, 768, 0.1, 0.1);
+        let mut cache = CacheBuilder{
+            width: 768,
+            height: 768,
+            ..CacheBuilder::default()
+        }.build();
 
         b.iter(|| {
             for &(font_id, ref glyphs) in &font_glyphs {
