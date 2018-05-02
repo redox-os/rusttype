@@ -501,8 +501,10 @@ impl<'a> Font<'a> {
     /// font.glyphs_for("Hello World!".chars())
     ///     .scan((None, 0.0), |&mut (mut last, mut x), g| {
     ///         let g = g.scaled(scale);
-    ///         let w = g.h_metrics().advance_width
-    ///             + last.map(|last| font.pair_kerning(scale, last, g.id())).unwrap_or(0.0);
+    ///         if let Some(last) = last {
+    ///             x += font.pair_kerning(scale, last, g.id());
+    ///         }
+    ///         let w = g.h_metrics().advance_width;
     ///         let next = g.positioned(start + vector(x, 0.0));
     ///         last = Some(next.id());
     ///         x += w;
