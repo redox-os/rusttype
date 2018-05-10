@@ -32,8 +32,8 @@ linked-hash-map = { version = "0.5", optional = true }
 fnv = { version = "1", optional = true }
 
 [dev-dependencies]
-glium = "0.20"
-image = "0.18"
+glium = "0.21"
+image = "0.19"
 lazy_static = "1"
 unicode-normalization = "0.1"
 
