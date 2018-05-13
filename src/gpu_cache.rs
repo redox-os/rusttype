@@ -50,6 +50,7 @@ use std::collections::Bound::{Included, Unbounded};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::error;
 use std::fmt;
+use vector;
 use {GlyphId, PositionedGlyph, Rect, Scale, Vector};
 
 /// Texture coordinates (floating point) of the quad for a glyph in the cache,
@@ -197,6 +198,125 @@ impl PaddingAware for Rect<u32> {
         self.max.x -= 1;
         self.max.y -= 1;
         self
+    }
+}
+
+/// Data detailing a matching glyph texture's cache location
+#[derive(Debug)]
+struct GlyphSearchMatch {
+    spec: GlyphScaleOffset,
+    row: u32,
+    index: u32,
+}
+
+impl GlyphSearchMatch {
+    fn new(spec: GlyphScaleOffset, row: u32, index: u32) -> Self {
+        Self { spec, row, index }
+    }
+}
+
+/// Data from a glyph that has no match in the texture cache within the
+/// required tolerances. The data can be used to add the new texture.
+struct GlyphSearchNoMatch<'a, 'font: 'a> {
+    font_id: FontId,
+    glyph_id: GlyphId,
+    spec: GlyphScaleOffset,
+    glyph: &'a PositionedGlyph<'font>,
+}
+
+trait GlyphSearchable {
+    /// search for a matching glyph within tolerances
+    fn glyph_search<'a, 'font>(
+        &self,
+        scale_tolerance: f32,
+        position_tolerance: f32,
+        FontId,
+        &'a PositionedGlyph<'font>,
+    ) -> Result<GlyphSearchMatch, GlyphSearchNoMatch<'a, 'font>>;
+}
+
+impl GlyphSearchable
+    for FnvHashMap<(FontId, GlyphId), BTreeMap<GlyphScaleOffset, TextureRowGlyphIndex>>
+{
+    fn glyph_search<'a, 'font>(
+        &self,
+        scale_tolerance: f32,
+        position_tolerance: f32,
+        font_id: FontId,
+        glyph: &'a PositionedGlyph<'font>,
+    ) -> Result<GlyphSearchMatch, GlyphSearchNoMatch<'a, 'font>> {
+        let p = glyph.position();
+        let target_offset = normalise_pixel_offset(vector(p.x.fract(), p.y.fract()));
+        let glyph_id = glyph.id();
+        let target_spec = GlyphScaleOffset::new(glyph.scale(), target_offset);
+
+        let cached = self.get(&(font_id, glyph_id));
+        let (lower, upper) = cached
+            .map(|glyphs| {
+                let mut left_range = glyphs.range((Unbounded, Included(&target_spec))).rev();
+                let mut right_range = glyphs.range((Included(&target_spec), Unbounded));
+
+                let mut left = left_range.next().map(|(s, &(r, i))| (s, r, i));
+                let mut right = right_range.next().map(|(s, &(r, i))| (s, r, i));
+
+                while left.is_some() || right.is_some() {
+                    left = left.and_then(|(spec, row, index)| {
+                        if spec.matches(&target_spec, scale_tolerance, position_tolerance) {
+                            Some((spec, row, index))
+                        } else {
+                            None
+                        }
+                    });
+                    right = right.and_then(|(spec, row, index)| {
+                        if spec.matches(&target_spec, scale_tolerance, position_tolerance) {
+                            Some((spec, row, index))
+                        } else {
+                            None
+                        }
+                    });
+
+                    if left.is_none() && right.is_none() {
+                        // continue searching for a match
+                        left = left_range.next().map(|(s, &(r, i))| (s, r, i));
+                        right = right_range.next().map(|(s, &(r, i))| (s, r, i));
+                    } else {
+                        break;
+                    }
+                }
+                (left, right)
+            })
+            .unwrap_or((None, None));
+
+        match (lower, upper) {
+            (None, Some((spec, row, index))) | (Some((spec, row, index)), None) => {
+                // just one match
+                Ok(GlyphSearchMatch::new(*spec, row, index))
+            }
+            (Some((spec, row1, index1)), Some((_, row2, index2)))
+                if row1 == row2 && index1 == index2 =>
+            {
+                // two matches, but the same row
+                Ok(GlyphSearchMatch::new(*spec, row1, index1))
+            }
+            (Some((lower, l_row, l_index)), Some((upper, u_row, u_index))) => {
+                // two definitely distinct matches
+                let l_dist =
+                    lower.match_distance(&target_spec, scale_tolerance, position_tolerance);
+                let u_dist =
+                    upper.match_distance(&target_spec, scale_tolerance, position_tolerance);
+                Ok(if l_dist < u_dist {
+                    GlyphSearchMatch::new(*lower, l_row, l_index)
+                } else {
+                    GlyphSearchMatch::new(*upper, u_row, u_index)
+                })
+            }
+            (None, None) => Err(GlyphSearchNoMatch {
+                font_id,
+                glyph_id,
+                spec: target_spec,
+                glyph,
+            }),
+        }
     }
 }
 
@@ -501,216 +621,206 @@ impl<'font> Cache<'font> {
         &mut self,
         mut uploader: F,
     ) -> Result<(), CacheWriteErr> {
-        use vector;
-
-        let mut in_use_rows = HashSet::with_capacity(self.rows.len());
-        // tallest first gives better packing
-        // can use 'sort_unstable' as order of equal elements is unimportant
-        self.queue
-            .sort_unstable_by_key(|&(_, ref glyph)| -glyph.pixel_bounding_box().unwrap().height());
         let mut queue_success = true;
-        'per_glyph: for &(font_id, ref glyph) in &self.queue {
-            // Check to see if it's already cached, or a close enough version is:
-            // (Note that the search for "close enough" here is conservative - there may be
-            // a close enough glyph that isn't found; identical glyphs however will always
-            // be found)
-            let p = glyph.position();
-            let pfract = normalise_pixel_offset(vector(p.x.fract(), p.y.fract()));
-            let font_glyph = (font_id, glyph.id());
-            let spec = GlyphScaleOffset::new(glyph.scale(), pfract);
 
-            {
-                let cached = self.all_glyphs.get(&(font_id, glyph.id()));
-                let lower = cached.and_then(|tree| {
-                    tree.range((Unbounded, Included(&spec)))
-                        .rev()
-                        .next()
-                        .and_then(|(l, &(lrow, _))| {
-                            if spec.matches(l, self.scale_tolerance, self.position_tolerance) {
-                                Some((l, lrow))
-                            } else {
-                                None
-                            }
-                        })
-                });
-                let upper = cached.and_then(|tree| {
-                    tree.range((Included(&spec), Unbounded))
-                        .next()
-                        .and_then(|(u, &(urow, _))| {
-                            if spec.matches(u, self.scale_tolerance, self.position_tolerance) {
-                                Some((u, urow))
-                            } else {
-                                None
-                            }
-                        })
-                });
-                match (lower, upper) {
-                    (None, None) => {} // No match
-                    (None, Some((_, row))) | (Some((_, row)), None) => {
-                        // just one match
-                        self.rows.get_refresh(&row);
-                        in_use_rows.insert(row);
-                        continue 'per_glyph;
-                    }
-                    (Some((_, row1)), Some((_, row2))) if row1 == row2 => {
-                        // two matches, but the same row
-                        self.rows.get_refresh(&row1);
-                        in_use_rows.insert(row1);
-                        continue 'per_glyph;
-                    }
-                    (Some((lower, l_row)), Some((upper, u_row))) => {
-                        // two definitely distinct matches
-                        let l_dist = lower.match_distance(
-                            &spec,
-                            self.scale_tolerance,
-                            self.position_tolerance,
-                        );
-                        let u_dist = upper.match_distance(
-                            &spec,
-                            self.scale_tolerance,
-                            self.position_tolerance,
-                        );
-                        let row = if l_dist < u_dist { l_row } else { u_row };
-                        self.rows.get_refresh(&row);
-                        in_use_rows.insert(row);
-                        continue 'per_glyph;
-                    }
-                }
-            }
-            // Not cached, so add it:
-            let (width, height) = {
-                let bb = glyph.pixel_bounding_box().unwrap();
-                if self.pad_glyphs {
-                    (bb.width() as u32 + 2, bb.height() as u32 + 2)
-                } else {
-                    (bb.width() as u32, bb.height() as u32)
-                }
-            };
-            if width >= self.width || height >= self.height {
-                return Result::Err(CacheWriteErr::GlyphTooLarge);
-            }
-            // find row to put the glyph in, most used rows first
-            let mut row_top = None;
-            for (top, row) in self.rows.iter().rev() {
-                if row.height >= height && self.width - row.width >= width {
-                    // found a spot on an existing row
-                    row_top = Some(*top);
-                    break;
-                }
+        {
+            // divide glyphs into ones where a matching glyph texture already exists
+            // & ones where new textures must be cached
+            let (cached_glyphs, uncached_glyphs): (Vec<_>, Vec<_>) = self.queue
+                .iter()
+                .map(|(font_id, ref glyph)| {
+                    self.all_glyphs.glyph_search(
+                        self.scale_tolerance,
+                        self.position_tolerance,
+                        *font_id,
+                        glyph,
+                    )
+                })
+                .partition(|r| r.is_ok());
+
+            let mut in_use_rows: HashSet<_> = cached_glyphs
+                .into_iter()
+                .map(|r| r.map_err(|_| ()).unwrap().row)
+                .collect();
+
+            for row in &in_use_rows {
+                self.rows.get_refresh(row);
             }
 
-            if row_top.is_none() {
-                let mut gap = None;
-                // See if there is space for a new row
-                for (start, end) in &self.space_end_for_start {
-                    if end - start >= height {
-                        gap = Some((*start, *end));
+            let mut uncached_glyphs: Vec<_> = uncached_glyphs
+                .into_iter()
+                .map(|r| r.unwrap_err())
+                .collect();
+
+            // tallest first gives better packing
+            // can use 'sort_unstable' as order of equal elements is unimportant
+            uncached_glyphs.sort_unstable_by_key(|uncached| {
+                -uncached.glyph.pixel_bounding_box().unwrap().height()
+            });
+
+            let mut new_glyphs = FnvHashMap::default();
+
+            'per_glyph: for uncached in uncached_glyphs {
+                let GlyphSearchNoMatch {
+                    font_id,
+                    glyph_id,
+                    spec,
+                    glyph,
+                } = uncached;
+
+                let new_match_already_added = new_glyphs
+                    .glyph_search(
+                        self.scale_tolerance,
+                        self.position_tolerance,
+                        font_id,
+                        glyph,
+                    )
+                    .is_ok();
+
+                if new_match_already_added {
+                    continue;
+                }
+
+                // Not cached, so add it:
+                let (width, height) = {
+                    let bb = glyph.pixel_bounding_box().unwrap();
+                    if self.pad_glyphs {
+                        (bb.width() as u32 + 2, bb.height() as u32 + 2)
+                    } else {
+                        (bb.width() as u32, bb.height() as u32)
+                    }
+                };
+                if width >= self.width || height >= self.height {
+                    return Result::Err(CacheWriteErr::GlyphTooLarge);
+                }
+                // find row to put the glyph in, most used rows first
+                let mut row_top = None;
+                for (top, row) in self.rows.iter().rev() {
+                    if row.height >= height && self.width - row.width >= width {
+                        // found a spot on an existing row
+                        row_top = Some(*top);
                         break;
                     }
                 }
-                if gap.is_none() {
-                    // Remove old rows until room is available
-                    while !self.rows.is_empty() {
-                        // check that the oldest row isn't also in use
-                        if !in_use_rows.contains(self.rows.front().unwrap().0) {
-                            // Remove row
-                            let (top, row) = self.rows.pop_front().unwrap();
 
-                            for g in row.glyphs {
-                                if let Some(ref mut tex_info) =
-                                    self.all_glyphs.get_mut(&g.font_glyph)
-                                {
-                                    tex_info.remove(&g.scale_offset);
-                                }
-                            }
-
-                            let (mut new_start, mut new_end) = (top, top + row.height);
-                            // Update the free space maps
-                            if let Some(end) = self.space_end_for_start.remove(&new_end) {
-                                new_end = end;
-                            }
-                            if let Some(start) = self.space_start_for_end.remove(&new_start) {
-                                new_start = start;
-                            }
-                            self.space_start_for_end.insert(new_end, new_start);
-                            self.space_end_for_start.insert(new_start, new_end);
-                            if new_end - new_start >= height {
-                                // The newly formed gap is big enough
-                                gap = Some((new_start, new_end));
-                                break;
-                            }
-                        }
-                        // all rows left are in use
-                        // try a clean insert of all needed glyphs
-                        // if that doesn't work, fail
-                        else if self.queue_retry {
-                            // already trying a clean insert, don't do it again
-                            return Err(CacheWriteErr::NoRoomForWholeQueue);
-                        } else {
-                            // signal that a retry is needed
-                            queue_success = false;
-                            break 'per_glyph;
+                if row_top.is_none() {
+                    let mut gap = None;
+                    // See if there is space for a new row
+                    for (start, end) in &self.space_end_for_start {
+                        if end - start >= height {
+                            gap = Some((*start, *end));
+                            break;
                         }
                     }
-                }
-                let (gap_start, gap_end) = gap.unwrap();
-                // fill space for new row
-                let new_space_start = gap_start + height;
-                self.space_end_for_start.remove(&gap_start);
-                if new_space_start == gap_end {
-                    self.space_start_for_end.remove(&gap_end);
-                } else {
-                    self.space_end_for_start.insert(new_space_start, gap_end);
-                    self.space_start_for_end.insert(gap_end, new_space_start);
-                }
-                // add the row
-                self.rows.insert(
-                    gap_start,
-                    Row {
-                        width: 0,
-                        height,
-                        glyphs: Vec::new(),
-                    },
-                );
-                row_top = Some(gap_start);
-            }
-            let row_top = row_top.unwrap();
-            // calculate the target rect
-            let row = self.rows.get_refresh(&row_top).unwrap();
-            let rect = Rect {
-                min: point(row.width, row_top),
-                max: point(row.width + width, row_top + height),
-            };
-            // draw the glyph into main memory
-            let mut pixels = ByteArray2d::zeros(height as usize, width as usize);
-            if self.pad_glyphs {
-                glyph.draw(|x, y, v| {
-                    let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
-                    // `+ 1` accounts for top/left glyph padding
-                    pixels[(y as usize + 1, x as usize + 1)] = v;
-                });
-            } else {
-                glyph.draw(|x, y, v| {
-                    let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
-                    pixels[(y as usize, x as usize)] = v;
-                });
-            }
-            // transfer
-            uploader(rect, pixels.as_slice());
-            // add the glyph to the row
-            row.glyphs.push(GlyphTexInfo {
-                font_glyph,
-                scale_offset: spec,
-                tex_coords: rect,
-            });
-            row.width += width;
-            in_use_rows.insert(row_top);
+                    if gap.is_none() {
+                        // Remove old rows until room is available
+                        while !self.rows.is_empty() {
+                            // check that the oldest row isn't also in use
+                            if !in_use_rows.contains(self.rows.front().unwrap().0) {
+                                // Remove row
+                                let (top, row) = self.rows.pop_front().unwrap();
 
-            self.all_glyphs
-                .entry(font_glyph)
-                .or_insert_with(BTreeMap::new)
-                .insert(spec, (row_top, row.glyphs.len() as u32 - 1));
+                                for g in row.glyphs {
+                                    if let Some(ref mut tex_info) =
+                                        self.all_glyphs.get_mut(&g.font_glyph)
+                                    {
+                                        tex_info.remove(&g.scale_offset);
+                                    }
+                                }
+
+                                let (mut new_start, mut new_end) = (top, top + row.height);
+                                // Update the free space maps
+                                if let Some(end) = self.space_end_for_start.remove(&new_end) {
+                                    new_end = end;
+                                }
+                                if let Some(start) = self.space_start_for_end.remove(&new_start) {
+                                    new_start = start;
+                                }
+                                self.space_start_for_end.insert(new_end, new_start);
+                                self.space_end_for_start.insert(new_start, new_end);
+                                if new_end - new_start >= height {
+                                    // The newly formed gap is big enough
+                                    gap = Some((new_start, new_end));
+                                    break;
+                                }
+                            }
+                            // all rows left are in use
+                            // try a clean insert of all needed glyphs
+                            // if that doesn't work, fail
+                            else if self.queue_retry {
+                                // already trying a clean insert, don't do it again
+                                return Err(CacheWriteErr::NoRoomForWholeQueue);
+                            } else {
+                                // signal that a retry is needed
+                                queue_success = false;
+                                break 'per_glyph;
+                            }
+                        }
+                    }
+                    let (gap_start, gap_end) = gap.unwrap();
+                    // fill space for new row
+                    let new_space_start = gap_start + height;
+                    self.space_end_for_start.remove(&gap_start);
+                    if new_space_start == gap_end {
+                        self.space_start_for_end.remove(&gap_end);
+                    } else {
+                        self.space_end_for_start.insert(new_space_start, gap_end);
+                        self.space_start_for_end.insert(gap_end, new_space_start);
+                    }
+                    // add the row
+                    self.rows.insert(
+                        gap_start,
+                        Row {
+                            width: 0,
+                            height,
+                            glyphs: Vec::new(),
+                        },
+                    );
+                    row_top = Some(gap_start);
+                }
+                let row_top = row_top.unwrap();
+                // calculate the target rect
+                let row = self.rows.get_refresh(&row_top).unwrap();
+                let rect = Rect {
+                    min: point(row.width, row_top),
+                    max: point(row.width + width, row_top + height),
+                };
+                // draw the glyph into main memory
+                let mut pixels = ByteArray2d::zeros(height as usize, width as usize);
+                if self.pad_glyphs {
+                    glyph.draw(|x, y, v| {
+                        let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
+                        // `+ 1` accounts for top/left glyph padding
+                        pixels[(y as usize + 1, x as usize + 1)] = v;
+                    });
+                } else {
+                    glyph.draw(|x, y, v| {
+                        let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
+                        pixels[(y as usize, x as usize)] = v;
+                    });
+                }
+                // transfer
+                uploader(rect, pixels.as_slice());
+                // add the glyph to the row
+                row.glyphs.push(GlyphTexInfo {
+                    font_glyph: (font_id, glyph_id),
+                    scale_offset: spec,
+                    tex_coords: rect,
+                });
+                row.width += width;
+                in_use_rows.insert(row_top);
+
+                self.all_glyphs
+                    .entry((font_id, glyph_id))
+                    .or_insert_with(BTreeMap::new)
+                    .insert(spec, (row_top, row.glyphs.len() as u32 - 1));
+                new_glyphs
+                    .entry((font_id, glyph_id))
+                    .or_insert_with(BTreeMap::new)
+                    .insert(spec, (row_top, row.glyphs.len() as u32 - 1));
+            }
         }
+
         if queue_success {
             self.queue.clear();
             Ok(())
@@ -737,104 +847,26 @@ impl<'font> Cache<'font> {
     ///
     /// Ensure that `font_id` matches the `font_id` that was passed to
     /// `queue_glyph` with this `glyph`.
-    pub fn rect_for<'a>(
-        &'a self,
+    pub fn rect_for(
+        &self,
         font_id: usize,
         glyph: &PositionedGlyph,
     ) -> Result<Option<TextureCoords>, CacheReadErr> {
-        use vector;
-        let glyph_bb = match glyph.pixel_bounding_box() {
-            Some(bb) => bb,
-            None => return Ok(None),
-        };
-        let target_position = glyph.position();
-        let target_offset =
-            normalise_pixel_offset(vector(target_position.x.fract(), target_position.y.fract()));
+        if glyph.pixel_bounding_box().is_none() {
+            return Ok(None);
+        }
 
-        let font_glyph = (font_id, glyph.id());
-        let target_spec = GlyphScaleOffset::new(glyph.scale(), target_offset);
-
-        let glyphs = self.all_glyphs.get(&font_glyph);
-        let (lower, upper) = glyphs
-            .map(|glyphs| {
-                let mut left_range = glyphs.range((Unbounded, Included(&target_spec))).rev();
-                let mut right_range = glyphs.range((Included(&target_spec), Unbounded));
-
-                let mut left = left_range.next().map(|(s, &(r, i))| (s, r, i));
-                let mut right = right_range.next().map(|(s, &(r, i))| (s, r, i));
-
-                while left.is_some() || right.is_some() {
-                    left = left.and_then(|(spec, row, index)| {
-                        if spec.matches(&target_spec, self.scale_tolerance, self.position_tolerance)
-                        {
-                            Some((spec, row, index))
-                        } else {
-                            None
-                        }
-                    });
-                    right = right.and_then(|(spec, row, index)| {
-                        if spec.matches(&target_spec, self.scale_tolerance, self.position_tolerance)
-                        {
-                            Some((spec, row, index))
-                        } else {
-                            None
-                        }
-                    });
-
-                    if left.is_none() && right.is_none() {
-                        // continue searching for a match
-                        left = left_range.next().map(|(s, &(r, i))| (s, r, i));
-                        right = right_range.next().map(|(s, &(r, i))| (s, r, i));
-                    } else {
-                        break;
-                    }
-                }
-                (left, right)
-            })
-            .unwrap_or((None, None));
+        let GlyphSearchMatch { spec, row, index } = self.all_glyphs
+            .glyph_search(
+                self.scale_tolerance,
+                self.position_tolerance,
+                font_id,
+                glyph,
+            )
+            .map_err(|_| CacheReadErr::GlyphNotCached)?;
 
         let (tex_width, tex_height) = (self.width as f32, self.height as f32);
-        let (match_spec, row, index) = match (lower, upper) {
-            (None, None) => return Err(CacheReadErr::GlyphNotCached),
-            (Some(match_), None) | (None, Some(match_)) => match_, // one match
-            (Some((lmatch_spec, lrow, lindex)), Some((umatch_spec, urow, uindex))) => {
-                if lrow == urow && lindex == uindex {
-                    // both matches are really the same one, and match the input
-                    let mut tex_rect = self.rows[&lrow].glyphs[lindex as usize].tex_coords;
-                    if self.pad_glyphs {
-                        tex_rect = tex_rect.unpadded();
-                    }
-                    let uv_rect = Rect {
-                        min: point(
-                            tex_rect.min.x as f32 / tex_width,
-                            tex_rect.min.y as f32 / tex_height,
-                        ),
-                        max: point(
-                            tex_rect.max.x as f32 / tex_width,
-                            tex_rect.max.y as f32 / tex_height,
-                        ),
-                    };
-                    return Ok(Some((uv_rect, glyph_bb)));
-                } else {
-                    // Two close-enough matches. Figure out which is closest.
-                    let l_measure = lmatch_spec.match_distance(
-                        &target_spec,
-                        self.scale_tolerance,
-                        self.position_tolerance,
-                    );
-                    let u_measure = umatch_spec.match_distance(
-                        &target_spec,
-                        self.scale_tolerance,
-                        self.position_tolerance,
-                    );
-                    if l_measure < u_measure {
-                        (lmatch_spec, lrow, lindex)
-                    } else {
-                        (umatch_spec, urow, uindex)
-                    }
-                }
-            }
-        };
+
         let mut tex_rect = self.rows[&row].glyphs[index as usize].tex_coords;
         if self.pad_glyphs {
             tex_rect = tex_rect.unpadded();
@@ -852,12 +884,12 @@ impl<'font> Cache<'font> {
         let local_bb = glyph
             .unpositioned()
             .clone()
-            .positioned(point(0.0, 0.0) + match_spec.offset())
+            .positioned(point(0.0, 0.0) + spec.offset())
             .pixel_bounding_box()
             .unwrap();
-        let min_from_origin = point(local_bb.min.x as f32, local_bb.min.y as f32)
-            - (point(0.0, 0.0) + match_spec.offset());
-        let ideal_min = min_from_origin + target_position;
+        let min_from_origin =
+            point(local_bb.min.x as f32, local_bb.min.y as f32) - (point(0.0, 0.0) + spec.offset());
+        let ideal_min = min_from_origin + glyph.position();
         let min = point(ideal_min.x.round() as i32, ideal_min.y.round() as i32);
         let bb_offset = min - local_bb.min;
         let bb = Rect {
@@ -1060,17 +1092,13 @@ mod cache_bench_tests {
         });
     }
 
-    /// Benchmark using multiple fonts with default tolerances, clears the cache each run
-    /// to test the population "first run" performance
+    /// Benchmark using multiple fonts with default tolerances, clears the
+    /// cache each run to test the population "first run" performance
     #[bench]
     fn bench_multi_font_population(b: &mut ::test::Bencher) {
         // Use a much smaller amount of the test string, to offset the extra font-glyph
         // bench load & much slower performance of fresh population each run
-        let up_to_index = TEST_STR
-            .char_indices()
-            .nth(70)
-            .unwrap()
-            .0;
+        let up_to_index = TEST_STR.char_indices().nth(70).unwrap().0;
         let string = &TEST_STR[..up_to_index];
 
         let font_glyphs: Vec<_> = FONTS
@@ -1111,7 +1139,8 @@ mod cache_bench_tests {
         });
     }
 
-    /// Benchmark using multiple fonts and a different text group of glyphs each run
+    /// Benchmark using multiple fonts and a different text group of glyphs
+    /// each run
     #[bench]
     fn bench_moving_text(b: &mut ::test::Bencher) {
         let chars: Vec<_> = TEST_STR.chars().collect();
