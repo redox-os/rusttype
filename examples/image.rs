@@ -47,4 +47,5 @@ fn main() {
 
     // Save the image to a png file
     image.save("image_example.png").unwrap();
+    println!("Generated: image_example.png");
 }

@@ -73,8 +73,8 @@ fn main() {
     let mut handle = stdout.lock();
     for j in 0..pixel_height {
         handle
-            .write(&pixel_data[j * width..(j + 1) * width])
+            .write_all(&pixel_data[j * width..(j + 1) * width])
             .unwrap();
-        handle.write(b"\n").unwrap();
+        handle.write_all(b"\n").unwrap();
     }
 }
