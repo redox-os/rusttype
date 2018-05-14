@@ -40,9 +40,11 @@
 
 extern crate fnv;
 extern crate linked_hash_map;
+extern crate rayon;
 
 use self::fnv::{FnvBuildHasher, FnvHashMap};
 use self::linked_hash_map::LinkedHashMap;
+use self::rayon::prelude::*;
 use ordered_float::OrderedFloat;
 use point;
 use std::cmp::{Ord, Ordering, PartialOrd};
@@ -627,7 +629,7 @@ impl<'font> Cache<'font> {
             // divide glyphs into ones where a matching glyph texture already exists
             // & ones where new textures must be cached
             let (cached_glyphs, uncached_glyphs): (Vec<_>, Vec<_>) = self.queue
-                .iter()
+                .par_iter()
                 .map(|(font_id, ref glyph)| {
                     self.all_glyphs.glyph_search(
                         self.scale_tolerance,
