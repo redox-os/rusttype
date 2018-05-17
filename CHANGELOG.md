@@ -1,6 +1,7 @@
 ## master
 * Rework gpu_cache `cache_queued` for more efficient packing & spread
   work across available CPUs. Improve performance by ~10-40%.
+* Deprecate `gpu_cache::Cache::new` in favour of `gpu_cache::CacheBuilder`.
 
 ## 0.5.2
 
