@@ -537,6 +537,7 @@ impl<'font> Cache<'font> {
     ///
     /// `scale_tolerance` or `position_tolerance` are less than or equal to
     /// zero.
+    #[deprecated(note = "Use `CacheBuilder` instead")]
     pub fn new<'a>(
         width: u32,
         height: u32,
@@ -912,7 +913,13 @@ fn cache_test() {
         .unwrap()
         .into_font()
         .unwrap();
-    let mut cache = Cache::new(32, 32, 0.1, 0.1);
+    let mut cache = CacheBuilder {
+        width: 32,
+        height: 32,
+        scale_tolerance: 0.1,
+        position_tolerance: 0.1,
+        pad_glyphs: false,
+    }.build();
     let strings = [
         ("Hello World!", 15.0),
         ("Hello World!", 14.0),
@@ -950,7 +957,13 @@ fn need_to_check_whole_cache() {
     let large_left = large.clone().positioned(point(0.0, 0.0));
     let large_right = large.clone().positioned(point(-0.2, 0.0));
 
-    let mut cache = Cache::new(32, 32, 0.1, 0.1);
+    let mut cache = CacheBuilder {
+        width: 32,
+        height: 32,
+        scale_tolerance: 0.1,
+        position_tolerance: 0.1,
+        pad_glyphs: false,
+    }.build();
 
     cache.queue_glyph(0, small_left.clone());
     // Next line is noop since it's within the scale tolerance of small_left:
