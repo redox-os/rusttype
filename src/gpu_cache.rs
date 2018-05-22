@@ -1121,13 +1121,14 @@ mod cache_bench_tests {
             .enumerate()
             .map(|(id, font)| (id, test_glyphs(font, string)))
             .collect();
-        let mut cache = CacheBuilder {
-            width: 1024,
-            height: 1024,
-            ..CacheBuilder::default()
-        }.build();
 
         b.iter(|| {
+            let mut cache = CacheBuilder {
+                width: 1024,
+                height: 1024,
+                ..CacheBuilder::default()
+            }.build();
+
             for &(font_id, ref glyphs) in &font_glyphs {
                 for glyph in glyphs {
                     cache.queue_glyph(font_id, glyph.clone());
@@ -1149,8 +1150,6 @@ mod cache_bench_tests {
                     );
                 }
             }
-
-            cache.clear();
         });
     }
 
