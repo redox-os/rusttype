@@ -163,7 +163,6 @@ pub struct Cache<'font> {
     /// Mapping of row gaps top -> bottom
     space_end_for_start: FnvHashMap<u32, u32>,
     queue: Vec<(FontId, PositionedGlyph<'font>)>,
-    queue_retry: bool,
     all_glyphs: FnvHashMap<LossyGlyphInfo, TextureRowGlyphIndex>,
     pad_glyphs: bool,
 }
@@ -294,7 +293,6 @@ impl CacheBuilder {
                 m
             },
             queue: Vec::new(),
-            queue_retry: false,
             all_glyphs: HashMap::default(),
             pad_glyphs,
         }
@@ -482,6 +480,7 @@ impl<'font> Cache<'font> {
         mut uploader: F,
     ) -> Result<(), CacheWriteErr> {
         let mut queue_success = true;
+        let from_empty = self.all_glyphs.is_empty();
 
         {
             let (mut in_use_rows, mut uncached_glyphs) = {
@@ -584,7 +583,7 @@ impl<'font> Cache<'font> {
                             // all rows left are in use
                             // try a clean insert of all needed glyphs
                             // if that doesn't work, fail
-                            else if self.queue_retry {
+                            else if from_empty {
                                 // already trying a clean insert, don't do it again
                                 return Err(CacheWriteErr::NoRoomForWholeQueue);
                             } else {
@@ -656,12 +655,9 @@ impl<'font> Cache<'font> {
             self.queue.clear();
             Ok(())
         } else {
-            // clear the cache then try again
+            // clear the cache then try again with optimal packing
             self.clear();
-            self.queue_retry = true;
-            let result = self.cache_queued(uploader);
-            self.queue_retry = false;
-            result
+            self.cache_queued(uploader)
         }
     }
 
