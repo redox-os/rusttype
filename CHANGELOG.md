@@ -1,7 +1,14 @@
 ## master
-* Rework gpu_cache `cache_queued` for more efficient packing & spread
-  work across available CPUs. Improve performance by ~10-40%.
+
+* Rework gpu_cache data structures allowing constant time hash lookup
+  of matching cached glyph textures. Improve performance by ~60-200%.
 * Deprecate `gpu_cache::Cache::new` in favour of `gpu_cache::CacheBuilder`.
+* Deprecate `gpu_cache::Cache::set_scale_tolerance` &
+  `gpu_cache::Cache::set_position_tolerance`. These are now equivalent to
+  recreating the cache as they invalidate the cache keys.
+* gpu_cache `scale_tolerance` & `position_tolerance` now have subtly different
+  meanings but guarantee their error in all cases, where previously the
+  worst case was double the set tolerance.
 
 ## 0.5.2
 

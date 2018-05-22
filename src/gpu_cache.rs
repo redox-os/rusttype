@@ -64,12 +64,12 @@ type TextureRowGlyphIndex = (u32, u32);
 struct LossyGlyphInfo {
     font_id: FontId,
     glyph_id: GlyphId,
-    /// x & y scales divided by `scale_tolerance` & floored
+    /// x & y scales divided by `scale_tolerance` & rounded
     scale_over_tolerance: (u32, u32),
-    /// Normalised subpixel positions divided by `position_tolerance` & floored
+    /// Normalised subpixel positions divided by `position_tolerance` & rounded
     ///
-    /// `u16` is enough as subpixel position `[0, 1)` divided by the min
-    /// `position_tolerance` (`0.001`) is small.
+    /// `u16` is enough as subpixel position `[-0.5, 0.5]` converted to `[0, 1]`
+    ///  divided by the min `position_tolerance` (`0.001`) is small.
     offset_over_tolerance: (u16, u16),
 }
 
@@ -208,11 +208,14 @@ pub struct CacheBuilder {
     /// Specifies the tolerances (maximum allowed difference) for judging
     /// whether an existing glyph in the cache is close enough to the
     /// requested glyph in scale to be used in its place. Due to floating
-    /// point inaccuracies that can affect user code it is not recommended
-    /// to set these parameters too close to zero as effectively identical
-    /// glyphs could end up duplicated in the cache.
+    /// point inaccuracies a min value of `0.001` is enforced.
     ///
     /// Both `scale_tolerance` and `position_tolerance` are measured in pixels.
+    ///
+    /// Tolerances produce even steps for scale and subpixel position. Only a
+    /// single glyph texture will be used within a single step. For example,
+    /// `scale_tolerance = 0.1` will have a step `9.95-10.05` so similar glyphs
+    /// with scale `9.98` & `10.04` will match.
     ///
     /// A typical application will produce results with no perceptible
     /// inaccuracies with `scale_tolerance` and `position_tolerance` set to
@@ -220,12 +223,15 @@ pub struct CacheBuilder {
     pub scale_tolerance: f32,
     /// Specifies the tolerances (maximum allowed difference) for judging
     /// whether an existing glyph in the cache is close enough to the requested
-    /// glyph in subpixel offset to be used in its place. Due to floating point
-    /// inaccuracies that can affect user code it is not recommended to set
-    /// these parameters too close to zero as effectively identical glyphs
-    /// could end up duplicated in the cache.
+    /// glyph in subpixel offset to be used in its place. Due to floating
+    /// point inaccuracies a min value of `0.001` is enforced.
     ///
     /// Both `scale_tolerance` and `position_tolerance` are measured in pixels.
+    ///
+    /// Tolerances produce even steps for scale and subpixel position. Only a
+    /// single glyph texture will be used within a single step. For example,
+    /// `scale_tolerance = 0.1` will have a step `9.95-10.05` so similar glyphs
+    /// with scale `9.98` & `10.04` will match.
     ///
     /// Note that since `position_tolerance` is a tolerance of subpixel
     /// offsets, setting it to 1.0 or higher is effectively a "don't care"
@@ -454,12 +460,13 @@ impl<'font> Cache<'font> {
             font_id,
             glyph_id: glyph.id(),
             scale_over_tolerance: (
-                (scale.x / self.scale_tolerance) as u32,
-                (scale.y / self.scale_tolerance) as u32,
+                (scale.x / self.scale_tolerance + 0.5) as u32,
+                (scale.y / self.scale_tolerance + 0.5) as u32,
             ),
+            // convert [-0.5, 0.5] -> [0, 1] then divide
             offset_over_tolerance: (
-                (offset.x / self.position_tolerance) as u16,
-                (offset.y / self.position_tolerance) as u16,
+                ((offset.x + 0.5) / self.position_tolerance + 0.5) as u16,
+                ((offset.y + 0.5) / self.position_tolerance + 0.5) as u16,
             ),
         }
     }
@@ -508,9 +515,8 @@ impl<'font> Cache<'font> {
 
             // tallest first gives better packing
             // can use 'sort_unstable' as order of equal elements is unimportant
-            uncached_glyphs.sort_unstable_by_key(|(glyph, ..)| {
-                -glyph.pixel_bounding_box().unwrap().height()
-            });
+            uncached_glyphs
+                .sort_unstable_by_key(|(glyph, ..)| -glyph.pixel_bounding_box().unwrap().height());
 
             self.all_glyphs.reserve(uncached_glyphs.len());
 
@@ -764,13 +770,9 @@ fn cache_test() {
 #[cfg(test)]
 #[test]
 fn need_to_check_whole_cache() {
-    use FontCollection;
-    use Scale;
+    use {Font, Scale};
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-    let font = FontCollection::from_bytes(font_data as &[u8])
-        .unwrap()
-        .into_font()
-        .unwrap();
+    let font = Font::from_bytes(font_data as &[u8]).unwrap();
 
     let glyph = font.glyph('l');
 
@@ -799,6 +801,45 @@ fn need_to_check_whole_cache() {
     cache.rect_for(0, &small_left).unwrap();
     cache.rect_for(0, &large_left).unwrap();
     cache.rect_for(0, &large_right).unwrap();
+}
+
+#[cfg(test)]
+#[test]
+fn lossy_info() {
+    use {Font, Scale};
+    let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+    let font = Font::from_bytes(font_data as &[u8]).unwrap();
+    let glyph = font.glyph('l');
+
+    let small = glyph.clone().scaled(Scale::uniform(9.91));
+    let near = glyph.clone().scaled(Scale::uniform(10.09));
+    let far = glyph.clone().scaled(Scale::uniform(10.11));
+    let really_far = glyph.clone().scaled(Scale::uniform(12.0));
+
+    let small_pos = small.clone().positioned(point(0.0, 0.0));
+    let match_1 = near.clone().positioned(point(-10.0, -0.1));
+    let match_2 = near.clone().positioned(point(5.1, 0.24));
+    let match_3 = small.clone().positioned(point(-100.2, 50.1));
+
+    let miss_1 = far.clone().positioned(point(0.0, 0.0));
+    let miss_2 = really_far.clone().positioned(point(0.0, 0.0));
+    let miss_3 = small.clone().positioned(point(0.3, 0.0));
+
+    let cache = CacheBuilder {
+        scale_tolerance: 0.2,
+        position_tolerance: 0.5,
+        ..CacheBuilder::default()
+    }.build();
+
+    let small_info = cache.lossy_info_for(0, &small_pos);
+
+    assert_eq!(small_info, cache.lossy_info_for(0, &match_1));
+    assert_eq!(small_info, cache.lossy_info_for(0, &match_2));
+    assert_eq!(small_info, cache.lossy_info_for(0, &match_3));
+
+    assert_ne!(small_info, cache.lossy_info_for(0, &miss_1));
+    assert_ne!(small_info, cache.lossy_info_for(0, &miss_2));
+    assert_ne!(small_info, cache.lossy_info_for(0, &miss_3));
 }
 
 #[cfg(feature = "bench")]
