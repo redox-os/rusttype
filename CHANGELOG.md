@@ -1,5 +1,7 @@
 ## master
 
+## 0.6.0
+
 * Rework gpu_cache data structures allowing constant time hash lookup
   of matching cached glyph textures. Improve performance by ~60-200%.
 * Deprecate `gpu_cache::Cache::new` in favour of `gpu_cache::CacheBuilder`.
