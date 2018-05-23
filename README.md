@@ -36,7 +36,7 @@ Add the following to your Cargo.toml:
 
 ```toml
 [dependencies]
-rusttype = "0.5.2"
+rusttype = "0.6"
 ```
 
 To hit the ground running with RustType, look at the `simple.rs` example
