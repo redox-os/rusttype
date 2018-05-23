@@ -27,13 +27,6 @@
 //!
 //! # Getting Started
 //!
-//! Add the following to your Cargo.toml:
-//!
-//! ```toml
-//! [dependencies]
-//! rusttype = "0.4.1"
-//! ```
-//!
 //! To hit the ground running with RustType, look at the `simple.rs` example
 //! supplied with the crate. It demonstrates loading a font file, rasterising an
 //! arbitrary string, and displaying the result as ASCII art. If you prefer to
