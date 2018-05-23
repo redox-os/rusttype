@@ -45,18 +45,10 @@ arbitrary string, and displaying the result as ASCII art. If you prefer to just
 look at the documentation, the entry point for loading fonts is
 `FontCollection`, from which you can access individual fonts, then their glyphs.
 
-## Documentation
-
-* [Crate Release](https://docs.rs/rusttype)
-* [Git Repository](https://redox-os.github.io/rusttype)
-
 ## Future Plans
 
-The current state of RustType is only the beginning. There are numerous avenues
-for improving it. My main motivation for this project is to provide easy-to-use
-font rendering for games. My current focus is on a UI library that uses RustType.
-Once I get the time to go back and improve RustType itself, the improvements I
-am most interested in are:
+The initial motivation for the project was to provide easy-to-use font rendering for games.
+There are numerous avenues for improving RustType. Ideas:
 
 * Some form of hinting for improved legibility at small font sizes.
 * Replacing the dependency on my other library,
