@@ -37,6 +37,7 @@ glium = "0.21"
 image = "0.19"
 lazy_static = "1"
 unicode-normalization = "0.1"
+blake2 = "0.7"
 
 [features]
 # Compiles benchmark code, to be avoided normally as this currently requires nightly rust

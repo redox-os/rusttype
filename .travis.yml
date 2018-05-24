@@ -16,6 +16,8 @@ script: |
   if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then
     # test nightly-only bench code
     cargo test --all-features
+    # compile ./benches
+    cargo bench --no-run
   else
     cargo test --features 'gpu_cache'
   fi
