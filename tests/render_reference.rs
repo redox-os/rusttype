@@ -11,6 +11,9 @@ lazy_static! {
     static ref DEJA_VU_MONO: Font<'static> =
         Font::from_bytes(include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8])
             .expect("!DEJA_VU_MONO");
+    static ref OPEN_SANS_ITALIC: Font<'static> =
+        Font::from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8])
+            .expect("!DEJA_VU_MONO");
 }
 
 fn draw_luma_alpha(glyph: ScaledGlyph) -> image::GrayAlphaImage {
@@ -73,6 +76,36 @@ fn render_to_reference_w() {
 
     let reference = image::load(
         Cursor::new(include_bytes!("reference_w.png") as &[u8]),
+        image::PNG,
+    ).expect("!image::load")
+        .to_luma_alpha();
+
+    assert_eq!(reference.dimensions(), new_image.dimensions());
+
+    for y in 0..reference.height() {
+        for x in 0..reference.width() {
+            assert_eq!(
+                reference.get_pixel(x, y),
+                new_image.get_pixel(x, y),
+                "unexpected alpha difference at ({}, {})",
+                x,
+                y
+            );
+        }
+    }
+}
+
+/// Render a 60px 'ΐ' character require it to match the reference with 8-bit
+/// accuracy
+#[test]
+fn render_to_reference_iota() {
+    let new_image = draw_luma_alpha(OPEN_SANS_ITALIC.glyph('ΐ').scaled(Scale::uniform(60.0)));
+
+    // save the new render for manual inspection
+    new_image.save("target/iota.png").unwrap();
+
+    let reference = image::load(
+        Cursor::new(include_bytes!("reference_iota.png") as &[u8]),
         image::PNG,
     ).expect("!image::load")
         .to_luma_alpha();
