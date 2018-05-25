@@ -201,7 +201,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
     height: u32,
     mut output: O,
 ) {
-    use std::collections::HashMap;
+    use fnv::FnvHashMap;
     let mut lines: Vec<_> = lines.iter().map(|&l| (l, l.bounding_box())).collect();
     lines.sort_by_key(|&(_, ref a)| OrderedFloat(a.min.y));
     let mut curves: Vec<_> = curves.iter().map(|&c| (c, c.bounding_box())).collect();
@@ -209,10 +209,10 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
     let mut y = 0;
     let mut next_line = 0;
     let mut next_curve = 0;
-    let mut active_lines_y = HashMap::new();
-    let mut active_curves_y = HashMap::new();
-    let mut active_lines_x = HashMap::new();
-    let mut active_curves_x = HashMap::new();
+    let mut active_lines_y = FnvHashMap::default();
+    let mut active_curves_y = FnvHashMap::default();
+    let mut active_lines_x = FnvHashMap::default();
+    let mut active_curves_x = FnvHashMap::default();
     let mut scanline_lines = Vec::new();
     let mut lines_to_remove = Vec::new();
     let mut scanline_curves = Vec::new();
