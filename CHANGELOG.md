@@ -1,7 +1,7 @@
 ## master
 
-* Use fnv for internal rasterizer hashing. Improves draw benchmark
-  performance by 9-65%.
+* Optimise rasterizer removing internal hashing. Improves draw benchmark
+  performance by 11-91%.
 
 ## 0.6.0
 
