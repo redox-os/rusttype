@@ -103,6 +103,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate approx;
 extern crate arrayvec;
+extern crate fnv;
 extern crate ordered_float;
 extern crate stb_truetype;
 

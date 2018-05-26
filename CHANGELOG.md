@@ -1,5 +1,8 @@
 ## master
 
+* Use fnv for internal rasterizer hashing. Improves draw benchmark
+  performance by 9-65%.
+
 ## 0.6.0
 
 * Rework gpu_cache data structures allowing constant time hash lookup
