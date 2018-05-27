@@ -1,5 +1,7 @@
 ## master
 
+## 0.6.1
+
 * Optimise rasterizer removing internal hashing. Improves draw benchmark
   performance by 11-91%.
 
