@@ -103,7 +103,6 @@ extern crate lazy_static;
 #[macro_use]
 extern crate approx;
 extern crate arrayvec;
-extern crate fnv;
 extern crate ordered_float;
 extern crate stb_truetype;
 
@@ -528,10 +527,12 @@ impl<'a> Font<'a> {
         A: IntoGlyphId,
         B: IntoGlyphId,
     {
-        let (first, second) = (self.glyph(first), self.glyph(second));
+        let first_id = first.into_glyph_id(self);
+        let second_id = second.into_glyph_id(self);
         let factor = self.info.scale_for_pixel_height(scale.y) * (scale.x / scale.y);
-        let kern = self.info
-            .get_glyph_kern_advance(first.id().0, second.id().0);
+        let kern = self
+            .info
+            .get_glyph_kern_advance(first_id.0, second_id.0);
         factor * kern as f32
     }
 }

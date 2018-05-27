@@ -38,10 +38,11 @@
 //! cache texture (e.g. due to high cache pressure), construct a new `Cache`
 //! and discard the old one.
 
+extern crate fnv;
 extern crate linked_hash_map;
 
+use self::fnv::{FnvBuildHasher, FnvHashMap};
 use self::linked_hash_map::LinkedHashMap;
-use fnv::{FnvBuildHasher, FnvHashMap};
 use std::collections::{HashMap, HashSet};
 use std::error;
 use std::fmt;
@@ -688,7 +689,8 @@ impl<'font> Cache<'font> {
             return Ok(None);
         }
 
-        let (row, index) = self.all_glyphs
+        let (row, index) = self
+            .all_glyphs
             .get(&self.lossy_info_for(font_id, glyph))
             .ok_or(CacheReadErr::GlyphNotCached)?;
 
