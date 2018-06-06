@@ -8,15 +8,10 @@ fn main() {
     // Load the font
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     // This only succeeds if collection consists of one font
-    let font =
-        Font::from_bytes(font_data as &[u8]).expect("Error constructing Font");
-
-    // Create a new rgba image
-    let mut image = DynamicImage::new_rgba8(500, 100).to_rgba();
+    let font = Font::from_bytes(font_data as &[u8]).expect("Error constructing Font");
 
     // The font size to use
-    let size = 32.0;
-    let scale = Scale { x: size, y: size };
+    let scale = Scale::uniform(32.0);
 
     // The text to render
     let text = "This is RustType rendered into a png!";
@@ -24,11 +19,32 @@ fn main() {
     // Use a dark red colour
     let colour = (150, 0, 0);
 
-    // The starting positioning of the glyphs (top left corner)
-    let start = point(20.0, 50.0);
+    let v_metrics = font.v_metrics(scale);
+
+    // layout the glyphs in a line with 20 pixels padding
+    let glyphs: Vec<_> = font
+        .layout(text, scale, point(20.0, 20.0 + v_metrics.ascent))
+        .collect();
+
+    // work out the layout size
+    let glyphs_height = (v_metrics.ascent - v_metrics.descent).ceil() as u32;
+    let glyphs_width = {
+        let min_x = glyphs
+            .first()
+            .map(|g| g.pixel_bounding_box().unwrap().min.x)
+            .unwrap();
+        let max_x = glyphs
+            .last()
+            .map(|g| g.pixel_bounding_box().unwrap().max.x)
+            .unwrap();
+        (max_x - min_x) as u32
+    };
+
+    // Create a new rgba image with some padding
+    let mut image = DynamicImage::new_rgba8(glyphs_width + 40, glyphs_height + 40).to_rgba();
 
     // Loop through the glyphs in the text, positing each one on a line
-    for glyph in font.layout(text, scale, start) {
+    for glyph in glyphs {
         if let Some(bounding_box) = glyph.pixel_bounding_box() {
             // Draw the glyph into the image per-pixel by using the draw closure
             glyph.draw(|x, y, v| {
