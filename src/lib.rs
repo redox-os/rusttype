@@ -97,7 +97,7 @@ extern crate test;
 #[cfg(test)]
 extern crate unicode_normalization;
 #[cfg(test)]
-#[cfg_attr(feature = "bench", macro_use)]
+#[macro_use]
 extern crate lazy_static;
 
 #[macro_use]
@@ -147,25 +147,68 @@ impl<'a> ::std::ops::Deref for SharedBytes<'a> {
         }
     }
 }
+/// ```
+/// # use rusttype::SharedBytes;
+/// let bytes: &[u8] = &[0u8, 1, 2, 3];
+/// let shared: SharedBytes = bytes.into();
+/// assert_eq!(&*shared, bytes);
+/// ```
 impl<'a> From<&'a [u8]> for SharedBytes<'a> {
     fn from(bytes: &'a [u8]) -> SharedBytes<'a> {
         SharedBytes::ByRef(bytes)
     }
 }
+/// ```
+/// # use rusttype::SharedBytes;
+/// # use std::sync::Arc;
+/// let bytes: Arc<[u8]> = vec![0u8, 1, 2, 3].into();
+/// let shared: SharedBytes = Arc::clone(&bytes).into();
+/// assert_eq!(&*shared, &*bytes);
+/// ```
 impl From<Arc<[u8]>> for SharedBytes<'static> {
     fn from(bytes: Arc<[u8]>) -> SharedBytes<'static> {
         SharedBytes::ByArc(bytes)
     }
 }
+/// ```
+/// # use rusttype::SharedBytes;
+/// let bytes: Box<[u8]> = vec![0u8, 1, 2, 3].into();
+/// let shared: SharedBytes = bytes.into();
+/// assert_eq!(&*shared, &[0u8, 1, 2, 3]);
+/// ```
 impl From<Box<[u8]>> for SharedBytes<'static> {
     fn from(bytes: Box<[u8]>) -> SharedBytes<'static> {
         SharedBytes::ByArc(bytes.into())
     }
 }
+/// ```
+/// # use rusttype::SharedBytes;
+/// let bytes = vec![0u8, 1, 2, 3];
+/// let shared: SharedBytes = bytes.into();
+/// assert_eq!(&*shared, &[0u8, 1, 2, 3]);
+/// ```
 impl From<Vec<u8>> for SharedBytes<'static> {
     fn from(bytes: Vec<u8>) -> SharedBytes<'static> {
         SharedBytes::ByArc(bytes.into())
     }
+}
+/// ```
+/// # use rusttype::SharedBytes;
+/// let bytes = vec![0u8, 1, 2, 3];
+/// let shared: SharedBytes = (&bytes).into();
+/// assert_eq!(&*shared, &bytes as &[u8]);
+/// ```
+impl<'a, T: AsRef<[u8]>> From<&'a T> for SharedBytes<'a> {
+    fn from(bytes: &'a T) -> SharedBytes<'a> {
+        SharedBytes::ByRef(bytes.as_ref())
+    }
+}
+
+#[test]
+fn lazy_static_shared_bytes() {
+    lazy_static! { static ref BYTES: Vec<u8> = vec![0, 1, 2, 3]; }
+    let shared_bytes: SharedBytes<'static> = (&*BYTES).into();
+    assert_eq!(&*shared_bytes, &[0, 1, 2, 3]);
 }
 
 /// Represents a Unicode code point.
