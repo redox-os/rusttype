@@ -97,7 +97,7 @@ extern crate test;
 #[cfg(test)]
 extern crate unicode_normalization;
 #[cfg(test)]
-#[cfg_attr(feature = "bench", macro_use)]
+#[macro_use]
 extern crate lazy_static;
 
 #[macro_use]
@@ -147,32 +147,78 @@ impl<'a> ::std::ops::Deref for SharedBytes<'a> {
         }
     }
 }
+/// ```
+/// # use rusttype::SharedBytes;
+/// let bytes: &[u8] = &[0u8, 1, 2, 3];
+/// let shared: SharedBytes = bytes.into();
+/// assert_eq!(&*shared, bytes);
+/// ```
 impl<'a> From<&'a [u8]> for SharedBytes<'a> {
     fn from(bytes: &'a [u8]) -> SharedBytes<'a> {
         SharedBytes::ByRef(bytes)
     }
 }
+/// ```
+/// # use rusttype::SharedBytes;
+/// # use std::sync::Arc;
+/// let bytes: Arc<[u8]> = vec![0u8, 1, 2, 3].into();
+/// let shared: SharedBytes = Arc::clone(&bytes).into();
+/// assert_eq!(&*shared, &*bytes);
+/// ```
 impl From<Arc<[u8]>> for SharedBytes<'static> {
     fn from(bytes: Arc<[u8]>) -> SharedBytes<'static> {
         SharedBytes::ByArc(bytes)
     }
 }
+/// ```
+/// # use rusttype::SharedBytes;
+/// let bytes: Box<[u8]> = vec![0u8, 1, 2, 3].into();
+/// let shared: SharedBytes = bytes.into();
+/// assert_eq!(&*shared, &[0u8, 1, 2, 3]);
+/// ```
 impl From<Box<[u8]>> for SharedBytes<'static> {
     fn from(bytes: Box<[u8]>) -> SharedBytes<'static> {
         SharedBytes::ByArc(bytes.into())
     }
 }
+/// ```
+/// # use rusttype::SharedBytes;
+/// let bytes = vec![0u8, 1, 2, 3];
+/// let shared: SharedBytes = bytes.into();
+/// assert_eq!(&*shared, &[0u8, 1, 2, 3]);
+/// ```
 impl From<Vec<u8>> for SharedBytes<'static> {
     fn from(bytes: Vec<u8>) -> SharedBytes<'static> {
         SharedBytes::ByArc(bytes.into())
     }
 }
+/// ```
+/// # use rusttype::SharedBytes;
+/// let bytes = vec![0u8, 1, 2, 3];
+/// let shared: SharedBytes = (&bytes).into();
+/// assert_eq!(&*shared, &bytes as &[u8]);
+/// ```
+impl<'a, T: AsRef<[u8]>> From<&'a T> for SharedBytes<'a> {
+    fn from(bytes: &'a T) -> SharedBytes<'a> {
+        SharedBytes::ByRef(bytes.as_ref())
+    }
+}
+
+#[test]
+fn lazy_static_shared_bytes() {
+    lazy_static! {
+        static ref BYTES: Vec<u8> = vec![0, 1, 2, 3];
+    }
+    let shared_bytes: SharedBytes<'static> = (&*BYTES).into();
+    assert_eq!(&*shared_bytes, &[0, 1, 2, 3]);
+}
 
 /// Represents a Unicode code point.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Codepoint(pub u32);
-/// Represents a glyph identifier for a particular font. This identifier will not necessarily
-/// correspond to the correct glyph in a font other than the one that it was obtained from.
+/// Represents a glyph identifier for a particular font. This identifier will
+/// not necessarily correspond to the correct glyph in a font other than the
+/// one that it was obtained from.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct GlyphId(pub u32);
 /// A single glyph of a font. this may either be a thin wrapper referring to the
@@ -530,9 +576,7 @@ impl<'a> Font<'a> {
         let first_id = first.into_glyph_id(self);
         let second_id = second.into_glyph_id(self);
         let factor = self.info.scale_for_pixel_height(scale.y) * (scale.x / scale.y);
-        let kern = self
-            .info
-            .get_glyph_kern_advance(first_id.0, second_id.0);
+        let kern = self.info.get_glyph_kern_advance(first_id.0, second_id.0);
         factor * kern as f32
     }
 }
@@ -692,7 +736,8 @@ impl<'a> ScaledGlyph<'a> {
     /// depend on the position of the glyph available.
     pub fn positioned(self, p: Point<f32>) -> PositionedGlyph<'a> {
         let bb = match self.g.inner {
-            GlyphInner::Proxy(ref font, id) => font.info
+            GlyphInner::Proxy(ref font, id) => font
+                .info
                 .get_glyph_bitmap_box_subpixel(id, self.scale.x, self.scale.y, p.x, p.y)
                 .map(|bb| Rect {
                     min: point(bb.x0, bb.y0),
@@ -946,8 +991,8 @@ pub enum Error {
     /// the collection doesn't contain that many fonts.
     CollectionIndexOutOfBounds,
 
-    /// The caller tried to convert a `FontCollection` into a font via `into_font`,
-    /// but the `FontCollection` contains more than one font.
+    /// The caller tried to convert a `FontCollection` into a font via
+    /// `into_font`, but the `FontCollection` contains more than one font.
     CollectionContainsMultipleFonts,
 }
 

@@ -96,9 +96,9 @@ impl Iterator for CurveSliceIter {
     type Item = CurveIter;
     fn next(&mut self) -> Option<Self::Item> {
         use arrayvec::ArrayVec;
+        use geometry::solve_quadratic_real as solve;
         use geometry::Cut;
         use geometry::RealQuadraticSolution as RQS;
-        use geometry::solve_quadratic_real as solve;
         if self.i >= self.planes.count {
             return None;
         }
@@ -148,7 +148,9 @@ impl Iterator for CurveSliceIter {
                 // coincident with one plane
                 result.push(self.curve);
             }
-            (RQS::None, RQS::None) => if self.a == 0.0 && self.b == 0.0 && self.c_shift >= lower_d
+            (RQS::None, RQS::None) => if self.a == 0.0
+                && self.b == 0.0
+                && self.c_shift >= lower_d
                 && self.c_shift <= upper_d
             {
                 // parallel to planes, inbetween
@@ -217,7 +219,9 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
     let mut scanline_curves = Vec::new();
     let mut curves_to_remove = Vec::new();
     while y < height
-        && (next_line != lines.len() || next_curve != curves.len() || !active_lines_y.is_empty()
+        && (next_line != lines.len()
+            || next_curve != curves.len()
+            || !active_lines_y.is_empty()
             || !active_curves_y.is_empty())
     {
         let lower = y as f32;
@@ -286,8 +290,10 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
             active_lines_x.clear();
             active_curves_x.clear();
             while x < width
-                && (next_line != scanline_lines.len() || next_curve != scanline_curves.len()
-                    || !active_lines_x.is_empty() || !active_curves_x.is_empty())
+                && (next_line != scanline_lines.len()
+                    || next_curve != scanline_curves.len()
+                    || !active_lines_x.is_empty()
+                    || !active_curves_x.is_empty())
             {
                 let offset = vector(x as f32, y as f32);
                 let lower = x as f32;

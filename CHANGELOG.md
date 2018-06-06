@@ -1,5 +1,7 @@
 ## master
 
+* Add `From<&AsRef<[u8]>> for SharedBytes`.
+
 ## 0.6.1
 
 * Optimise rasterizer removing internal hashing. Improves draw benchmark

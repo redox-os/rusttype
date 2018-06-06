@@ -3,5 +3,3 @@ wrap_comments = true
 error_on_line_overflow = false
 use_field_init_shorthand = true
 condense_wildcard_suffixes = true
-reorder_imported_names = true
-reorder_imports = true

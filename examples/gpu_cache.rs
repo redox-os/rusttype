@@ -5,8 +5,8 @@ extern crate rusttype;
 extern crate unicode_normalization;
 
 use glium::{glutin, Surface};
-use rusttype::{point, vector, Font, PositionedGlyph, Rect, Scale};
 use rusttype::gpu_cache::CacheBuilder;
+use rusttype::{point, vector, Font, PositionedGlyph, Rect, Scale};
 use std::borrow::Cow;
 
 fn layout_paragraph<'a>(
