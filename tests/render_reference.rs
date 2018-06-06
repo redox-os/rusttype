@@ -9,11 +9,9 @@ use std::io::Cursor;
 
 lazy_static! {
     static ref DEJA_VU_MONO: Font<'static> =
-        Font::from_bytes(include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8])
-            .expect("!DEJA_VU_MONO");
+        Font::from_bytes(include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8]).unwrap();
     static ref OPEN_SANS_ITALIC: Font<'static> =
-        Font::from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8])
-            .expect("!DEJA_VU_MONO");
+        Font::from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8]).unwrap();
 }
 
 fn draw_luma_alpha(glyph: ScaledGlyph) -> image::GrayAlphaImage {
