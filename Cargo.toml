@@ -14,8 +14,8 @@ RustType provides an API for loading, querying and rasterising TrueType fonts.
 It also provides an implementation of a dynamic GPU glyph cache for hardware font rendering.
 """
 documentation = "https://docs.rs/rusttype"
-homepage = "https://github.com/redox-os/rusttype"
-repository = "https://github.com/redox-os/rusttype"
+homepage = "https://gitlab.redox-os.org/redox-os/rusttype"
+repository = "https://gitlab.redox-os.org/redox-os/rusttype"
 readme = "README.md"
 license = "MIT / Apache-2.0"
 keywords = ["font", "truetype", "opentype", "ttf", "otf"]
