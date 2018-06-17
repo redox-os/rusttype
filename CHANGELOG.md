@@ -1,6 +1,7 @@
 ## master
 
 * Add `From<&AsRef<[u8]>> for SharedBytes`.
+* Optimise `gpu_cache` hashing to improve benchmark performance by ~30%.
 
 ## 0.6.1
 
