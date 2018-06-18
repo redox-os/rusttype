@@ -252,7 +252,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
         scanline_lines.clear();
         scanline_curves.clear();
 
-        for (k, itr) in active_lines_y.iter_mut().enumerate().rev() {
+        for (k, itr) in active_lines_y.iter_mut().enumerate() {
             if let Some(itr) = itr.next() {
                 for line in itr {
                     scanline_lines.push((line, line.x_bounds()))
@@ -261,7 +261,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
                 lines_to_remove.push(k);
             }
         }
-        for (k, itr) in active_curves_y.iter_mut().enumerate().rev() {
+        for (k, itr) in active_curves_y.iter_mut().enumerate() {
             if let Some(itr) = itr.next() {
                 for curve in itr {
                     scanline_curves.push((curve, curve.x_bounds()))
@@ -271,10 +271,10 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
             }
         }
         // remove deactivated segments
-        for k in lines_to_remove.drain(..) {
+        for k in lines_to_remove.drain(..).rev() {
             active_lines_y.swap_remove(k);
         }
-        for k in curves_to_remove.drain(..) {
+        for k in curves_to_remove.drain(..).rev() {
             active_curves_y.swap_remove(k);
         }
         // sort scanline for traversal
@@ -326,7 +326,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
                 //process x sliced segments for this pixel
                 let mut pixel_value = acc;
                 let mut pixel_acc = 0.0;
-                for (k, itr) in active_lines_x.iter_mut().enumerate().rev() {
+                for (k, itr) in active_lines_x.iter_mut().enumerate() {
                     if let Some(itr) = itr.next() {
                         for mut line in itr {
                             let p = &mut line.p;
@@ -342,7 +342,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
                         lines_to_remove.push(k);
                     }
                 }
-                for (k, itr) in active_curves_x.iter_mut().enumerate().rev() {
+                for (k, itr) in active_curves_x.iter_mut().enumerate() {
                     if let Some(itr) = itr.next() {
                         for mut curve in itr {
                             let p = &mut curve.p;
@@ -366,10 +366,10 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
                 output(x, y, pixel_value.abs());
                 acc += pixel_acc;
                 // remove deactivated segments
-                for k in lines_to_remove.drain(..) {
+                for k in lines_to_remove.drain(..).rev() {
                     active_lines_x.swap_remove(k);
                 }
-                for k in curves_to_remove.drain(..) {
+                for k in curves_to_remove.drain(..).rev() {
                     active_curves_x.swap_remove(k);
                 }
                 x += 1;

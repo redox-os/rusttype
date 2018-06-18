@@ -38,15 +38,18 @@
 //! cache texture (e.g. due to high cache pressure), construct a new `Cache`
 //! and discard the old one.
 
-extern crate fnv;
 extern crate linked_hash_map;
+extern crate rustc_hash;
 
-use self::fnv::{FnvBuildHasher, FnvHashMap};
 use self::linked_hash_map::LinkedHashMap;
+use self::rustc_hash::{FxHashMap, FxHasher};
 use std::collections::{HashMap, HashSet};
 use std::error;
 use std::fmt;
+use std::hash::BuildHasherDefault;
 use {point, vector, GlyphId, Point, PositionedGlyph, Rect, Vector};
+
+type FxBuildHasher = BuildHasherDefault<FxHasher>;
 
 /// Texture coordinates (floating point) of the quad for a glyph in the cache,
 /// as well as the pixel-space (integer) coordinates that this region should be
@@ -157,13 +160,13 @@ pub struct Cache<'font> {
     position_tolerance: f32,
     width: u32,
     height: u32,
-    rows: LinkedHashMap<u32, Row, FnvBuildHasher>,
+    rows: LinkedHashMap<u32, Row, FxBuildHasher>,
     /// Mapping of row gaps bottom -> top
-    space_start_for_end: FnvHashMap<u32, u32>,
+    space_start_for_end: FxHashMap<u32, u32>,
     /// Mapping of row gaps top -> bottom
-    space_end_for_start: FnvHashMap<u32, u32>,
+    space_end_for_start: FxHashMap<u32, u32>,
     queue: Vec<(FontId, PositionedGlyph<'font>)>,
-    all_glyphs: FnvHashMap<LossyGlyphInfo, TextureRowGlyphIndex>,
+    all_glyphs: FxHashMap<LossyGlyphInfo, TextureRowGlyphIndex>,
     pad_glyphs: bool,
 }
 
@@ -492,7 +495,7 @@ impl<'font> Cache<'font> {
         {
             let (mut in_use_rows, mut uncached_glyphs) = {
                 let mut in_use_rows =
-                    HashSet::with_capacity_and_hasher(self.rows.len(), FnvBuildHasher::default());
+                    HashSet::with_capacity_and_hasher(self.rows.len(), FxBuildHasher::default());
                 let mut uncached_glyphs = Vec::with_capacity(self.queue.len());
 
                 // divide glyphs into texture rows where a matching glyph texture
