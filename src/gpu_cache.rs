@@ -672,9 +672,10 @@ impl<'font> Cache<'font> {
 
     /// Retrieves the (floating point) texture coordinates of the quad for a
     /// glyph in the cache, as well as the pixel-space (integer) coordinates
-    /// that this region should be drawn at. In the majority of cases these
-    /// pixel-space coordinates should be identical to the bounding box of the
-    /// input glyph. They only differ if the cache has returned a substitute
+    /// that this region should be drawn at. These pixel-space coordinates 
+    /// assume an origin at the top left of the quad. In the majority of cases 
+    /// these pixel-space coordinates should be identical to the bounding box of 
+    /// the input glyph. They only differ if the cache has returned a substitute
     /// glyph that is deemed close enough to the requested glyph as specified by
     /// the cache tolerance parameters.
     ///

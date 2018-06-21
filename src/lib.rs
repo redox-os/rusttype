@@ -884,7 +884,8 @@ impl<'a> PositionedGlyph<'a> {
     }
     /// The conservative pixel-boundary bounding box for this glyph. This is the
     /// smallest rectangle aligned to pixel boundaries that encloses the shape
-    /// of this glyph at this position.
+    /// of this glyph at this position. Note that the origin of the glyph, at 
+    /// pixel-space coordinates (0, 0), is at the top left of the bounding box.
     pub fn pixel_bounding_box(&self) -> Option<Rect<i32>> {
         self.bb
     }
