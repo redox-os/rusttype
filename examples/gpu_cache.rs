@@ -8,6 +8,7 @@ use glium::{glutin, Surface};
 use rusttype::gpu_cache::CacheBuilder;
 use rusttype::{point, vector, Font, PositionedGlyph, Rect, Scale};
 use std::borrow::Cow;
+use std::error::Error;
 
 fn layout_paragraph<'a>(
     font: &'a Font,
@@ -51,20 +52,20 @@ fn layout_paragraph<'a>(
     result
 }
 
-fn main() {
+fn main() -> Result<(), Box<Error>> {
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-    let font = Font::from_bytes(font_data as &[u8]).unwrap();
+    let font = Font::from_bytes(font_data as &[u8])?;
 
     let window = glutin::WindowBuilder::new()
-        .with_dimensions(512, 512)
+        .with_dimensions((512, 512).into())
         .with_title("RustType GPU cache example");
     let context = glutin::ContextBuilder::new().with_vsync(true);
     let mut events_loop = glutin::EventsLoop::new();
-    let display = glium::Display::new(window, context, &events_loop).unwrap();
+    let display = glium::Display::new(window, context, &events_loop)?;
 
-    let dpi_factor = display.gl_window().hidpi_factor();
+    let dpi_factor = display.gl_window().get_hidpi_factor();
 
-    let (cache_width, cache_height) = (512 * dpi_factor as u32, 512 * dpi_factor as u32);
+    let (cache_width, cache_height) = ((512.0 * dpi_factor) as u32, (512.0 * dpi_factor) as u32);
     let mut cache = CacheBuilder {
         width: cache_width,
         height: cache_height,
@@ -102,7 +103,7 @@ fn main() {
                     f_colour = v_colour * vec4(1.0, 1.0, 1.0, texture(tex, v_tex_coords).r);
                 }
             "
-        }).unwrap();
+        })?;
     let cache_tex = glium::texture::Texture2d::with_format(
         &display,
         glium::texture::RawImage2d {
@@ -113,7 +114,7 @@ fn main() {
         },
         glium::texture::UncompressedFloatFormat::U8,
         glium::texture::MipmapsOption::NoMipmap,
-    ).unwrap();
+    )?;
     let mut text: String = "A japanese poem:\r
 \r
 色は匂へど散りぬるを我が世誰ぞ常ならむ有為の奥山今日越えて浅き夢見じ酔ひもせず\r
@@ -122,10 +123,14 @@ Feel free to type out some text, and delete it with Backspace. \
 You can also try resizing this window."
         .into();
     loop {
-        let (width, dpi_factor) = {
-            let window = display.gl_window();
-            (window.get_inner_size().unwrap().0, window.hidpi_factor())
-        };
+        let dpi_factor = display.gl_window().get_hidpi_factor();
+        let (width, _): (u32, _) = display
+            .gl_window()
+            .get_inner_size()
+            .ok_or("get_inner_size")?
+            .to_physical(dpi_factor)
+            .into();
+        let dpi_factor = dpi_factor as f32;
 
         let mut finished = false;
         events_loop.poll_events(|event| {
@@ -133,7 +138,7 @@ You can also try resizing this window."
 
             if let Event::WindowEvent { event, .. } = event {
                 match event {
-                    WindowEvent::Closed => finished = true,
+                    WindowEvent::CloseRequested => finished = true,
                     WindowEvent::KeyboardInput {
                         input:
                             KeyboardInput {
@@ -164,24 +169,22 @@ You can also try resizing this window."
         for glyph in &glyphs {
             cache.queue_glyph(0, glyph.clone());
         }
-        cache
-            .cache_queued(|rect, data| {
-                cache_tex.main_level().write(
-                    glium::Rect {
-                        left: rect.min.x,
-                        bottom: rect.min.y,
-                        width: rect.width(),
-                        height: rect.height(),
-                    },
-                    glium::texture::RawImage2d {
-                        data: Cow::Borrowed(data),
-                        width: rect.width(),
-                        height: rect.height(),
-                        format: glium::texture::ClientFormat::U8,
-                    },
-                );
-            })
-            .unwrap();
+        cache.cache_queued(|rect, data| {
+            cache_tex.main_level().write(
+                glium::Rect {
+                    left: rect.min.x,
+                    bottom: rect.min.y,
+                    width: rect.width(),
+                    height: rect.height(),
+                },
+                glium::texture::RawImage2d {
+                    data: Cow::Borrowed(data),
+                    width: rect.width(),
+                    height: rect.height(),
+                    format: glium::texture::ClientFormat::U8,
+                },
+            );
+        })?;
 
         let uniforms = uniform! {
             tex: cache_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest)
@@ -256,24 +259,24 @@ You can also try resizing this window."
                 })
                 .collect();
 
-            glium::VertexBuffer::new(&display, &vertices).unwrap()
+            glium::VertexBuffer::new(&display, &vertices)?
         };
 
         let mut target = display.draw();
         target.clear_color(1.0, 1.0, 1.0, 0.0);
-        target
-            .draw(
-                &vertex_buffer,
-                glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
-                &program,
-                &uniforms,
-                &glium::DrawParameters {
-                    blend: glium::Blend::alpha_blending(),
-                    ..Default::default()
-                },
-            )
-            .unwrap();
+        target.draw(
+            &vertex_buffer,
+            glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+            &program,
+            &uniforms,
+            &glium::DrawParameters {
+                blend: glium::Blend::alpha_blending(),
+                ..Default::default()
+            },
+        )?;
 
-        target.finish().unwrap();
+        target.finish()?;
     }
+
+    Ok(())
 }
