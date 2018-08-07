@@ -1,5 +1,10 @@
 ## master
 
+## 0.6.3
+
+* Documentation clarifications
+* Avoid depending on unused dependency default-features
+
 ## 0.6.2
 
 * Add `From<&AsRef<[u8]>> for SharedBytes`.
