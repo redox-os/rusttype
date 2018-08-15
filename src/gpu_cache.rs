@@ -265,6 +265,18 @@ impl Default for CacheBuilder {
 }
 
 impl CacheBuilder {
+    fn validated(self) -> Self {
+        assert!(self.scale_tolerance >= 0.0);
+        assert!(self.position_tolerance >= 0.0);
+        let scale_tolerance = self.scale_tolerance.max(0.001);
+        let position_tolerance = self.position_tolerance.max(0.001);
+        Self {
+            scale_tolerance,
+            position_tolerance,
+            ..self
+        }
+    }
+
     /// Constructs a new cache. Note that this is just the CPU side of the
     /// cache. The GPU texture is managed by the user.
     ///
@@ -279,11 +291,7 @@ impl CacheBuilder {
             scale_tolerance,
             position_tolerance,
             pad_glyphs,
-        } = self;
-        assert!(scale_tolerance >= 0.0);
-        assert!(position_tolerance >= 0.0);
-        let scale_tolerance = scale_tolerance.max(0.001);
-        let position_tolerance = position_tolerance.max(0.001);
+        } = self.validated();
 
         Cache {
             scale_tolerance,
@@ -305,6 +313,30 @@ impl CacheBuilder {
             all_glyphs: HashMap::default(),
             pad_glyphs,
         }
+    }
+
+    /// Rebuilds a cache with new attributes. Carries over the existing cache
+    /// queue unmodified.
+    ///
+    /// # Panics
+    ///
+    /// `scale_tolerance` or `position_tolerance` are less than or equal to
+    /// zero.
+    pub fn rebuild(self, cache: &mut Cache) {
+        let CacheBuilder {
+            width,
+            height,
+            scale_tolerance,
+            position_tolerance,
+            pad_glyphs,
+        } = self.validated();
+
+        cache.width = width;
+        cache.height = height;
+        cache.scale_tolerance = scale_tolerance;
+        cache.position_tolerance = position_tolerance;
+        cache.pad_glyphs = pad_glyphs;
+        cache.clear();
     }
 }
 
@@ -398,7 +430,7 @@ impl<'font> Cache<'font> {
     /// # Panics
     ///
     /// `tolerance` is less than or equal to zero.
-    #[deprecated(note = "Equivalent to rebuilding a new `Cache`")]
+    #[deprecated(note = "Use `CacheBuilder::rebuild` instead")]
     pub fn set_scale_tolerance(&mut self, tolerance: f32) {
         assert!(tolerance >= 0.0);
         self.scale_tolerance = tolerance.max(0.001);
@@ -417,7 +449,7 @@ impl<'font> Cache<'font> {
     /// # Panics
     ///
     /// `tolerance` is less than or equal to zero.
-    #[deprecated(note = "Equivalent to rebuilding a new `Cache`")]
+    #[deprecated(note = "Use `CacheBuilder::rebuild` instead")]
     pub fn set_position_tolerance(&mut self, tolerance: f32) {
         assert!(tolerance >= 0.0);
         self.position_tolerance = tolerance.max(0.001);
@@ -449,12 +481,24 @@ impl<'font> Cache<'font> {
         self.space_start_for_end.insert(self.height, 0);
         self.all_glyphs.clear();
     }
+
     /// Clears the glyph queue.
     pub fn clear_queue(&mut self) {
         self.queue.clear();
     }
 
-    /// Returns glyph info with accuracy according to the set tolerances
+    /// Returns a `CacheBuilder` with this cache's attributes.
+    pub fn to_builder(&self) -> CacheBuilder {
+        CacheBuilder {
+            width: self.width,
+            height: self.height,
+            position_tolerance: self.position_tolerance,
+            scale_tolerance: self.scale_tolerance,
+            pad_glyphs: self.pad_glyphs,
+        }
+    }
+
+    /// Returns glyph info with accuracy according to the set tolerances.
     fn lossy_info_for(&self, font_id: FontId, glyph: &PositionedGlyph<'font>) -> LossyGlyphInfo {
         let scale = glyph.scale();
         let offset = normalised_offset_from_position(glyph.position());
@@ -843,5 +887,74 @@ mod test {
         assert_ne!(small_info, cache.lossy_info_for(0, &miss_1));
         assert_ne!(small_info, cache.lossy_info_for(0, &miss_2));
         assert_ne!(small_info, cache.lossy_info_for(0, &miss_3));
+    }
+
+    #[test]
+    fn cache_to_builder() {
+        let cache = CacheBuilder {
+            width: 32,
+            height: 64,
+            scale_tolerance: 0.2,
+            position_tolerance: 0.3,
+            pad_glyphs: false,
+        }.build();
+
+        let to_builder: CacheBuilder = cache.to_builder();
+
+        assert_eq!(to_builder.width, 32);
+        assert_eq!(to_builder.height, 64);
+        assert_relative_eq!(to_builder.scale_tolerance, 0.2);
+        assert_relative_eq!(to_builder.position_tolerance, 0.3);
+        assert_eq!(to_builder.pad_glyphs, false);
+    }
+
+    #[test]
+    fn builder_rebuild() {
+        let mut cache = CacheBuilder {
+            width: 32,
+            height: 64,
+            scale_tolerance: 0.2,
+            position_tolerance: 0.3,
+            pad_glyphs: false,
+        }.build();
+
+        let font = Font::from_bytes(
+            include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
+        ).unwrap();
+        cache.queue_glyph(
+            0,
+            font.glyph('l')
+                .scaled(Scale::uniform(25.0))
+                .positioned(point(0.0, 0.0)),
+        );
+        cache.cache_queued(|_, _| {}).unwrap();
+
+        cache.queue_glyph(
+            0,
+            font.glyph('a')
+                .scaled(Scale::uniform(25.0))
+                .positioned(point(0.0, 0.0)),
+        );
+
+        CacheBuilder {
+            width: 64,
+            height: 128,
+            scale_tolerance: 0.05,
+            position_tolerance: 0.15,
+            pad_glyphs: true,
+        }.rebuild(&mut cache);
+
+        assert_eq!(cache.width, 64);
+        assert_eq!(cache.height, 128);
+        assert_relative_eq!(cache.scale_tolerance, 0.05);
+        assert_relative_eq!(cache.position_tolerance, 0.15);
+        assert_eq!(cache.pad_glyphs, true);
+
+        assert!(
+            cache.all_glyphs.is_empty(),
+            "cache should have been cleared"
+        );
+
+        assert_eq!(cache.queue.len(), 1, "cache should have an unchanged queue");
     }
 }
