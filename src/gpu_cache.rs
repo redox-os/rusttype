@@ -431,10 +431,11 @@ impl<'font> Cache<'font> {
     ///
     /// `tolerance` is less than or equal to zero.
     #[deprecated(note = "Use `CacheBuilder::rebuild` instead")]
-    pub fn set_scale_tolerance(&mut self, tolerance: f32) {
-        assert!(tolerance >= 0.0);
-        self.scale_tolerance = tolerance.max(0.001);
-        self.clear();
+    pub fn set_scale_tolerance(&mut self, scale_tolerance: f32) {
+        CacheBuilder {
+            scale_tolerance,
+            ..self.to_builder()
+        }.rebuild(self)
     }
     /// Returns the current scale tolerance for the cache.
     pub fn scale_tolerance(&self) -> f32 {
@@ -450,10 +451,11 @@ impl<'font> Cache<'font> {
     ///
     /// `tolerance` is less than or equal to zero.
     #[deprecated(note = "Use `CacheBuilder::rebuild` instead")]
-    pub fn set_position_tolerance(&mut self, tolerance: f32) {
-        assert!(tolerance >= 0.0);
-        self.position_tolerance = tolerance.max(0.001);
-        self.clear();
+    pub fn set_position_tolerance(&mut self, position_tolerance: f32) {
+        CacheBuilder {
+            position_tolerance,
+            ..self.to_builder()
+        }.rebuild(self)
     }
     /// Returns the current subpixel position tolerance for the cache.
     pub fn position_tolerance(&self) -> f32 {
