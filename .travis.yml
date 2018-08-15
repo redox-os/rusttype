@@ -17,7 +17,7 @@ script: |
     # test nightly-only bench code
     cargo test --all-features
     # compile ./benches
-    cargo bench --no-run
+    cargo bench --no-run --all-features
   else
     cargo test --features 'gpu_cache'
   fi

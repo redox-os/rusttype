@@ -672,9 +672,9 @@ impl<'font> Cache<'font> {
 
     /// Retrieves the (floating point) texture coordinates of the quad for a
     /// glyph in the cache, as well as the pixel-space (integer) coordinates
-    /// that this region should be drawn at. These pixel-space coordinates 
-    /// assume an origin at the top left of the quad. In the majority of cases 
-    /// these pixel-space coordinates should be identical to the bounding box of 
+    /// that this region should be drawn at. These pixel-space coordinates
+    /// assume an origin at the top left of the quad. In the majority of cases
+    /// these pixel-space coordinates should be identical to the bounding box of
     /// the input glyph. They only differ if the cache has returned a substitute
     /// glyph that is deemed close enough to the requested glyph as specified by
     /// the cache tolerance parameters.
@@ -739,403 +739,109 @@ impl<'font> Cache<'font> {
 }
 
 #[cfg(test)]
-#[test]
-fn cache_test() {
-    use FontCollection;
-    use Scale;
-    let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-    let font = FontCollection::from_bytes(font_data as &[u8])
-        .unwrap()
-        .into_font()
-        .unwrap();
-    let mut cache = CacheBuilder {
-        width: 32,
-        height: 32,
-        scale_tolerance: 0.1,
-        position_tolerance: 0.1,
-        pad_glyphs: false,
-    }.build();
-    let strings = [
-        ("Hello World!", 15.0),
-        ("Hello World!", 14.0),
-        ("Hello World!", 10.0),
-        ("Hello World!", 15.0),
-        ("Hello World!", 14.0),
-        ("Hello World!", 10.0),
-    ];
-    for &(string, scale) in &strings {
-        println!("Caching {:?}", (string, scale));
-        for glyph in font.layout(string, Scale::uniform(scale), point(0.0, 0.0)) {
-            cache.queue_glyph(0, glyph);
-        }
-        cache.cache_queued(|_, _| {}).unwrap();
-    }
-}
-
-#[cfg(test)]
-#[test]
-fn need_to_check_whole_cache() {
-    use {Font, Scale};
-    let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-    let font = Font::from_bytes(font_data as &[u8]).unwrap();
-
-    let glyph = font.glyph('l');
-
-    let small = glyph.clone().scaled(Scale::uniform(10.0));
-    let large = glyph.clone().scaled(Scale::uniform(10.05));
-
-    let small_left = small.clone().positioned(point(0.0, 0.0));
-    let large_left = large.clone().positioned(point(0.0, 0.0));
-    let large_right = large.clone().positioned(point(-0.2, 0.0));
-
-    let mut cache = CacheBuilder {
-        width: 32,
-        height: 32,
-        scale_tolerance: 0.1,
-        position_tolerance: 0.1,
-        pad_glyphs: false,
-    }.build();
-
-    cache.queue_glyph(0, small_left.clone());
-    // Next line is noop since it's within the scale tolerance of small_left:
-    cache.queue_glyph(0, large_left.clone());
-    cache.queue_glyph(0, large_right.clone());
-
-    cache.cache_queued(|_, _| {}).unwrap();
-
-    cache.rect_for(0, &small_left).unwrap();
-    cache.rect_for(0, &large_left).unwrap();
-    cache.rect_for(0, &large_right).unwrap();
-}
-
-#[cfg(test)]
-#[test]
-fn lossy_info() {
-    use {Font, Scale};
-    let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-    let font = Font::from_bytes(font_data as &[u8]).unwrap();
-    let glyph = font.glyph('l');
-
-    let small = glyph.clone().scaled(Scale::uniform(9.91));
-    let near = glyph.clone().scaled(Scale::uniform(10.09));
-    let far = glyph.clone().scaled(Scale::uniform(10.11));
-    let really_far = glyph.clone().scaled(Scale::uniform(12.0));
-
-    let small_pos = small.clone().positioned(point(0.0, 0.0));
-    let match_1 = near.clone().positioned(point(-10.0, -0.1));
-    let match_2 = near.clone().positioned(point(5.1, 0.24));
-    let match_3 = small.clone().positioned(point(-100.2, 50.1));
-
-    let miss_1 = far.clone().positioned(point(0.0, 0.0));
-    let miss_2 = really_far.clone().positioned(point(0.0, 0.0));
-    let miss_3 = small.clone().positioned(point(0.3, 0.0));
-
-    let cache = CacheBuilder {
-        scale_tolerance: 0.2,
-        position_tolerance: 0.5,
-        ..CacheBuilder::default()
-    }.build();
-
-    let small_info = cache.lossy_info_for(0, &small_pos);
-
-    assert_eq!(small_info, cache.lossy_info_for(0, &match_1));
-    assert_eq!(small_info, cache.lossy_info_for(0, &match_2));
-    assert_eq!(small_info, cache.lossy_info_for(0, &match_3));
-
-    assert_ne!(small_info, cache.lossy_info_for(0, &miss_1));
-    assert_ne!(small_info, cache.lossy_info_for(0, &miss_2));
-    assert_ne!(small_info, cache.lossy_info_for(0, &miss_3));
-}
-
-#[cfg(feature = "bench")]
-#[cfg(test)]
-mod cache_bench_tests {
+mod test {
     use super::*;
-    use {Font, Scale};
+    use {Font, FontCollection, Scale};
 
-    lazy_static! {
-        static ref FONTS: Vec<Font<'static>> = vec![
-            include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
-            include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8],
-            include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8],
-        ].into_iter()
-            .map(|bytes| Font::from_bytes(bytes).unwrap())
-            .collect();
-    }
-
-    const TEST_STR: &str = include_str!("../tests/lipsum.txt");
-
-    /// Benchmark using a single font at "don't care" position tolerance
-    #[bench]
-    fn bench_high_position_tolerance(b: &mut ::test::Bencher) {
-        let font_id = 0;
-        let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
-        let mut cache = CacheBuilder {
-            width: 1024,
-            height: 1024,
-            scale_tolerance: 0.1,
-            position_tolerance: 1.0,
-            ..CacheBuilder::default()
-        }.build();
-
-        b.iter(|| {
-            for glyph in &glyphs {
-                cache.queue_glyph(font_id, glyph.clone());
-            }
-
-            cache.cache_queued(|_, _| {}).expect("cache_queued");
-
-            for (index, glyph) in glyphs.iter().enumerate() {
-                let rect = cache.rect_for(font_id, glyph);
-                assert!(
-                    rect.is_ok(),
-                    "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
-                    rect,
-                    index,
-                    glyph.id().0
-                );
-            }
-        });
-    }
-
-    /// Benchmark using a single font with default tolerances
-    #[bench]
-    fn bench_single_font(b: &mut ::test::Bencher) {
-        let font_id = 0;
-        let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
-        let mut cache = CacheBuilder {
-            width: 1024,
-            height: 1024,
-            ..CacheBuilder::default()
-        }.build();
-
-        b.iter(|| {
-            for glyph in &glyphs {
-                cache.queue_glyph(font_id, glyph.clone());
-            }
-
-            cache.cache_queued(|_, _| {}).expect("cache_queued");
-
-            for (index, glyph) in glyphs.iter().enumerate() {
-                let rect = cache.rect_for(font_id, glyph);
-                assert!(
-                    rect.is_ok(),
-                    "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
-                    rect,
-                    index,
-                    glyph.id().0
-                );
-            }
-        });
-    }
-
-    /// Benchmark using multiple fonts with default tolerances
-    #[bench]
-    fn bench_multi_font(b: &mut ::test::Bencher) {
-        // Use a smaller amount of the test string, to offset the extra font-glyph
-        // bench load
-        let up_to_index = TEST_STR
-            .char_indices()
-            .nth(TEST_STR.chars().count() / FONTS.len())
+    #[test]
+    fn cache_test() {
+        let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+        let font = FontCollection::from_bytes(font_data as &[u8])
             .unwrap()
-            .0;
-        let string = &TEST_STR[..up_to_index];
-
-        let font_glyphs: Vec<_> = FONTS
-            .iter()
-            .enumerate()
-            .map(|(id, font)| (id, test_glyphs(font, string)))
-            .collect();
+            .into_font()
+            .unwrap();
         let mut cache = CacheBuilder {
-            width: 1024,
-            height: 1024,
-            ..CacheBuilder::default()
-        }.build();
-
-        b.iter(|| {
-            for &(font_id, ref glyphs) in &font_glyphs {
-                for glyph in glyphs {
-                    cache.queue_glyph(font_id, glyph.clone());
-                }
-            }
-
-            cache.cache_queued(|_, _| {}).expect("cache_queued");
-
-            for &(font_id, ref glyphs) in &font_glyphs {
-                for (index, glyph) in glyphs.iter().enumerate() {
-                    let rect = cache.rect_for(font_id, glyph);
-                    assert!(
-                        rect.is_ok(),
-                        "Gpu cache rect lookup failed ({:?}) for font {} glyph index {}, id {}",
-                        rect,
-                        font_id,
-                        index,
-                        glyph.id().0
-                    );
-                }
-            }
-        });
-    }
-
-    /// Benchmark using multiple fonts with default tolerances, clears the
-    /// cache each run to test the population "first run" performance
-    #[bench]
-    fn bench_multi_font_population(b: &mut ::test::Bencher) {
-        // Use a much smaller amount of the test string, to offset the extra font-glyph
-        // bench load & much slower performance of fresh population each run
-        let up_to_index = TEST_STR.char_indices().nth(70).unwrap().0;
-        let string = &TEST_STR[..up_to_index];
-
-        let font_glyphs: Vec<_> = FONTS
-            .iter()
-            .enumerate()
-            .map(|(id, font)| (id, test_glyphs(font, string)))
-            .collect();
-
-        b.iter(|| {
-            let mut cache = CacheBuilder {
-                width: 1024,
-                height: 1024,
-                ..CacheBuilder::default()
-            }.build();
-
-            for &(font_id, ref glyphs) in &font_glyphs {
-                for glyph in glyphs {
-                    cache.queue_glyph(font_id, glyph.clone());
-                }
-            }
-
-            cache.cache_queued(|_, _| {}).expect("cache_queued");
-
-            for &(font_id, ref glyphs) in &font_glyphs {
-                for (index, glyph) in glyphs.iter().enumerate() {
-                    let rect = cache.rect_for(font_id, glyph);
-                    assert!(
-                        rect.is_ok(),
-                        "Gpu cache rect lookup failed ({:?}) for font {} glyph index {}, id {}",
-                        rect,
-                        font_id,
-                        index,
-                        glyph.id().0
-                    );
-                }
-            }
-        });
-    }
-
-    /// Benchmark using multiple fonts and a different text group of glyphs
-    /// each run
-    #[bench]
-    fn bench_moving_text(b: &mut ::test::Bencher) {
-        let chars: Vec<_> = TEST_STR.chars().collect();
-        let subsection_len = chars.len() / FONTS.len();
-        let distinct_subsection: Vec<_> = chars.windows(subsection_len).collect();
-
-        let mut first_glyphs = vec![];
-        let mut middle_glyphs = vec![];
-        let mut last_glyphs = vec![];
-
-        for (id, font) in FONTS.iter().enumerate() {
-            let first_str: String = distinct_subsection[0].iter().collect();
-            first_glyphs.push((id, test_glyphs(font, &first_str)));
-
-            let middle_str: String = distinct_subsection[distinct_subsection.len() / 2]
-                .iter()
-                .collect();
-            middle_glyphs.push((id, test_glyphs(font, &middle_str)));
-
-            let last_str: String = distinct_subsection[distinct_subsection.len() - 1]
-                .iter()
-                .collect();
-            last_glyphs.push((id, test_glyphs(font, &last_str)));
-        }
-
-        let test_variants = [first_glyphs, middle_glyphs, last_glyphs];
-        let mut test_variants = test_variants.iter().cycle();
-
-        let mut cache = CacheBuilder {
-            width: 1500,
-            height: 1500,
+            width: 32,
+            height: 32,
             scale_tolerance: 0.1,
             position_tolerance: 0.1,
+            pad_glyphs: false,
+        }.build();
+        let strings = [
+            ("Hello World!", 15.0),
+            ("Hello World!", 14.0),
+            ("Hello World!", 10.0),
+            ("Hello World!", 15.0),
+            ("Hello World!", 14.0),
+            ("Hello World!", 10.0),
+        ];
+        for &(string, scale) in &strings {
+            println!("Caching {:?}", (string, scale));
+            for glyph in font.layout(string, Scale::uniform(scale), point(0.0, 0.0)) {
+                cache.queue_glyph(0, glyph);
+            }
+            cache.cache_queued(|_, _| {}).unwrap();
+        }
+    }
+
+    #[test]
+    fn need_to_check_whole_cache() {
+        let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+        let font = Font::from_bytes(font_data as &[u8]).unwrap();
+
+        let glyph = font.glyph('l');
+
+        let small = glyph.clone().scaled(Scale::uniform(10.0));
+        let large = glyph.clone().scaled(Scale::uniform(10.05));
+
+        let small_left = small.clone().positioned(point(0.0, 0.0));
+        let large_left = large.clone().positioned(point(0.0, 0.0));
+        let large_right = large.clone().positioned(point(-0.2, 0.0));
+
+        let mut cache = CacheBuilder {
+            width: 32,
+            height: 32,
+            scale_tolerance: 0.1,
+            position_tolerance: 0.1,
+            pad_glyphs: false,
+        }.build();
+
+        cache.queue_glyph(0, small_left.clone());
+        // Next line is noop since it's within the scale tolerance of small_left:
+        cache.queue_glyph(0, large_left.clone());
+        cache.queue_glyph(0, large_right.clone());
+
+        cache.cache_queued(|_, _| {}).unwrap();
+
+        cache.rect_for(0, &small_left).unwrap();
+        cache.rect_for(0, &large_left).unwrap();
+        cache.rect_for(0, &large_right).unwrap();
+    }
+
+    #[test]
+    fn lossy_info() {
+        let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+        let font = Font::from_bytes(font_data as &[u8]).unwrap();
+        let glyph = font.glyph('l');
+
+        let small = glyph.clone().scaled(Scale::uniform(9.91));
+        let near = glyph.clone().scaled(Scale::uniform(10.09));
+        let far = glyph.clone().scaled(Scale::uniform(10.11));
+        let really_far = glyph.clone().scaled(Scale::uniform(12.0));
+
+        let small_pos = small.clone().positioned(point(0.0, 0.0));
+        let match_1 = near.clone().positioned(point(-10.0, -0.1));
+        let match_2 = near.clone().positioned(point(5.1, 0.24));
+        let match_3 = small.clone().positioned(point(-100.2, 50.1));
+
+        let miss_1 = far.clone().positioned(point(0.0, 0.0));
+        let miss_2 = really_far.clone().positioned(point(0.0, 0.0));
+        let miss_3 = small.clone().positioned(point(0.3, 0.0));
+
+        let cache = CacheBuilder {
+            scale_tolerance: 0.2,
+            position_tolerance: 0.5,
             ..CacheBuilder::default()
         }.build();
 
-        b.iter(|| {
-            // switch text variant each run to force cache to deal with moving text
-            // requirements
-            let glyphs = test_variants.next().unwrap();
-            for &(font_id, ref glyphs) in glyphs {
-                for glyph in glyphs {
-                    cache.queue_glyph(font_id, glyph.clone());
-                }
-            }
+        let small_info = cache.lossy_info_for(0, &small_pos);
 
-            cache.cache_queued(|_, _| {}).expect("cache_queued");
+        assert_eq!(small_info, cache.lossy_info_for(0, &match_1));
+        assert_eq!(small_info, cache.lossy_info_for(0, &match_2));
+        assert_eq!(small_info, cache.lossy_info_for(0, &match_3));
 
-            for &(font_id, ref glyphs) in glyphs {
-                for (index, glyph) in glyphs.iter().enumerate() {
-                    let rect = cache.rect_for(font_id, glyph);
-                    assert!(
-                        rect.is_ok(),
-                        "Gpu cache rect lookup failed ({:?}) for font {} glyph index {}, id {}",
-                        rect,
-                        font_id,
-                        index,
-                        glyph.id().0
-                    );
-                }
-            }
-        });
-    }
-
-    fn test_glyphs<'a>(font: &Font<'a>, string: &str) -> Vec<PositionedGlyph<'a>> {
-        let mut glyphs = vec![];
-        // Set of scales, found through brute force, to reproduce GlyphNotCached issue
-        // Cache settings also affect this, it occurs when position_tolerance is < 1.0
-        for scale in &[25_f32, 24.5, 25.01, 24.7, 24.99] {
-            for glyph in layout_paragraph(font, Scale::uniform(*scale), 500, string) {
-                glyphs.push(glyph);
-            }
-        }
-        glyphs
-    }
-
-    fn layout_paragraph<'a>(
-        font: &Font<'a>,
-        scale: Scale,
-        width: u32,
-        text: &str,
-    ) -> Vec<PositionedGlyph<'a>> {
-        use unicode_normalization::UnicodeNormalization;
-        let mut result = Vec::new();
-        let v_metrics = font.v_metrics(scale);
-        let advance_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
-        let mut caret = point(0.0, v_metrics.ascent);
-        let mut last_glyph_id = None;
-        for c in text.nfc() {
-            if c.is_control() {
-                if c == '\n' {
-                    caret = point(0.0, caret.y + advance_height)
-                }
-                continue;
-            }
-            let base_glyph = font.glyph(c);
-            if let Some(id) = last_glyph_id.take() {
-                caret.x += font.pair_kerning(scale, id, base_glyph.id());
-            }
-            last_glyph_id = Some(base_glyph.id());
-            let mut glyph = base_glyph.scaled(scale).positioned(caret);
-            if let Some(bb) = glyph.pixel_bounding_box() {
-                if bb.max.x > width as i32 {
-                    caret = point(0.0, caret.y + advance_height);
-                    glyph = glyph.into_unpositioned().positioned(caret);
-                    last_glyph_id = None;
-                }
-            }
-            caret.x += glyph.unpositioned().h_metrics().advance_width;
-            result.push(glyph);
-        }
-        result
+        assert_ne!(small_info, cache.lossy_info_for(0, &miss_1));
+        assert_ne!(small_info, cache.lossy_info_for(0, &miss_2));
+        assert_ne!(small_info, cache.lossy_info_for(0, &miss_3));
     }
 }
