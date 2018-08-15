@@ -314,6 +314,64 @@ mod cache {
 mod cache_bad_cases {
     use super::*;
 
+    /// Cache isn't large enough for a queue so a new cache is created to hold
+    /// the queue.
+    #[bench]
+    fn resizing(b: &mut ::test::Bencher) {
+        let up_to_index = TEST_STR
+            .char_indices()
+            .nth(TEST_STR.chars().count() / FONTS.len())
+            .unwrap()
+            .0;
+        let string = &TEST_STR[..up_to_index];
+
+        let font_glyphs: Vec<_> = FONTS
+            .iter()
+            .enumerate()
+            .map(|(id, font)| (id, test_glyphs(font, string)))
+            .collect();
+
+        b.iter(|| {
+            let mut cache = CacheBuilder {
+                width: 512,
+                height: 512,
+                ..CacheBuilder::default()
+            }.build();
+
+            for &(font_id, ref glyphs) in &font_glyphs {
+                for glyph in glyphs {
+                    cache.queue_glyph(font_id, glyph.clone());
+                }
+            }
+
+            cache
+                .cache_queued(mock_gpu_upload)
+                .expect_err("shouldn't fit");
+
+            CacheBuilder {
+                width: 1024,
+                height: 1024,
+                ..cache.to_builder()
+            }.rebuild(&mut cache);
+
+            cache.cache_queued(mock_gpu_upload).expect("should fit now");
+
+            for &(font_id, ref glyphs) in &font_glyphs {
+                for (index, glyph) in glyphs.iter().enumerate() {
+                    let rect = cache.rect_for(font_id, glyph);
+                    assert!(
+                        rect.is_ok(),
+                        "Gpu cache rect lookup failed ({:?}) for font {} glyph index {}, id {}",
+                        rect,
+                        font_id,
+                        index,
+                        glyph.id().0
+                    );
+                }
+            }
+        });
+    }
+
     /// Benchmark using multiple fonts and a different text group of glyphs
     /// each run. The cache is only large enough to fit each run if it is
     /// cleared and re-built.
