@@ -318,11 +318,7 @@ mod cache_bad_cases {
     /// the queue.
     #[bench]
     fn resizing(b: &mut ::test::Bencher) {
-        let up_to_index = TEST_STR
-            .char_indices()
-            .nth(TEST_STR.chars().count() / FONTS.len())
-            .unwrap()
-            .0;
+        let up_to_index = TEST_STR.char_indices().nth(120).unwrap().0;
         let string = &TEST_STR[..up_to_index];
 
         let font_glyphs: Vec<_> = FONTS
@@ -333,8 +329,8 @@ mod cache_bad_cases {
 
         b.iter(|| {
             let mut cache = CacheBuilder {
-                width: 512,
-                height: 512,
+                width: 256,
+                height: 256,
                 ..CacheBuilder::default()
             }.build();
 
@@ -349,8 +345,8 @@ mod cache_bad_cases {
                 .expect_err("shouldn't fit");
 
             CacheBuilder {
-                width: 1024,
-                height: 1024,
+                width: 512,
+                height: 512,
                 ..cache.to_builder()
             }.rebuild(&mut cache);
 
@@ -378,7 +374,7 @@ mod cache_bad_cases {
     #[bench]
     fn moving_text_thrashing(b: &mut ::test::Bencher) {
         let chars: Vec<_> = TEST_STR.chars().collect();
-        let subsection_len = chars.len() / FONTS.len();
+        let subsection_len = 60;
         let distinct_subsection: Vec<_> = chars.windows(subsection_len).collect();
 
         let mut first_glyphs = vec![];
@@ -401,11 +397,12 @@ mod cache_bad_cases {
         }
 
         let test_variants = [first_glyphs, middle_glyphs, last_glyphs];
-        let mut test_variants = test_variants.iter().cycle();
 
+        // Cache is only a little larger than each variants size meaning a lot of
+        // re-ordering, re-rasterization & re-uploading has to occur.
         let mut cache = CacheBuilder {
-            width: 1024,
-            height: 1024,
+            width: 450,
+            height: 450,
             scale_tolerance: 0.1,
             position_tolerance: 0.1,
             ..CacheBuilder::default()
@@ -414,26 +411,27 @@ mod cache_bad_cases {
         b.iter(|| {
             // switch text variant each run to force cache to deal with moving text
             // requirements
-            let glyphs = test_variants.next().unwrap();
-            for &(font_id, ref glyphs) in glyphs {
-                for glyph in glyphs {
-                    cache.queue_glyph(font_id, glyph.clone());
+            for glyphs in &test_variants {
+                for &(font_id, ref glyphs) in glyphs {
+                    for glyph in glyphs {
+                        cache.queue_glyph(font_id, glyph.clone());
+                    }
                 }
-            }
 
-            cache.cache_queued(mock_gpu_upload).expect("cache_queued");
+                cache.cache_queued(mock_gpu_upload).expect("cache_queued");
 
-            for &(font_id, ref glyphs) in glyphs {
-                for (index, glyph) in glyphs.iter().enumerate() {
-                    let rect = cache.rect_for(font_id, glyph);
-                    assert!(
-                        rect.is_ok(),
-                        "Gpu cache rect lookup failed ({:?}) for font {} glyph index {}, id {}",
-                        rect,
-                        font_id,
-                        index,
-                        glyph.id().0
-                    );
+                for &(font_id, ref glyphs) in glyphs {
+                    for (index, glyph) in glyphs.iter().enumerate() {
+                        let rect = cache.rect_for(font_id, glyph);
+                        assert!(
+                            rect.is_ok(),
+                            "Gpu cache rect lookup failed ({:?}) for font {} glyph index {}, id {}",
+                            rect,
+                            font_id,
+                            index,
+                            glyph.id().0
+                        );
+                    }
                 }
             }
         });
