@@ -84,6 +84,7 @@ struct ByteArray2d {
 }
 
 impl ByteArray2d {
+    #[inline]
     pub fn zeros(row: usize, col: usize) -> Self {
         ByteArray2d {
             inner_array: vec![0; row * col],
@@ -92,30 +93,40 @@ impl ByteArray2d {
         }
     }
 
-    pub fn as_slice(&self) -> &[u8] {
+    #[inline]
+    fn as_slice(&self) -> &[u8] {
         self.inner_array.as_slice()
     }
 
+    #[inline]
     fn get_vec_index(&self, row: usize, col: usize) -> usize {
-        if row >= self.row {
-            panic!("row out of range: row={}, given={}", self.row, row);
-        } else if col >= self.col {
-            panic!("column out of range: col={}, given={}", self.col, col);
-        } else {
-            row * self.col + col
-        }
+        debug_assert!(
+            row < self.row,
+            "row out of range: row={}, given={}",
+            self.row,
+            row
+        );
+        debug_assert!(
+            col < self.col,
+            "column out of range: col={}, given={}",
+            self.col,
+            col
+        );
+        row * self.col + col
     }
 }
 
 impl ::std::ops::Index<(usize, usize)> for ByteArray2d {
     type Output = u8;
 
+    #[inline]
     fn index(&self, (row, col): (usize, usize)) -> &u8 {
         &self.inner_array[self.get_vec_index(row, col)]
     }
 }
 
 impl ::std::ops::IndexMut<(usize, usize)> for ByteArray2d {
+    #[inline]
     fn index_mut(&mut self, (row, col): (usize, usize)) -> &mut u8 {
         let vec_index = self.get_vec_index(row, col);
         &mut self.inner_array[vec_index]
@@ -568,6 +579,7 @@ impl<'font> Cache<'font> {
                 .sort_unstable_by_key(|(glyph, ..)| -glyph.pixel_bounding_box().unwrap().height());
 
             self.all_glyphs.reserve(uncached_glyphs.len());
+            let mut draw_and_upload = Vec::with_capacity(uncached_glyphs.len());
 
             'per_glyph: for (glyph, glyph_info) in uncached_glyphs {
                 // glyph may match a texture cached by a previous iteration
@@ -672,37 +684,48 @@ impl<'font> Cache<'font> {
                 let row_top = row_top.unwrap();
                 // calculate the target rect
                 let row = self.rows.get_refresh(&row_top).unwrap();
-                let rect = Rect {
+                let tex_coords = Rect {
                     min: point(row.width, row_top),
                     max: point(row.width + width, row_top + height),
                 };
-                // draw the glyph into main memory
-                let mut pixels = ByteArray2d::zeros(height as usize, width as usize);
-                if self.pad_glyphs {
-                    glyph.draw(|x, y, v| {
-                        let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
-                        // `+ 1` accounts for top/left glyph padding
-                        pixels[(y as usize + 1, x as usize + 1)] = v;
-                    });
-                } else {
-                    glyph.draw(|x, y, v| {
-                        let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
-                        pixels[(y as usize, x as usize)] = v;
-                    });
-                }
-                // transfer
-                uploader(rect, pixels.as_slice());
+
+                draw_and_upload.push((tex_coords, glyph));
+
                 // add the glyph to the row
                 row.glyphs.push(GlyphTexInfo {
                     glyph_info,
                     offset: normalised_offset_from_position(glyph.position()),
-                    tex_coords: rect,
+                    tex_coords,
                 });
                 row.width += width;
                 in_use_rows.insert(row_top);
 
                 self.all_glyphs
                     .insert(glyph_info, (row_top, row.glyphs.len() as u32 - 1));
+            }
+
+            if queue_success {
+                for (tex_coords, glyph) in draw_and_upload {
+                    // draw the glyph into main memory
+                    let mut pixels = ByteArray2d::zeros(
+                        tex_coords.height() as usize,
+                        tex_coords.width() as usize,
+                    );
+                    if self.pad_glyphs {
+                        glyph.draw(|x, y, v| {
+                            let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
+                            // `+ 1` accounts for top/left glyph padding
+                            pixels[(y as usize + 1, x as usize + 1)] = v;
+                        });
+                    } else {
+                        glyph.draw(|x, y, v| {
+                            let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
+                            pixels[(y as usize, x as usize)] = v;
+                        });
+                    }
+                    // transfer
+                    uploader(tex_coords, pixels.as_slice());
+                }
             }
         }
 

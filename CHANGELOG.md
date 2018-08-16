@@ -1,5 +1,9 @@
 ## master
 
+* Add `CacheBuilder::rebuild` & `Cache::to_builder` methods.
+* gpu_cache: Only rasterize & upload after queue has successfully fit in cache
+  producing a 1.16-1.29x speedup in resizing & thrashing benchmarks.
+
 ## 0.6.3
 
 * Documentation clarifications
