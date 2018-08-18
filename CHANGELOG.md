@@ -1,5 +1,14 @@
 ## master
 
+* Support multithreaded rasterization in the gpu_cache. This yields
+  significant improvements in worst case performance when more than 1
+  CPU core is available. _Thrashing, resizing & population benchmarks
+  are ~3x faster on a 4-core Haswell._
+
+  Multithreading is enabled by default in environments with more than
+  a single core, but can be explicitly disabled using
+  `CacheBuilder { multithreaded: false, .. }`.
+
 ## 0.6.4
 
 * Add `CacheBuilder::rebuild` & `Cache::to_builder` methods.
