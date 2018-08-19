@@ -1,5 +1,7 @@
 ## master
 
+* Rework `CacheBuilder` to use methods to allow non-breaking additions
+  in future. New style is `Cache::builder().dimensions(512, 512).build()`.
 * Support multithreaded rasterization in the gpu_cache. This yields
   significant improvements in worst case performance when more than 1
   CPU core is available. _Thrashing, resizing & population benchmarks
@@ -7,7 +9,8 @@
 
   Multithreading is enabled by default in environments with more than
   a single core, but can be explicitly disabled using
-  `CacheBuilder { multithreaded: false, .. }`.
+  `Cache::builder().multithread(false)`.
+* Remove all deprecated API.
 
 ## 0.6.4
 

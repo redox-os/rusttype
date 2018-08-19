@@ -185,45 +185,63 @@ pub struct Cache<'font> {
     multithread: bool,
 }
 
-/// Builder for a `Cache`.
+/// Builder & rebuilder for `Cache`.
 ///
 /// # Example
 ///
 /// ```
-/// use rusttype::gpu_cache::CacheBuilder;
+/// use rusttype::gpu_cache::Cache;
 ///
-/// let default_cache = CacheBuilder {
-///     width: 256,
-///     height: 256,
-///     scale_tolerance: 0.1,
-///     position_tolerance: 0.1,
-///     pad_glyphs: true,
-///     multithread: true,
-/// }.build();
+/// let default_cache = Cache::builder()
+///     .dimensions(256, 256)
+///     .scale_tolerance(0.1)
+///     .position_tolerance(0.1)
+///     .pad_glyphs(true)
+///     .multithread(true)
+///     .build();
 ///
-/// let bigger_cache = CacheBuilder {
-///     width: 1024,
-///     height: 1024,
-///     ..CacheBuilder::default()
-/// }.build();
-/// # let (_, _) = (default_cache, bigger_cache);
+/// let bigger_cache = Cache::builder().dimensions(1024, 1024).build();
 /// ```
 #[derive(Debug, Clone)]
 pub struct CacheBuilder {
-    /// Along with `height` specifies the dimensions of the 2D texture that will
-    /// hold the cache contents on the GPU.
+    dimensions: (u32, u32),
+    scale_tolerance: f32,
+    position_tolerance: f32,
+    pad_glyphs: bool,
+    multithread: bool,
+}
+
+impl Default for CacheBuilder {
+    fn default() -> Self {
+        Self {
+            dimensions: (256, 256),
+            scale_tolerance: 0.1,
+            position_tolerance: 0.1,
+            pad_glyphs: true,
+            multithread: true,
+        }
+    }
+}
+
+impl CacheBuilder {
+    /// `width` & `height` dimensions of the 2D texture that will hold the
+    /// cache contents on the GPU.
     ///
     /// This must match the dimensions of the actual texture used, otherwise
     /// `cache_queued` will try to cache into coordinates outside the bounds of
     /// the texture.
-    pub width: u32,
-    /// Along with `width` specifies the dimensions of the 2D texture that will
-    /// hold the cache contents on the GPU.
     ///
-    /// This must match the dimensions of the actual texture used, otherwise
-    /// `cache_queued` will try to cache into coordinates outside the bounds of
-    /// the texture.
-    pub height: u32,
+    /// # Example
+    ///
+    /// ```
+    /// # use rusttype::gpu_cache::Cache;
+    /// let cache = Cache::builder().dimensions(512, 512).build();
+    /// ```
+    pub fn dimensions(mut self, width: u32, height: u32) -> Self {
+        self.dimensions = (width, height);
+        self
+    }
+
     /// Specifies the tolerances (maximum allowed difference) for judging
     /// whether an existing glyph in the cache is close enough to the
     /// requested glyph in scale to be used in its place. Due to floating
@@ -239,7 +257,17 @@ pub struct CacheBuilder {
     /// A typical application will produce results with no perceptible
     /// inaccuracies with `scale_tolerance` and `position_tolerance` set to
     /// 0.1. Depending on the target DPI higher tolerance may be acceptable.
-    pub scale_tolerance: f32,
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rusttype::gpu_cache::Cache;
+    /// let cache = Cache::builder().scale_tolerance(0.5).build();
+    /// ```
+    pub fn scale_tolerance<V: Into<f32>>(mut self, scale_tolerance: V) -> Self {
+        self.scale_tolerance = scale_tolerance.into();
+        self
+    }
     /// Specifies the tolerances (maximum allowed difference) for judging
     /// whether an existing glyph in the cache is close enough to the requested
     /// glyph in subpixel offset to be used in its place. Due to floating
@@ -259,34 +287,49 @@ pub struct CacheBuilder {
     /// A typical application will produce results with no perceptible
     /// inaccuracies with `scale_tolerance` and `position_tolerance` set to
     /// 0.1. Depending on the target DPI higher tolerance may be acceptable.
-    pub position_tolerance: f32,
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rusttype::gpu_cache::Cache;
+    /// let cache = Cache::builder().position_tolerance(0.05).build();
+    /// ```
+    pub fn position_tolerance<V: Into<f32>>(mut self, position_tolerance: V) -> Self {
+        self.position_tolerance = position_tolerance.into();
+        self
+    }
     /// Pack glyphs in texture with a padding of a single zero alpha pixel to
     /// avoid bleeding from interpolated shader texture lookups near edges.
     ///
     /// If glyphs are never transformed this may be set to `false` to slightly
     /// improve the glyph packing.
-    pub pad_glyphs: bool,
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rusttype::gpu_cache::Cache;
+    /// let cache = Cache::builder().pad_glyphs(false).build();
+    /// ```
+    pub fn pad_glyphs(mut self, pad_glyphs: bool) -> Self {
+        self.pad_glyphs = pad_glyphs;
+        self
+    }
     /// When multiple CPU cores are available spread rasterization work across
     /// all cores.
     ///
     /// Significantly reduces worst case latency in multicore environments.
-    pub multithread: bool,
-}
-
-impl Default for CacheBuilder {
-    fn default() -> Self {
-        Self {
-            width: 256,
-            height: 256,
-            scale_tolerance: 0.1,
-            position_tolerance: 0.1,
-            pad_glyphs: true,
-            multithread: true,
-        }
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rusttype::gpu_cache::Cache;
+    /// let cache = Cache::builder().multithread(false).build();
+    /// ```
+    pub fn multithread(mut self, multithread: bool) -> Self {
+        self.multithread = multithread;
+        self
     }
-}
 
-impl CacheBuilder {
     fn validated(self) -> Self {
         assert!(self.scale_tolerance >= 0.0);
         assert!(self.position_tolerance >= 0.0);
@@ -308,10 +351,16 @@ impl CacheBuilder {
     ///
     /// `scale_tolerance` or `position_tolerance` are less than or equal to
     /// zero.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rusttype::gpu_cache::Cache;
+    /// let cache = Cache::builder().build();
+    /// ```
     pub fn build<'a>(self) -> Cache<'a> {
         let CacheBuilder {
-            width,
-            height,
+            dimensions: (width, height),
             scale_tolerance,
             position_tolerance,
             pad_glyphs,
@@ -348,10 +397,18 @@ impl CacheBuilder {
     ///
     /// `scale_tolerance` or `position_tolerance` are less than or equal to
     /// zero.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rusttype::gpu_cache::Cache;
+    /// # let mut cache = Cache::builder().build();
+    /// // Rebuild the cache with different dimensions
+    /// cache.to_builder().dimensions(768, 768).rebuild(&mut cache);
+    /// ```
     pub fn rebuild(self, cache: &mut Cache) {
         let CacheBuilder {
-            width,
-            height,
+            dimensions: (width, height),
             scale_tolerance,
             position_tolerance,
             pad_glyphs,
@@ -427,74 +484,28 @@ fn normalised_offset_from_position(position: Point<f32>) -> Vector<f32> {
 }
 
 impl<'font> Cache<'font> {
-    /// Legacy `Cache` construction, use `CacheBuilder` for more options.
-    ///
-    /// # Panics
-    ///
-    /// `scale_tolerance` or `position_tolerance` are less than or equal to
-    /// zero.
-    #[deprecated(note = "Use `CacheBuilder` instead")]
-    pub fn new<'a>(
-        width: u32,
-        height: u32,
-        scale_tolerance: f32,
-        position_tolerance: f32,
-    ) -> Cache<'a> {
-        CacheBuilder {
-            width,
-            height,
-            scale_tolerance,
-            position_tolerance,
-            pad_glyphs: false,
-            multithread: false,
-        }.build()
+    /// Returns a default `CacheBuilder`.
+    #[inline]
+    pub fn builder() -> CacheBuilder {
+        CacheBuilder::default()
     }
 
-    /// Sets the scale tolerance for the cache. See the documentation for
-    /// `CacheBuilder` for more information.
-    ///
-    /// Should not be used as changing tolerances invalidates all
-    /// cached glyphs.
-    ///
-    /// # Panics
-    ///
-    /// `tolerance` is less than or equal to zero.
-    #[deprecated(note = "Use `CacheBuilder::rebuild` instead")]
-    pub fn set_scale_tolerance(&mut self, scale_tolerance: f32) {
-        CacheBuilder {
-            scale_tolerance,
-            ..self.to_builder()
-        }.rebuild(self)
-    }
     /// Returns the current scale tolerance for the cache.
     pub fn scale_tolerance(&self) -> f32 {
         self.scale_tolerance
     }
-    /// Sets the subpixel position tolerance for the cache. See the
-    /// documentation for `CacheBuilder` for more information.
-    ///
-    /// Should not be used as changing tolerances invalidates all
-    /// cached glyphs.
-    ///
-    /// # Panics
-    ///
-    /// `tolerance` is less than or equal to zero.
-    #[deprecated(note = "Use `CacheBuilder::rebuild` instead")]
-    pub fn set_position_tolerance(&mut self, position_tolerance: f32) {
-        CacheBuilder {
-            position_tolerance,
-            ..self.to_builder()
-        }.rebuild(self)
-    }
+
     /// Returns the current subpixel position tolerance for the cache.
     pub fn position_tolerance(&self) -> f32 {
         self.position_tolerance
     }
+
     /// Returns the cache texture dimensions assumed by the cache. For proper
     /// operation this should match the dimensions of the used GPU texture.
     pub fn dimensions(&self) -> (u32, u32) {
         (self.width, self.height)
     }
+
     /// Queue a glyph for caching by the next call to `cache_queued`. `font_id`
     /// is used to disambiguate glyphs from different fonts. The user should
     /// ensure that `font_id` is unique to the font the glyph is from.
@@ -503,6 +514,7 @@ impl<'font> Cache<'font> {
             self.queue.push((font_id, glyph));
         }
     }
+
     /// Clears the cache. Does not affect the glyph queue.
     pub fn clear(&mut self) {
         self.rows.clear();
@@ -521,8 +533,7 @@ impl<'font> Cache<'font> {
     /// Returns a `CacheBuilder` with this cache's attributes.
     pub fn to_builder(&self) -> CacheBuilder {
         CacheBuilder {
-            width: self.width,
-            height: self.height,
+            dimensions: (self.width, self.height),
             position_tolerance: self.position_tolerance,
             scale_tolerance: self.scale_tolerance,
             pad_glyphs: self.pad_glyphs,
@@ -729,7 +740,10 @@ impl<'font> Cache<'font> {
                 if self.multithread && glyph_count > 1 {
                     // multithread rasterization
                     use self::crossbeam_deque::{Pop, Steal};
-                    use std::{mem, sync::mpsc::{self, TryRecvError}};
+                    use std::{
+                        mem,
+                        sync::mpsc::{self, TryRecvError},
+                    };
 
                     let (main, stealer) = crossbeam_deque::fifo();
                     let (to_main, from_stealers) = mpsc::channel();
@@ -899,14 +913,13 @@ mod test {
             .unwrap()
             .into_font()
             .unwrap();
-        let mut cache = CacheBuilder {
-            width: 32,
-            height: 32,
-            scale_tolerance: 0.1,
-            position_tolerance: 0.1,
-            pad_glyphs: false,
-            ..CacheBuilder::default()
-        }.build();
+
+        let mut cache = Cache::builder()
+            .dimensions(32, 32)
+            .scale_tolerance(0.1)
+            .position_tolerance(0.1)
+            .pad_glyphs(false)
+            .build();
         let strings = [
             ("Hello World!", 15.0),
             ("Hello World!", 14.0),
@@ -938,14 +951,12 @@ mod test {
         let large_left = large.clone().positioned(point(0.0, 0.0));
         let large_right = large.clone().positioned(point(-0.2, 0.0));
 
-        let mut cache = CacheBuilder {
-            width: 32,
-            height: 32,
-            scale_tolerance: 0.1,
-            position_tolerance: 0.1,
-            pad_glyphs: false,
-            ..CacheBuilder::default()
-        }.build();
+        let mut cache = Cache::builder()
+            .dimensions(32, 32)
+            .scale_tolerance(0.1)
+            .position_tolerance(0.1)
+            .pad_glyphs(false)
+            .build();
 
         cache.queue_glyph(0, small_left.clone());
         // Next line is noop since it's within the scale tolerance of small_left:
@@ -979,11 +990,10 @@ mod test {
         let miss_2 = really_far.clone().positioned(point(0.0, 0.0));
         let miss_3 = small.clone().positioned(point(0.3, 0.0));
 
-        let cache = CacheBuilder {
-            scale_tolerance: 0.2,
-            position_tolerance: 0.5,
-            ..CacheBuilder::default()
-        }.build();
+        let cache = Cache::builder()
+            .scale_tolerance(0.2)
+            .position_tolerance(0.5)
+            .build();
 
         let small_info = cache.lossy_info_for(0, &small_pos);
 
@@ -999,8 +1009,7 @@ mod test {
     #[test]
     fn cache_to_builder() {
         let cache = CacheBuilder {
-            width: 32,
-            height: 64,
+            dimensions: (32, 64),
             scale_tolerance: 0.2,
             position_tolerance: 0.3,
             pad_glyphs: false,
@@ -1009,8 +1018,7 @@ mod test {
 
         let to_builder: CacheBuilder = cache.to_builder();
 
-        assert_eq!(to_builder.width, 32);
-        assert_eq!(to_builder.height, 64);
+        assert_eq!(to_builder.dimensions, (32, 64));
         assert_relative_eq!(to_builder.scale_tolerance, 0.2);
         assert_relative_eq!(to_builder.position_tolerance, 0.3);
         assert_eq!(to_builder.pad_glyphs, false);
@@ -1019,14 +1027,13 @@ mod test {
 
     #[test]
     fn builder_rebuild() {
-        let mut cache = CacheBuilder {
-            width: 32,
-            height: 64,
-            scale_tolerance: 0.2,
-            position_tolerance: 0.3,
-            pad_glyphs: false,
-            multithread: true,
-        }.build();
+        let mut cache = Cache::builder()
+            .dimensions(32, 64)
+            .scale_tolerance(0.2)
+            .position_tolerance(0.3)
+            .pad_glyphs(false)
+            .multithread(true)
+            .build();
 
         let font = Font::from_bytes(
             include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
@@ -1046,14 +1053,13 @@ mod test {
                 .positioned(point(0.0, 0.0)),
         );
 
-        CacheBuilder {
-            width: 64,
-            height: 128,
-            scale_tolerance: 0.05,
-            position_tolerance: 0.15,
-            pad_glyphs: true,
-            multithread: false,
-        }.rebuild(&mut cache);
+        Cache::builder()
+            .dimensions(64, 128)
+            .scale_tolerance(0.05)
+            .position_tolerance(0.15)
+            .pad_glyphs(true)
+            .multithread(false)
+            .rebuild(&mut cache);
 
         assert_eq!(cache.width, 64);
         assert_eq!(cache.height, 128);
