@@ -12,7 +12,7 @@
 * Remove all deprecated API.
 * Add `Debug` implementations for `Font`, `Glyph`, `ScaledGlyph` &
   `PositionedGlyph`
-* Add documentation & examples around `Font` lifetimes.
+* Add and improve documentation + examples.
 
 ## 0.6.4
 
