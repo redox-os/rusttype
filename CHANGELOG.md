@@ -6,7 +6,6 @@
   significant improvements in worst case performance when more than 1
   CPU core is available. _Thrashing, resizing & population benchmarks
   are ~3x faster on a 4-core Haswell._
-
   Multithreading is enabled by default in environments with more than
   a single core, but can be explicitly disabled using
   `Cache::builder().multithread(false)`.
@@ -36,7 +35,7 @@
 * Optimise rasterizer removing internal hashing. Improves draw benchmark
   performance by 11-91%.
 
-## 0.6.0
+## 0.6
 
 * Rework gpu_cache data structures allowing constant time hash lookup
   of matching cached glyph textures. Improve performance by ~60-200%.
@@ -59,7 +58,7 @@
 
 * Fix tree removal on row clear (gpu_cache).
 
-## 0.5.0
+## 0.5
 
 * Let functions like `Font::glyph` and `Font::pair_kerning` work with both
   characters and glyph ids by having them accept any type that implements the
@@ -85,14 +84,14 @@
 
 * Allow users to get font names from `Font`. (#86)
 
-## 0.4.0
+## 0.4
 
 * Add more debugging features
 * Add support for unscaled fonts
 * Improve performance
 * Make gpu_cache optional
 
-## 0.3.0
+## 0.3
 
 * Transfer to redox-os organization, merge a number of pull requests
 
@@ -102,7 +101,7 @@
 * Fixes for the examples (@I1048576)
 * Removed the dependency on ndarray (@I1048576)
 
-## 0.2.0
+## 0.2
 
 * Initial GPU caching implementation.
 * Made font data management more flexible.
