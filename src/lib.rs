@@ -128,6 +128,12 @@ pub struct Font<'a> {
     info: tt::FontInfo<SharedBytes<'a>>,
 }
 
+impl<'a> fmt::Debug for Font<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Font")
+    }
+}
+
 /// `SharedBytes` handles the lifetime of font data used in RustType. The data
 /// is either a shared reference to externally owned data, or managed by
 /// reference counting. `SharedBytes` can be conveniently used with `From` and
@@ -233,6 +239,14 @@ pub struct Glyph<'a> {
     inner: GlyphInner<'a>,
 }
 
+impl<'a> fmt::Debug for Glyph<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Glyph")
+            .field("id", &self.id().0)
+            .finish()
+    }
+}
+
 #[derive(Clone)]
 enum GlyphInner<'a> {
     Proxy(Font<'a>, u32),
@@ -305,6 +319,16 @@ pub struct ScaledGlyph<'a> {
     api_scale: Scale,
     scale: Vector<f32>,
 }
+
+impl<'a> fmt::Debug for ScaledGlyph<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("ScaledGlyph")
+            .field("id", &self.id().0)
+            .field("scale", &self.api_scale)
+            .finish()
+    }
+}
+
 /// A glyph augmented with positioning and scaling information. You can query
 /// such a glyph for information that depends on the scale and position of the
 /// glyph.
@@ -314,6 +338,17 @@ pub struct PositionedGlyph<'a> {
     position: Point<f32>,
     bb: Option<Rect<i32>>,
 }
+
+impl<'a> fmt::Debug for PositionedGlyph<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("PositionedGlyph")
+            .field("id", &self.id().0)
+            .field("scale", &self.scale())
+            .field("position", &self.position)
+            .finish()
+    }
+}
+
 /// Defines the size of a rendered face of a font, in pixels, horizontally and
 /// vertically. A vertical scale of `y` pixels means that the distance betwen
 /// the ascent and descent lines (see `VMetrics`) of the face will be `y`

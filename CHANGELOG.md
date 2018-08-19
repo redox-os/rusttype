@@ -11,6 +11,8 @@
   a single core, but can be explicitly disabled using
   `Cache::builder().multithread(false)`.
 * Remove all deprecated API.
+* Add `Debug` implementations for `Font`, `Glyph`, `ScaledGlyph` &
+  `PositionedGlyph`
 
 ## 0.6.4
 
