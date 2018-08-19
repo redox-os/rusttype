@@ -89,13 +89,11 @@ mod cache {
     fn high_position_tolerance(b: &mut ::test::Bencher) {
         let font_id = 0;
         let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
-        let mut cache = CacheBuilder {
-            width: 1024,
-            height: 1024,
-            scale_tolerance: 0.1,
-            position_tolerance: 1.0,
-            ..CacheBuilder::default()
-        }.build();
+        let mut cache = Cache::builder()
+            .dimensions(1024, 1024)
+            .scale_tolerance(0.1)
+            .position_tolerance(1.0)
+            .build();
 
         b.iter(|| {
             for glyph in &glyphs {
@@ -122,11 +120,7 @@ mod cache {
     fn single_font(b: &mut ::test::Bencher) {
         let font_id = 0;
         let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
-        let mut cache = CacheBuilder {
-            width: 1024,
-            height: 1024,
-            ..CacheBuilder::default()
-        }.build();
+        let mut cache = Cache::builder().dimensions(1024, 1024).build();
 
         b.iter(|| {
             for glyph in &glyphs {
@@ -165,11 +159,7 @@ mod cache {
             .enumerate()
             .map(|(id, font)| (id, test_glyphs(font, string)))
             .collect();
-        let mut cache = CacheBuilder {
-            width: 1024,
-            height: 1024,
-            ..CacheBuilder::default()
-        }.build();
+        let mut cache = Cache::builder().dimensions(1024, 1024).build();
 
         b.iter(|| {
             for &(font_id, ref glyphs) in &font_glyphs {
@@ -212,11 +202,7 @@ mod cache {
             .collect();
 
         b.iter(|| {
-            let mut cache = CacheBuilder {
-                width: 1024,
-                height: 1024,
-                ..CacheBuilder::default()
-            }.build();
+            let mut cache = Cache::builder().dimensions(1024, 1024).build();
 
             for &(font_id, ref glyphs) in &font_glyphs {
                 for glyph in glyphs {
@@ -272,13 +258,11 @@ mod cache {
         let test_variants = [first_glyphs, middle_glyphs, last_glyphs];
         let mut test_variants = test_variants.iter().cycle();
 
-        let mut cache = CacheBuilder {
-            width: 1500,
-            height: 1500,
-            scale_tolerance: 0.1,
-            position_tolerance: 0.1,
-            ..CacheBuilder::default()
-        }.build();
+        let mut cache = Cache::builder()
+            .dimensions(1500, 1500)
+            .scale_tolerance(0.1)
+            .position_tolerance(0.1)
+            .build();
 
         b.iter(|| {
             // switch text variant each run to force cache to deal with moving text
@@ -328,11 +312,7 @@ mod cache_bad_cases {
             .collect();
 
         b.iter(|| {
-            let mut cache = CacheBuilder {
-                width: 256,
-                height: 256,
-                ..CacheBuilder::default()
-            }.build();
+            let mut cache = Cache::builder().dimensions(256, 256).build();
 
             for &(font_id, ref glyphs) in &font_glyphs {
                 for glyph in glyphs {
@@ -344,11 +324,7 @@ mod cache_bad_cases {
                 .cache_queued(mock_gpu_upload)
                 .expect_err("shouldn't fit");
 
-            CacheBuilder {
-                width: 512,
-                height: 512,
-                ..cache.to_builder()
-            }.rebuild(&mut cache);
+            cache.to_builder().dimensions(512, 512).rebuild(&mut cache);
 
             cache.cache_queued(mock_gpu_upload).expect("should fit now");
 
@@ -400,13 +376,11 @@ mod cache_bad_cases {
 
         // Cache is only a little larger than each variants size meaning a lot of
         // re-ordering, re-rasterization & re-uploading has to occur.
-        let mut cache = CacheBuilder {
-            width: 450,
-            height: 450,
-            scale_tolerance: 0.1,
-            position_tolerance: 0.1,
-            ..CacheBuilder::default()
-        }.build();
+        let mut cache = Cache::builder()
+            .dimensions(450, 450)
+            .scale_tolerance(0.1)
+            .position_tolerance(0.1)
+            .build();
 
         b.iter(|| {
             // switch text variant each run to force cache to deal with moving text

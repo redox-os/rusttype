@@ -66,11 +66,9 @@ fn main() -> Result<(), Box<Error>> {
     let dpi_factor = display.gl_window().get_hidpi_factor();
 
     let (cache_width, cache_height) = ((512.0 * dpi_factor) as u32, (512.0 * dpi_factor) as u32);
-    let mut cache = CacheBuilder {
-        width: cache_width,
-        height: cache_height,
-        ..CacheBuilder::default()
-    }.build();
+    let mut cache = CacheBuilder::default()
+        .dimensions(cache_width, cache_height)
+        .build();
 
     let program = program!(
         &display,
@@ -256,8 +254,7 @@ You can also try resizing this window."
                     } else {
                         arrayvec::ArrayVec::new()
                     }
-                })
-                .collect();
+                }).collect();
 
             glium::VertexBuffer::new(&display, &vertices)?
         };
