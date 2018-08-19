@@ -38,7 +38,10 @@
 //! cache texture (e.g. due to high cache pressure), construct a new `Cache`
 //! and discard the old one.
 
+extern crate crossbeam_deque;
+extern crate crossbeam_utils;
 extern crate linked_hash_map;
+extern crate num_cpus;
 extern crate rustc_hash;
 
 use self::linked_hash_map::LinkedHashMap;
@@ -179,6 +182,7 @@ pub struct Cache<'font> {
     queue: Vec<(FontId, PositionedGlyph<'font>)>,
     all_glyphs: FxHashMap<LossyGlyphInfo, TextureRowGlyphIndex>,
     pad_glyphs: bool,
+    multithread: bool,
 }
 
 /// Builder for a `Cache`.
@@ -194,6 +198,7 @@ pub struct Cache<'font> {
 ///     scale_tolerance: 0.1,
 ///     position_tolerance: 0.1,
 ///     pad_glyphs: true,
+///     multithread: true,
 /// }.build();
 ///
 /// let bigger_cache = CacheBuilder {
@@ -261,6 +266,11 @@ pub struct CacheBuilder {
     /// If glyphs are never transformed this may be set to `false` to slightly
     /// improve the glyph packing.
     pub pad_glyphs: bool,
+    /// When multiple CPU cores are available spread rasterization work across
+    /// all cores.
+    ///
+    /// Significantly reduces worst case latency in multicore environments.
+    pub multithread: bool,
 }
 
 impl Default for CacheBuilder {
@@ -271,6 +281,7 @@ impl Default for CacheBuilder {
             scale_tolerance: 0.1,
             position_tolerance: 0.1,
             pad_glyphs: true,
+            multithread: true,
         }
     }
 }
@@ -281,9 +292,11 @@ impl CacheBuilder {
         assert!(self.position_tolerance >= 0.0);
         let scale_tolerance = self.scale_tolerance.max(0.001);
         let position_tolerance = self.position_tolerance.max(0.001);
+        let multithread = self.multithread && num_cpus::get() > 1;
         Self {
             scale_tolerance,
             position_tolerance,
+            multithread,
             ..self
         }
     }
@@ -302,6 +315,7 @@ impl CacheBuilder {
             scale_tolerance,
             position_tolerance,
             pad_glyphs,
+            multithread,
         } = self.validated();
 
         Cache {
@@ -323,6 +337,7 @@ impl CacheBuilder {
             queue: Vec::new(),
             all_glyphs: HashMap::default(),
             pad_glyphs,
+            multithread,
         }
     }
 
@@ -340,6 +355,7 @@ impl CacheBuilder {
             scale_tolerance,
             position_tolerance,
             pad_glyphs,
+            multithread,
         } = self.validated();
 
         cache.width = width;
@@ -347,6 +363,7 @@ impl CacheBuilder {
         cache.scale_tolerance = scale_tolerance;
         cache.position_tolerance = position_tolerance;
         cache.pad_glyphs = pad_glyphs;
+        cache.multithread = multithread;
         cache.clear();
     }
 }
@@ -429,6 +446,7 @@ impl<'font> Cache<'font> {
             scale_tolerance,
             position_tolerance,
             pad_glyphs: false,
+            multithread: false,
         }.build()
     }
 
@@ -508,6 +526,7 @@ impl<'font> Cache<'font> {
             position_tolerance: self.position_tolerance,
             scale_tolerance: self.scale_tolerance,
             pad_glyphs: self.pad_glyphs,
+            multithread: self.multithread,
         }
     }
 
@@ -705,26 +724,65 @@ impl<'font> Cache<'font> {
             }
 
             if queue_success {
-                for (tex_coords, glyph) in draw_and_upload {
-                    // draw the glyph into main memory
-                    let mut pixels = ByteArray2d::zeros(
-                        tex_coords.height() as usize,
-                        tex_coords.width() as usize,
-                    );
-                    if self.pad_glyphs {
-                        glyph.draw(|x, y, v| {
-                            let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
-                            // `+ 1` accounts for top/left glyph padding
-                            pixels[(y as usize + 1, x as usize + 1)] = v;
-                        });
-                    } else {
-                        glyph.draw(|x, y, v| {
-                            let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
-                            pixels[(y as usize, x as usize)] = v;
-                        });
+                let glyph_count = draw_and_upload.len();
+
+                if self.multithread && glyph_count > 1 {
+                    // multithread rasterization
+                    use self::crossbeam_deque::{Pop, Steal};
+                    use std::{mem, sync::mpsc::{self, TryRecvError}};
+
+                    let (main, stealer) = crossbeam_deque::fifo();
+                    let (to_main, from_stealers) = mpsc::channel();
+                    let pad_glyphs = self.pad_glyphs;
+
+                    for el in draw_and_upload {
+                        main.push(el);
                     }
-                    // transfer
-                    uploader(tex_coords, pixels.as_slice());
+                    crossbeam_utils::thread::scope(|scope| {
+                        for _ in 0..num_cpus::get().min(glyph_count).saturating_sub(1) {
+                            let stealer = stealer.clone();
+                            let to_main = to_main.clone();
+                            scope.spawn(move || loop {
+                                match stealer.steal() {
+                                    Steal::Data((tex_coords, glyph)) => {
+                                        let pixels = draw_glyph(tex_coords, glyph, pad_glyphs);
+                                        to_main.send((tex_coords, pixels)).unwrap();
+                                    }
+                                    Steal::Empty => break,
+                                    Steal::Retry => {}
+                                }
+                            });
+                        }
+                        mem::drop(to_main);
+
+                        let mut workers_finished = false;
+                        loop {
+                            match main.pop() {
+                                Pop::Data((tex_coords, glyph)) => {
+                                    let pixels = draw_glyph(tex_coords, glyph, pad_glyphs);
+                                    uploader(tex_coords, pixels.as_slice());
+                                }
+                                Pop::Empty if workers_finished => break,
+                                _ => {}
+                            }
+
+                            while !workers_finished {
+                                match from_stealers.try_recv() {
+                                    Ok((tex_coords, pixels)) => {
+                                        uploader(tex_coords, pixels.as_slice())
+                                    }
+                                    Err(TryRecvError::Disconnected) => workers_finished = true,
+                                    Err(TryRecvError::Empty) => break,
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    // single thread rasterization
+                    for (tex_coords, glyph) in draw_and_upload {
+                        let pixels = draw_glyph(tex_coords, glyph, self.pad_glyphs);
+                        uploader(tex_coords, pixels.as_slice());
+                    }
                 }
             }
         }
@@ -807,6 +865,28 @@ impl<'font> Cache<'font> {
     }
 }
 
+#[inline]
+fn draw_glyph<'font>(
+    tex_coords: Rect<u32>,
+    glyph: &PositionedGlyph<'font>,
+    pad_glyphs: bool,
+) -> ByteArray2d {
+    let mut pixels = ByteArray2d::zeros(tex_coords.height() as usize, tex_coords.width() as usize);
+    if pad_glyphs {
+        glyph.draw(|x, y, v| {
+            let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
+            // `+ 1` accounts for top/left glyph padding
+            pixels[(y as usize + 1, x as usize + 1)] = v;
+        });
+    } else {
+        glyph.draw(|x, y, v| {
+            let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
+            pixels[(y as usize, x as usize)] = v;
+        });
+    }
+    pixels
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -825,6 +905,7 @@ mod test {
             scale_tolerance: 0.1,
             position_tolerance: 0.1,
             pad_glyphs: false,
+            ..CacheBuilder::default()
         }.build();
         let strings = [
             ("Hello World!", 15.0),
@@ -863,6 +944,7 @@ mod test {
             scale_tolerance: 0.1,
             position_tolerance: 0.1,
             pad_glyphs: false,
+            ..CacheBuilder::default()
         }.build();
 
         cache.queue_glyph(0, small_left.clone());
@@ -922,6 +1004,7 @@ mod test {
             scale_tolerance: 0.2,
             position_tolerance: 0.3,
             pad_glyphs: false,
+            multithread: false,
         }.build();
 
         let to_builder: CacheBuilder = cache.to_builder();
@@ -931,6 +1014,7 @@ mod test {
         assert_relative_eq!(to_builder.scale_tolerance, 0.2);
         assert_relative_eq!(to_builder.position_tolerance, 0.3);
         assert_eq!(to_builder.pad_glyphs, false);
+        assert_eq!(to_builder.multithread, false);
     }
 
     #[test]
@@ -941,6 +1025,7 @@ mod test {
             scale_tolerance: 0.2,
             position_tolerance: 0.3,
             pad_glyphs: false,
+            multithread: true,
         }.build();
 
         let font = Font::from_bytes(
@@ -967,6 +1052,7 @@ mod test {
             scale_tolerance: 0.05,
             position_tolerance: 0.15,
             pad_glyphs: true,
+            multithread: false,
         }.rebuild(&mut cache);
 
         assert_eq!(cache.width, 64);
@@ -974,6 +1060,7 @@ mod test {
         assert_relative_eq!(cache.scale_tolerance, 0.05);
         assert_relative_eq!(cache.position_tolerance, 0.15);
         assert_eq!(cache.pad_glyphs, true);
+        assert_eq!(cache.multithread, false);
 
         assert!(
             cache.all_glyphs.is_empty(),
