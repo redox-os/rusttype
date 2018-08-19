@@ -275,9 +275,7 @@ pub struct Glyph<'a> {
 
 impl<'a> fmt::Debug for Glyph<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Glyph")
-            .field("id", &self.id().0)
-            .finish()
+        f.debug_struct("Glyph").field("id", &self.id().0).finish()
     }
 }
 

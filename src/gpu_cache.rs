@@ -35,8 +35,39 @@
 //! concrete use case see the `gpu_cache` example.
 //!
 //! Cache dimensions are immutable. If you need to change the dimensions of the
-//! cache texture (e.g. due to high cache pressure), construct a new `Cache`
-//! and discard the old one.
+//! cache texture (e.g. due to high cache pressure), rebuild a new `Cache`.
+//! Either from scratch or with `CacheBuilder::rebuild`.
+//!
+//! # Example
+//!
+//! ```
+//! # use rusttype::{Font, gpu_cache::Cache, point, Scale};
+//! # use std::error::Error;
+//! # fn example() -> Result<(), Box<Error>> {
+//! # let font_data: &[u8] = include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf");
+//! # let font: Font<'static> = Font::from_bytes(font_data)?;
+//! # let glyph = font.glyph('a').scaled(Scale::uniform(25.0)).positioned(point(0.0, 0.0));
+//! # let glyph2 = glyph.clone();
+//! # let update_gpu_texture = |_, _| {};
+//! // Build a default Cache.
+//! let mut cache = Cache::builder().build();
+//!
+//! // Queue some positioned glyphs needed for the next frame.
+//! cache.queue_glyph(0, glyph);
+//!
+//! // Cache all queued glyphs somewhere in the cache texture.
+//! // If new glyph data has been drawn the closure is called to upload
+//! // the pixel data to GPU memory.
+//! cache.cache_queued(|region, data| update_gpu_texture(region, data))?;
+//!
+//! # let glyph = glyph2;
+//! // Lookup a positioned glyph's texture location
+//! if let Ok(Some((uv_rect, screen_rect))) = cache.rect_for(0, &glyph) {
+//!     // Generate vertex data, etc
+//! }
+//! # Ok(())
+//! # }
+//! ```
 
 extern crate crossbeam_deque;
 extern crate crossbeam_utils;
