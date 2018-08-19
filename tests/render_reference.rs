@@ -46,7 +46,7 @@ fn render_to_reference_big_biohazard() {
         Cursor::new(include_bytes!("reference_big_biohazard.png") as &[u8]),
         image::PNG,
     ).expect("!image::load")
-        .to_luma_alpha();
+    .to_luma_alpha();
 
     assert_eq!(reference.dimensions(), new_image.dimensions());
 
@@ -76,7 +76,7 @@ fn render_to_reference_w() {
         Cursor::new(include_bytes!("reference_w.png") as &[u8]),
         image::PNG,
     ).expect("!image::load")
-        .to_luma_alpha();
+    .to_luma_alpha();
 
     assert_eq!(reference.dimensions(), new_image.dimensions());
 
@@ -106,7 +106,7 @@ fn render_to_reference_iota() {
         Cursor::new(include_bytes!("reference_iota.png") as &[u8]),
         image::PNG,
     ).expect("!image::load")
-        .to_luma_alpha();
+    .to_luma_alpha();
 
     assert_eq!(reference.dimensions(), new_image.dimensions());
 

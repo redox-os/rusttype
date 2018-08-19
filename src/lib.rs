@@ -90,7 +90,12 @@
 
 #![allow(unknown_lints)]
 #![warn(clippy)]
-#![allow(cyclomatic_complexity, doc_markdown, cast_lossless, many_single_char_names)]
+#![allow(
+    cyclomatic_complexity,
+    doc_markdown,
+    cast_lossless,
+    many_single_char_names
+)]
 #![cfg_attr(feature = "bench", feature(test))]
 #[cfg(feature = "bench")]
 extern crate test;
@@ -120,9 +125,33 @@ use std::sync::Arc;
 /// A collection of fonts read straight from a font file's data. The data in the
 /// collection is not validated. This structure may or may not own the font
 /// data.
+///
+/// # Lifetime
+/// The lifetime reflects the font data lifetime. `FontCollection<'static>`
+/// covers most cases ie both dynamically loaded owned data and for referenced
+/// compile time font data.
 #[derive(Clone, Debug)]
 pub struct FontCollection<'a>(SharedBytes<'a>);
 /// A single font. This may or may not own the font data.
+///
+/// # Lifetime
+/// The lifetime reflects the font data lifetime. `Font<'static>` covers most
+/// cases ie both dynamically loaded owned data and for referenced compile time
+/// font data.
+///
+/// # Example
+///
+/// ```
+/// # use rusttype::{Font, Error};
+/// # fn example() -> Result<(), Error> {
+/// let font_data: &[u8] = include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf");
+/// let font: Font<'static> = Font::from_bytes(font_data)?;
+///
+/// let owned_font_data: Vec<u8> = font_data.to_vec();
+/// let from_owned_font: Font<'static> = Font::from_bytes(owned_font_data)?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone)]
 pub struct Font<'a> {
     info: tt::FontInfo<SharedBytes<'a>>,
@@ -138,6 +167,11 @@ impl<'a> fmt::Debug for Font<'a> {
 /// is either a shared reference to externally owned data, or managed by
 /// reference counting. `SharedBytes` can be conveniently used with `From` and
 /// `Into`, and dereferences to the contained bytes.
+///
+/// # Lifetime
+/// The lifetime reflects the font data lifetime. `SharedBytes<'static>` covers
+/// most cases ie both dynamically loaded owned data and for referenced compile
+/// time font data.
 #[derive(Clone, Debug)]
 pub enum SharedBytes<'a> {
     ByRef(&'a [u8]),
@@ -919,7 +953,7 @@ impl<'a> PositionedGlyph<'a> {
     }
     /// The conservative pixel-boundary bounding box for this glyph. This is the
     /// smallest rectangle aligned to pixel boundaries that encloses the shape
-    /// of this glyph at this position. Note that the origin of the glyph, at 
+    /// of this glyph at this position. Note that the origin of the glyph, at
     /// pixel-space coordinates (0, 0), is at the top left of the bounding box.
     pub fn pixel_bounding_box(&self) -> Option<Rect<i32>> {
         self.bb
