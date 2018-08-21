@@ -5,7 +5,7 @@ extern crate rusttype;
 extern crate unicode_normalization;
 
 use glium::{glutin, Surface};
-use rusttype::gpu_cache::CacheBuilder;
+use rusttype::gpu_cache::Cache;
 use rusttype::{point, vector, Font, PositionedGlyph, Rect, Scale};
 use std::borrow::Cow;
 use std::error::Error;
@@ -66,7 +66,7 @@ fn main() -> Result<(), Box<Error>> {
     let dpi_factor = display.gl_window().get_hidpi_factor();
 
     let (cache_width, cache_height) = ((512.0 * dpi_factor) as u32, (512.0 * dpi_factor) as u32);
-    let mut cache = CacheBuilder::default()
+    let mut cache = Cache::builder()
         .dimensions(cache_width, cache_height)
         .build();
 
