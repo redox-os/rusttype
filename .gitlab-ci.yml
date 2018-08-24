@@ -1,96 +1,98 @@
 image: "rust:latest"
 
 stages:
-  - build
-  - test
-  - bench
+- build
+- test
 
 before_script:
-    - rustup toolchain add $toolchain
+- rustup toolchain add $toolchain
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/cargo
 
 cache:
   paths:
-    - target/
-  key: rusttype-global-cache
+  - target/
+  - cargo/
 
 build:stable:
   stage: build
   variables:
     toolchain: stable
   script:
-    - cargo +stable build --verbose
+  - cargo +stable build -v
 
 test:stable:
   stage: test
   variables:
     toolchain: stable
   dependencies:
-    - build:stable
+  - build:stable
   script:
-    - cargo +stable test --verbose
+  - cargo +stable test -v
 
 build:stable:gpu_cache:
   stage: build
   variables:
     toolchain: stable
   script:
-    - cargo +stable build --verbose --features 'gpu_cache'
+  - cargo +stable build -v --features 'gpu_cache'
 
 test:stable:gpu_cache:
   stage: test
   variables:
     toolchain: stable
   dependencies:
-    - build:stable:gpu_cache
+  - build:stable:gpu_cache
   script:
-    - cargo +stable test --verbose --features 'gpu_cache'
+  - cargo +stable test -v --features 'gpu_cache'
 
 build:nightly:
   stage: build
   variables:
     toolchain: nightly
   script:
-    - cargo +nightly build --verbose
+  - cargo +nightly build -v
 
 test:nightly:
   stage: test
   variables:
     toolchain: nightly
   dependencies:
-    - build:nightly
+  - build:nightly
   script:
-    - cargo +nightly test --verbose
+  - cargo +nightly test -v
 
-bench:nightly:
-  stage: bench
+test:benches:
+  stage: test
   variables:
     toolchain: nightly
   dependencies:
-    - build:nightly
-    - test:nightly
+  - build:nightly
   script:
-    - cargo +nightly bench --no-run --all-features
+  - cargo +nightly test --bench cache --all-features
+  - cargo +nightly test --bench draw --all-features
 
 build:nightly:gpu_cache:
   stage: build
   variables:
     toolchain: nightly
   script:
-    - cargo +nightly build --verbose --features 'gpu_cache'
+  - cargo +nightly build -v --features 'gpu_cache'
 
 test:nightly:gpu_cache:
   stage: test
   variables:
     toolchain: nightly
   dependencies:
-    - build:nightly:gpu_cache
+  - build:nightly:gpu_cache
   script:
-    - cargo +nightly test --verbose --all-features
+  - cargo +nightly test -v --all-features
 
 build:redox:
   stage: build
   variables:
     toolchain: nightly
   script:
-    - rustup target add x86_64-unknown-redox --toolchain nightly
-    - cargo +nightly build --target=x86_64-unknown-redox --verbose
+  - rustup target add x86_64-unknown-redox --toolchain nightly
+  - cargo +nightly build --target=x86_64-unknown-redox -v
