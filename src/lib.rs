@@ -397,6 +397,7 @@ pub struct Scale {
 
 impl Scale {
     /// Uniform scaling, equivalent to `Scale { x: s, y: s }`.
+    #[inline]
     pub fn uniform(s: f32) -> Scale {
         Scale { x: s, y: s }
     }
@@ -423,6 +424,7 @@ impl IntoGlyphId for Codepoint {
     }
 }
 impl IntoGlyphId for GlyphId {
+    #[inline]
     fn into_glyph_id(self, _font: &Font) -> GlyphId {
         self
     }
