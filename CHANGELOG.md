@@ -1,5 +1,7 @@
 ## master
 
+## 0.7
+
 * Rework `CacheBuilder` to use methods to allow non-breaking additions
   in future. New style is `Cache::builder().dimensions(512, 512).build()`.
 * Support multithreaded rasterization in the gpu_cache. This yields
