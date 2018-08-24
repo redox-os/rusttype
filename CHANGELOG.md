@@ -1,5 +1,9 @@
 ## master
 
+## 0.6.5
+* Re-export rusttype `0.7` non-breaking main API, while keeping the current
+  version of the gpu_cache module.
+
 ## 0.6.4
 
 * Add `CacheBuilder::rebuild` & `Cache::to_builder` methods.

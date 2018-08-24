@@ -1,6 +1,6 @@
 [package]
 name = "rusttype"
-version = "0.6.4"
+version = "0.6.5"
 authors = [
     "Dylan Ede <dylanede@googlemail.com>",
     "Jeremy Soller <jackpot51@gmail.com>",
@@ -25,14 +25,13 @@ exclude = ["/fonts/**"]
 features = ["gpu_cache"]
 
 [dependencies]
-arrayvec = { version = "0.4", default-features = false }
-stb_truetype = "0.2.2"
-ordered-float = "0.5"
-approx = { version = "0.3", default-features = false }
+rusttype = { version = "0.7" }
 linked-hash-map = { version = "0.5", optional = true }
 rustc-hash = { version = "1", optional = true }
 
 [dev-dependencies]
+approx = { version = "0.3", default-features = false }
+arrayvec = { version = "0.4", default-features = false }
 glium = "0.22"
 image = "0.19"
 lazy_static = "1"
@@ -43,13 +42,3 @@ blake2 = "0.7"
 # Compiles benchmark code, to be avoided normally as this currently requires nightly rust
 bench = ["gpu_cache"]
 gpu_cache = ["linked-hash-map", "rustc-hash"]
-
-[[example]]
-name = "gpu_cache"
-required-features = ["gpu_cache"]
-
-[[example]]
-name = "image"
-
-[[example]]
-name = "simple"
