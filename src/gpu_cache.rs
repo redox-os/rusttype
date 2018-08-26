@@ -223,6 +223,7 @@ pub struct Cache<'font> {
 /// ```
 /// use rusttype::gpu_cache::Cache;
 ///
+/// // Create a cache with all default values
 /// let default_cache = Cache::builder()
 ///     .dimensions(256, 256)
 ///     .scale_tolerance(0.1)
@@ -231,6 +232,7 @@ pub struct Cache<'font> {
 ///     .multithread(true)
 ///     .build();
 ///
+/// // Create a cache with all default values, except with a dimension of 1024x1024
 /// let bigger_cache = Cache::builder().dimensions(1024, 1024).build();
 /// ```
 #[derive(Debug, Clone)]
@@ -262,11 +264,11 @@ impl CacheBuilder {
     /// `cache_queued` will try to cache into coordinates outside the bounds of
     /// the texture.
     ///
-    /// # Example
+    /// # Example (set to default value)
     ///
     /// ```
     /// # use rusttype::gpu_cache::Cache;
-    /// let cache = Cache::builder().dimensions(512, 512).build();
+    /// let cache = Cache::builder().dimensions(256, 256).build();
     /// ```
     pub fn dimensions(mut self, width: u32, height: u32) -> Self {
         self.dimensions = (width, height);
@@ -289,11 +291,11 @@ impl CacheBuilder {
     /// inaccuracies with `scale_tolerance` and `position_tolerance` set to
     /// 0.1. Depending on the target DPI higher tolerance may be acceptable.
     ///
-    /// # Example
+    /// # Example (set to default value)
     ///
     /// ```
     /// # use rusttype::gpu_cache::Cache;
-    /// let cache = Cache::builder().scale_tolerance(0.5).build();
+    /// let cache = Cache::builder().scale_tolerance(0.1).build();
     /// ```
     pub fn scale_tolerance<V: Into<f32>>(mut self, scale_tolerance: V) -> Self {
         self.scale_tolerance = scale_tolerance.into();
@@ -319,11 +321,11 @@ impl CacheBuilder {
     /// inaccuracies with `scale_tolerance` and `position_tolerance` set to
     /// 0.1. Depending on the target DPI higher tolerance may be acceptable.
     ///
-    /// # Example
+    /// # Example (set to default value)
     ///
     /// ```
     /// # use rusttype::gpu_cache::Cache;
-    /// let cache = Cache::builder().position_tolerance(0.05).build();
+    /// let cache = Cache::builder().position_tolerance(0.1).build();
     /// ```
     pub fn position_tolerance<V: Into<f32>>(mut self, position_tolerance: V) -> Self {
         self.position_tolerance = position_tolerance.into();
@@ -335,11 +337,11 @@ impl CacheBuilder {
     /// If glyphs are never transformed this may be set to `false` to slightly
     /// improve the glyph packing.
     ///
-    /// # Example
+    /// # Example (set to default value)
     ///
     /// ```
     /// # use rusttype::gpu_cache::Cache;
-    /// let cache = Cache::builder().pad_glyphs(false).build();
+    /// let cache = Cache::builder().pad_glyphs(true).build();
     /// ```
     pub fn pad_glyphs(mut self, pad_glyphs: bool) -> Self {
         self.pad_glyphs = pad_glyphs;
@@ -350,11 +352,11 @@ impl CacheBuilder {
     ///
     /// Significantly reduces worst case latency in multicore environments.
     ///
-    /// # Example
+    /// # Example (set to default value)
     ///
     /// ```
     /// # use rusttype::gpu_cache::Cache;
-    /// let cache = Cache::builder().multithread(false).build();
+    /// let cache = Cache::builder().multithread(true).build();
     /// ```
     pub fn multithread(mut self, multithread: bool) -> Self {
         self.multithread = multithread;
