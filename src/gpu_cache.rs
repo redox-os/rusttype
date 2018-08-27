@@ -223,7 +223,8 @@ pub struct Cache<'font> {
 /// ```
 /// use rusttype::gpu_cache::Cache;
 ///
-/// // Create a cache with all default values
+/// // Create a cache with all default values set explicitly
+/// // equivalent to `Cache::builder().build()`
 /// let default_cache = Cache::builder()
 ///     .dimensions(256, 256)
 ///     .scale_tolerance(0.1)
