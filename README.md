@@ -1,6 +1,5 @@
 # RustType
-
-[![Build Status](https://travis-ci.org/redox-os/rusttype.svg?branch=master)](https://travis-ci.org/redox-os/rusttype)
+[![crates.io](https://img.shields.io/crates/v/rusttype.svg)](https://crates.io/crates/rusttype)
 [![docs.rs](https://docs.rs/rusttype/badge.svg)](https://docs.rs/rusttype)
 
 RustType is a pure Rust alternative to libraries like FreeType.
@@ -32,13 +31,6 @@ Notable things that RustType does not support *yet*:
 
 ## Getting Started
 
-Add the following to your Cargo.toml:
-
-```toml
-[dependencies]
-rusttype = "0.7"
-```
-
 To hit the ground running with RustType, look at the `simple.rs` example
 supplied with the crate. It demonstrates loading a font file, rasterising an
 arbitrary string, and displaying the result as ASCII art. If you prefer to just
@@ -51,9 +43,9 @@ The initial motivation for the project was to provide easy-to-use font rendering
 There are numerous avenues for improving RustType. Ideas:
 
 * Some form of hinting for improved legibility at small font sizes.
-* Replacing the dependency on my other library,
-  [stb_truetype-rs](https://github.com/dylanede/stb_truetype-rs)
-  (a direct translation of [stb_truetype.h](https://github.com/nothings/stb/blob/master/stb_truetype.h)),
+* Replacing the dependency on
+  [stb_truetype-rs](https://gitlab.redox-os.org/redox-os/stb_truetype-rs)
+  (a translation of [stb_truetype.h](https://github.com/nothings/stb/blob/master/stb_truetype.h)),
   with OpenType font loading written in idiomatic Rust.
 * Add support for cubic curves in OpenType fonts.
 * Extract the rasterisation code into a separate vector graphics rendering crate.
