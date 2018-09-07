@@ -1,4 +1,6 @@
 ## master
+
+## 0.7.1
 * Fix `PositionedGlyph::pixel_bounding_box()` size inconsistencies at different positions with identical sub-pixel positions.
 
 ## 0.7
