@@ -8,19 +8,33 @@ before_script:
 - rustup toolchain add $toolchain
 
 variables:
-  CARGO_HOME: $CI_PROJECT_DIR/cargo
+  CARGO_HOME: $CI_PROJECT_DIR/_cargo
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
 
 cache:
+  key: shared
   paths:
   - target/
-  - cargo/
+  - _cargo/registry/
+
+after_script:
+- du -hd1 {target,_cargo}
+# remove unneeded bits which can change each build
+- rm -rf ./target/debug/.fingerprint/rusttype* || true
+- rm -rf ./target/debug/*{incremental,examples,rusttype}* || true
+- rm -f ./target/.rustc_info.json || true
+# remove stuff that hasn't been accessed recently
+- find ./target -type f -atime +2 -ctime +2 -delete
+- find ./_cargo -type f -atime +6 -ctime +6 -delete
+- du -hd1 {target,_cargo}
 
 build:stable:
   stage: build
   variables:
     toolchain: stable
   script:
-  - cargo +stable build -v
+  - cargo +stable build
 
 test:stable:
   stage: test
@@ -29,14 +43,14 @@ test:stable:
   dependencies:
   - build:stable
   script:
-  - cargo +stable test -v
+  - cargo +stable test
 
 build:stable:gpu_cache:
   stage: build
   variables:
     toolchain: stable
   script:
-  - cargo +stable build -v --features 'gpu_cache'
+  - cargo +stable build --features 'gpu_cache'
 
 test:stable:gpu_cache:
   stage: test
@@ -45,14 +59,14 @@ test:stable:gpu_cache:
   dependencies:
   - build:stable:gpu_cache
   script:
-  - cargo +stable test -v --features 'gpu_cache'
+  - cargo +stable test --features 'gpu_cache'
 
 build:nightly:
   stage: build
   variables:
     toolchain: nightly
   script:
-  - cargo +nightly build -v
+  - cargo +nightly build
 
 test:nightly:
   stage: test
@@ -61,7 +75,7 @@ test:nightly:
   dependencies:
   - build:nightly
   script:
-  - cargo +nightly test -v
+  - cargo +nightly test
 
 test:benches:
   stage: test
@@ -78,7 +92,7 @@ build:nightly:gpu_cache:
   variables:
     toolchain: nightly
   script:
-  - cargo +nightly build -v --features 'gpu_cache'
+  - cargo +nightly build --features 'gpu_cache'
 
 test:nightly:gpu_cache:
   stage: test
@@ -87,7 +101,7 @@ test:nightly:gpu_cache:
   dependencies:
   - build:nightly:gpu_cache
   script:
-  - cargo +nightly test -v --all-features
+  - cargo +nightly test --all-features
 
 build:redox:
   stage: build
