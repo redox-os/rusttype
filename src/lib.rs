@@ -88,7 +88,7 @@
 //!   particular Unicode code point. This will have its own identifying number
 //!   unique to the font, its ID.
 
-#![allow(unknown_lints)]
+#![allow(unknown_lints, renamed_and_removed_lints)]
 #![warn(clippy)]
 #![allow(
     cyclomatic_complexity,
