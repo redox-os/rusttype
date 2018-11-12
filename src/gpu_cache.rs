@@ -790,7 +790,7 @@ impl<'font> Cache<'font> {
                         for _ in 0..num_cpus::get().min(glyph_count).saturating_sub(1) {
                             let stealer = stealer.clone();
                             let to_main = to_main.clone();
-                            scope.spawn(move || loop {
+                            scope.spawn(move |_| loop {
                                 match stealer.steal() {
                                     Steal::Data((tex_coords, glyph)) => {
                                         let pixels = draw_glyph(tex_coords, glyph, pad_glyphs);
@@ -824,7 +824,7 @@ impl<'font> Cache<'font> {
                                 }
                             }
                         }
-                    });
+                    }).unwrap();
                 } else {
                     // single thread rasterization
                     for (tex_coords, glyph) in draw_and_upload {
