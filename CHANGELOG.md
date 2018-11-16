@@ -1,5 +1,8 @@
 ## master
 
+## 0.7.3
+* gpu_cache: Update crossbeam-utils -> `0.6`
+
 ## 0.7.2
 * Update ordered-float -> `1`
 
