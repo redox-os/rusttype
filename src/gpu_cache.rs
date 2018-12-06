@@ -824,7 +824,8 @@ impl<'font> Cache<'font> {
                                 }
                             }
                         }
-                    }).unwrap();
+                    })
+                    .unwrap();
                 } else {
                     // single thread rasterization
                     for (tex_coords, glyph) in draw_and_upload {
@@ -1048,7 +1049,8 @@ mod test {
             position_tolerance: 0.3,
             pad_glyphs: false,
             multithread: false,
-        }.build();
+        }
+        .build();
 
         let to_builder: CacheBuilder = cache.to_builder();
 
@@ -1071,7 +1073,8 @@ mod test {
 
         let font = Font::from_bytes(
             include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
-        ).unwrap();
+        )
+        .unwrap();
         cache.queue_glyph(
             0,
             font.glyph('l')

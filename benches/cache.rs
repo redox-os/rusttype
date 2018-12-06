@@ -73,7 +73,8 @@ lazy_static! {
         include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
         include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8],
         include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8],
-    ].into_iter()
+    ]
+    .into_iter()
     .map(|bytes| Font::from_bytes(bytes).unwrap())
     .collect();
 }

@@ -71,8 +71,8 @@ fn main() -> Result<(), Box<Error>> {
         .build();
 
     let program = program!(
-        &display,
-        140 => {
+    &display,
+    140 => {
             vertex: "
                 #version 140
 
@@ -101,7 +101,7 @@ fn main() -> Result<(), Box<Error>> {
                     f_colour = v_colour * vec4(1.0, 1.0, 1.0, texture(tex, v_tex_coords).r);
                 }
             "
-        })?;
+    })?;
     let cache_tex = glium::texture::Texture2d::with_format(
         &display,
         glium::texture::RawImage2d {
@@ -152,9 +152,11 @@ You can also try resizing this window."
                         }
                         _ => (),
                     },
-                    WindowEvent::ReceivedCharacter(c) => if c != '\u{7f}' && c != '\u{8}' {
-                        text.push(c);
-                    },
+                    WindowEvent::ReceivedCharacter(c) => {
+                        if c != '\u{7f}' && c != '\u{8}' {
+                            text.push(c);
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -254,7 +256,8 @@ You can also try resizing this window."
                     } else {
                         arrayvec::ArrayVec::new()
                     }
-                }).collect();
+                })
+                .collect();
 
             glium::VertexBuffer::new(&display, &vertices)?
         };

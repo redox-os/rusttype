@@ -1,5 +1,5 @@
+use crate::geometry::*;
 use arrayvec;
-use geometry::*;
 use ordered_float::OrderedFloat;
 
 trait SliceUp: Sized {
@@ -48,7 +48,8 @@ impl Iterator for LineSliceIter {
             Some(
                 Some(Line {
                     p: [p[0] + v * lower_t, p[0] + v * upper_t],
-                }).into_iter(),
+                })
+                .into_iter(),
             )
         } else {
             Some(None.into_iter())
@@ -95,10 +96,10 @@ struct CurveSliceIter {
 impl Iterator for CurveSliceIter {
     type Item = CurveIter;
     fn next(&mut self) -> Option<Self::Item> {
+        use crate::geometry::solve_quadratic_real as solve;
+        use crate::geometry::Cut;
+        use crate::geometry::RealQuadraticSolution as RQS;
         use arrayvec::ArrayVec;
-        use geometry::solve_quadratic_real as solve;
-        use geometry::Cut;
-        use geometry::RealQuadraticSolution as RQS;
         if self.i >= self.planes.count {
             return None;
         }
@@ -148,14 +149,16 @@ impl Iterator for CurveSliceIter {
                 // coincident with one plane
                 result.push(self.curve);
             }
-            (RQS::None, RQS::None) => if self.a == 0.0
-                && self.b == 0.0
-                && self.c_shift >= lower_d
-                && self.c_shift <= upper_d
-            {
-                // parallel to planes, inbetween
-                result.push(self.curve);
-            },
+            (RQS::None, RQS::None) => {
+                if self.a == 0.0
+                    && self.b == 0.0
+                    && self.c_shift >= lower_d
+                    && self.c_shift <= upper_d
+                {
+                    // parallel to planes, inbetween
+                    result.push(self.curve);
+                }
+            }
             _ => unreachable!(), // impossible
         }
         Some(result.into_iter())

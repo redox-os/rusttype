@@ -117,7 +117,7 @@ mod rasterizer;
 #[cfg(feature = "gpu_cache")]
 pub mod gpu_cache;
 
-pub use geometry::{point, vector, Curve, Line, Point, Rect, Vector};
+pub use crate::geometry::{point, vector, Curve, Line, Point, Rect, Vector};
 use stb_truetype as tt;
 use std::fmt;
 use std::sync::Arc;
@@ -411,7 +411,7 @@ impl Scale {
 pub trait IntoGlyphId {
     /// Convert `self` into a `GlyphId`, consulting the index map of `font` if
     /// necessary.
-    fn into_glyph_id(self, &Font) -> GlyphId;
+    fn into_glyph_id(self, _: &Font) -> GlyphId;
 }
 impl IntoGlyphId for char {
     fn into_glyph_id(self, font: &Font) -> GlyphId {
@@ -860,7 +860,8 @@ impl<'a> ScaledGlyph<'a> {
         match self.g.inner {
             GlyphInner::Proxy(ref font, id) => font.info.get_glyph_shape(id),
             GlyphInner::Shared(ref data) => data.shape.clone(),
-        }.map(|shape| {
+        }
+        .map(|shape| {
             let mut result = Vec::new();
             let mut current = Vec::new();
             let mut last = point(0.0, 0.0);
@@ -995,7 +996,7 @@ impl<'a> PositionedGlyph<'a> {
     /// }
     /// ```
     pub fn draw<O: FnMut(u32, u32, f32)>(&self, o: O) {
-        use geometry::{Curve, Line};
+        use crate::geometry::{Curve, Line};
         use stb_truetype::VertexType;
         let shape = match self.sg.g.inner {
             GlyphInner::Proxy(ref font, id) => {

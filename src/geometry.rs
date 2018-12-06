@@ -304,11 +304,13 @@ impl RealQuadraticSolution {
     pub fn in_order(self) -> RealQuadraticSolution {
         use self::RealQuadraticSolution::*;
         match self {
-            Two(x, y) => if x < y {
-                Two(x, y)
-            } else {
-                Two(y, x)
-            },
+            Two(x, y) => {
+                if x < y {
+                    Two(x, y)
+                } else {
+                    Two(y, x)
+                }
+            }
             other => other,
         }
     }
