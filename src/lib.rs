@@ -88,13 +88,13 @@
 //!   particular Unicode code point. This will have its own identifying number
 //!   unique to the font, its ID.
 
-#![allow(unknown_lints, renamed_and_removed_lints)]
-#![warn(clippy)]
+#![allow(unknown_lints)]
+#![warn(clippy::all)]
 #![allow(
-    cyclomatic_complexity,
-    doc_markdown,
-    cast_lossless,
-    many_single_char_names
+    clippy::cyclomatic_complexity,
+    clippy::doc_markdown,
+    clippy::cast_lossless,
+    clippy::many_single_char_names
 )]
 #![cfg_attr(feature = "bench", feature(test))]
 #[cfg(feature = "bench")]
