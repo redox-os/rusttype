@@ -1,6 +1,6 @@
 use crate::geometry::*;
-use arrayvec;
 use ordered_float::OrderedFloat;
+use approx::relative_eq;
 
 trait SliceUp: Sized {
     type PerSlice: Iterator<Item = Self>;

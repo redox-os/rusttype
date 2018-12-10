@@ -1,11 +1,7 @@
 #![feature(test)]
 #![cfg(feature = "gpu_cache")]
 
-extern crate rusttype;
 extern crate test;
-#[macro_use]
-extern crate lazy_static;
-extern crate unicode_normalization;
 
 use rusttype::gpu_cache::*;
 use rusttype::*;
@@ -68,7 +64,7 @@ fn layout_paragraph<'a>(
     result
 }
 
-lazy_static! {
+lazy_static::lazy_static! {
     static ref FONTS: Vec<Font<'static>> = vec![
         include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
         include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8],

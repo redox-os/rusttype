@@ -68,20 +68,13 @@
 //! # Ok(())
 //! # }
 //! ```
-
-extern crate crossbeam_deque;
-extern crate crossbeam_utils;
-extern crate linked_hash_map;
-extern crate num_cpus;
-extern crate rustc_hash;
-
-use self::linked_hash_map::LinkedHashMap;
-use self::rustc_hash::{FxHashMap, FxHasher};
+use linked_hash_map::LinkedHashMap;
+use rustc_hash::{FxHashMap, FxHasher};
 use std::collections::{HashMap, HashSet};
 use std::error;
 use std::fmt;
 use std::hash::BuildHasherDefault;
-use {point, vector, GlyphId, Point, PositionedGlyph, Rect, Vector};
+use crate::{point, vector, GlyphId, Point, PositionedGlyph, Rect, Vector};
 
 type FxBuildHasher = BuildHasherDefault<FxHasher>;
 
@@ -150,7 +143,7 @@ impl ByteArray2d {
     }
 }
 
-impl ::std::ops::Index<(usize, usize)> for ByteArray2d {
+impl std::ops::Index<(usize, usize)> for ByteArray2d {
     type Output = u8;
 
     #[inline]
@@ -159,7 +152,7 @@ impl ::std::ops::Index<(usize, usize)> for ByteArray2d {
     }
 }
 
-impl ::std::ops::IndexMut<(usize, usize)> for ByteArray2d {
+impl std::ops::IndexMut<(usize, usize)> for ByteArray2d {
     #[inline]
     fn index_mut(&mut self, (row, col): (usize, usize)) -> &mut u8 {
         let vec_index = self.get_vec_index(row, col);
@@ -773,7 +766,7 @@ impl<'font> Cache<'font> {
 
                 if self.multithread && glyph_count > 1 {
                     // multithread rasterization
-                    use self::crossbeam_deque::{Pop, Steal};
+                    use crossbeam_deque::{Pop, Steal};
                     use std::{
                         mem,
                         sync::mpsc::{self, TryRecvError},
@@ -915,9 +908,9 @@ impl<'font> Cache<'font> {
 }
 
 #[inline]
-fn draw_glyph<'font>(
+fn draw_glyph(
     tex_coords: Rect<u32>,
-    glyph: &PositionedGlyph<'font>,
+    glyph: &PositionedGlyph<'_>,
     pad_glyphs: bool,
 ) -> ByteArray2d {
     let mut pixels = ByteArray2d::zeros(tex_coords.height() as usize, tex_coords.width() as usize);
@@ -939,7 +932,8 @@ fn draw_glyph<'font>(
 #[cfg(test)]
 mod test {
     use super::*;
-    use {Font, FontCollection, Scale};
+    use crate::{Font, FontCollection, Scale};
+    use approx::*;
 
     #[test]
     fn cache_test() {

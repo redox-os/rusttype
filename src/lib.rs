@@ -99,17 +99,6 @@
 #![cfg_attr(feature = "bench", feature(test))]
 #[cfg(feature = "bench")]
 extern crate test;
-#[cfg(test)]
-extern crate unicode_normalization;
-#[cfg(test)]
-#[macro_use]
-extern crate lazy_static;
-
-#[macro_use]
-extern crate approx;
-extern crate arrayvec;
-extern crate ordered_float;
-extern crate stb_truetype;
 
 mod geometry;
 mod rasterizer;
@@ -157,8 +146,8 @@ pub struct Font<'a> {
     info: tt::FontInfo<SharedBytes<'a>>,
 }
 
-impl<'a> fmt::Debug for Font<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl fmt::Debug for Font<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Font")
     }
 }
@@ -246,7 +235,7 @@ impl<'a, T: AsRef<[u8]>> From<&'a T> for SharedBytes<'a> {
 
 #[test]
 fn lazy_static_shared_bytes() {
-    lazy_static! {
+    lazy_static::lazy_static! {
         static ref BYTES: Vec<u8> = vec![0, 1, 2, 3];
     }
     let shared_bytes: SharedBytes<'static> = (&*BYTES).into();
@@ -273,8 +262,8 @@ pub struct Glyph<'a> {
     inner: GlyphInner<'a>,
 }
 
-impl<'a> fmt::Debug for Glyph<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl fmt::Debug for Glyph<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Glyph").field("id", &self.id().0).finish()
     }
 }
@@ -352,8 +341,8 @@ pub struct ScaledGlyph<'a> {
     scale: Vector<f32>,
 }
 
-impl<'a> fmt::Debug for ScaledGlyph<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl fmt::Debug for ScaledGlyph<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ScaledGlyph")
             .field("id", &self.id().0)
             .field("scale", &self.api_scale)
@@ -371,8 +360,8 @@ pub struct PositionedGlyph<'a> {
     bb: Option<Rect<i32>>,
 }
 
-impl<'a> fmt::Debug for PositionedGlyph<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl fmt::Debug for PositionedGlyph<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PositionedGlyph")
             .field("id", &self.id().0)
             .field("scale", &self.scale())
@@ -411,21 +400,21 @@ impl Scale {
 pub trait IntoGlyphId {
     /// Convert `self` into a `GlyphId`, consulting the index map of `font` if
     /// necessary.
-    fn into_glyph_id(self, _: &Font) -> GlyphId;
+    fn into_glyph_id(self, _: &Font<'_>) -> GlyphId;
 }
 impl IntoGlyphId for char {
-    fn into_glyph_id(self, font: &Font) -> GlyphId {
+    fn into_glyph_id(self, font: &Font<'_>) -> GlyphId {
         GlyphId(font.info.find_glyph_index(self as u32))
     }
 }
 impl IntoGlyphId for Codepoint {
-    fn into_glyph_id(self, font: &Font) -> GlyphId {
+    fn into_glyph_id(self, font: &Font<'_>) -> GlyphId {
         GlyphId(font.info.find_glyph_index(self.0))
     }
 }
 impl IntoGlyphId for GlyphId {
     #[inline]
-    fn into_glyph_id(self, _font: &Font) -> GlyphId {
+    fn into_glyph_id(self, _font: &Font<'_>) -> GlyphId {
         self
     }
 }
@@ -564,14 +553,14 @@ impl<'a> Font<'a> {
     /// points or glyph ids produced by the given iterator `itr`.
     ///
     /// This is equivalent in behaviour to `itr.map(|c| font.glyph(c))`.
-    pub fn glyphs_for<I: Iterator>(&self, itr: I) -> GlyphIter<I>
+    pub fn glyphs_for<I: Iterator>(&self, itr: I) -> GlyphIter<'_, I>
     where
         I::Item: IntoGlyphId,
     {
         GlyphIter { font: self, itr }
     }
     /// Returns an iterator over the names for this font.
-    pub fn font_name_strings(&self) -> tt::FontNameIter<SharedBytes<'a>> {
+    pub fn font_name_strings(&self) -> tt::FontNameIter<'_, SharedBytes<'a>> {
         self.info.get_font_name_strings()
     }
     /// A convenience function for laying out glyphs for a string horizontally.
@@ -620,12 +609,12 @@ impl<'a> Font<'a> {
     ///     })
     /// # ;
     /// ```
-    pub fn layout<'b, 'c>(
-        &'b self,
-        s: &'c str,
+    pub fn layout<'b>(
+        &self,
+        s: &'b str,
         scale: Scale,
         start: Point<f32>,
-    ) -> LayoutIter<'b, 'c> {
+    ) -> LayoutIter<'_, 'b> {
         LayoutIter {
             font: self,
             chars: s.chars(),
@@ -1073,7 +1062,7 @@ pub enum Error {
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> std::result::Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::result::Result<(), fmt::Error> {
         f.write_str(std::error::Error::description(self))
     }
 }

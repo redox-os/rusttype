@@ -1,5 +1,3 @@
-extern crate rusttype;
-
 use rusttype::*;
 
 static ROBOTO_REGULAR: &[u8] = include_bytes!("../fonts/Roboto-Regular.ttf");

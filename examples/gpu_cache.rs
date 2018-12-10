@@ -1,10 +1,4 @@
-extern crate arrayvec;
-#[macro_use]
-extern crate glium;
-extern crate rusttype;
-extern crate unicode_normalization;
-
-use glium::{glutin, Surface};
+use glium::*;
 use rusttype::gpu_cache::Cache;
 use rusttype::{point, vector, Font, PositionedGlyph, Rect, Scale};
 use std::borrow::Cow;
@@ -56,11 +50,11 @@ fn main() -> Result<(), Box<Error>> {
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let font = Font::from_bytes(font_data as &[u8])?;
 
-    let window = glutin::WindowBuilder::new()
+    let window = glium::glutin::WindowBuilder::new()
         .with_dimensions((512, 512).into())
         .with_title("RustType GPU cache example");
-    let context = glutin::ContextBuilder::new().with_vsync(true);
-    let mut events_loop = glutin::EventsLoop::new();
+    let context = glium::glutin::ContextBuilder::new().with_vsync(true);
+    let mut events_loop = glium::glutin::EventsLoop::new();
     let display = glium::Display::new(window, context, &events_loop)?;
 
     let dpi_factor = display.gl_window().get_hidpi_factor();
@@ -132,7 +126,7 @@ You can also try resizing this window."
 
         let mut finished = false;
         events_loop.poll_events(|event| {
-            use glutin::*;
+            use glium::glutin::*;
 
             if let Event::WindowEvent { event, .. } = event {
                 match event {

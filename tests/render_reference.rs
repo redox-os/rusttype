@@ -1,20 +1,15 @@
-extern crate image;
-extern crate rusttype;
-#[macro_use]
-extern crate lazy_static;
-
 use image::{DynamicImage, LumaA};
 use rusttype::{point, Font, Scale, ScaledGlyph};
 use std::io::Cursor;
 
-lazy_static! {
+lazy_static::lazy_static! {
     static ref DEJA_VU_MONO: Font<'static> =
         Font::from_bytes(include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8]).unwrap();
     static ref OPEN_SANS_ITALIC: Font<'static> =
         Font::from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8]).unwrap();
 }
 
-fn draw_luma_alpha(glyph: ScaledGlyph) -> image::GrayAlphaImage {
+fn draw_luma_alpha(glyph: ScaledGlyph<'_>) -> image::GrayAlphaImage {
     let glyph = glyph.positioned(point(0.0, 0.0));
     let bounds = glyph.pixel_bounding_box().unwrap();
     let mut glyph_image =
