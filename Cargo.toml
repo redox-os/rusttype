@@ -6,6 +6,7 @@ authors = [
     "Jeremy Soller <jackpot51@gmail.com>",
     "Alex Butler <alexheretic@gmail.com>",
 ]
+edition = "2018"
 description = """
 A pure Rust alternative to libraries like FreeType.
 

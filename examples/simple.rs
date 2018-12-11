@@ -1,5 +1,3 @@
-extern crate rusttype;
-
 use rusttype::{point, FontCollection, PositionedGlyph, Scale};
 use std::io::Write;
 
@@ -33,7 +31,7 @@ fn main() {
     let offset = point(0.0, v_metrics.ascent);
 
     // Glyphs to draw for "RustType". Feel free to try other strings.
-    let glyphs: Vec<PositionedGlyph> = font.layout("RustType", scale, offset).collect();
+    let glyphs: Vec<PositionedGlyph<'_>> = font.layout("RustType", scale, offset).collect();
 
     // Find the most visually pleasing width to display
     let width = glyphs

@@ -1,6 +1,3 @@
-extern crate image;
-extern crate rusttype;
-
 use image::{DynamicImage, Rgba};
 use rusttype::{point, Font, Scale};
 

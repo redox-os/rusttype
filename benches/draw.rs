@@ -1,14 +1,11 @@
 #![feature(test)]
+
 extern crate test;
-#[macro_use]
-extern crate lazy_static;
-extern crate blake2;
-extern crate rusttype;
 
 use blake2::{Blake2s, Digest};
 use rusttype::*;
 
-lazy_static! {
+lazy_static::lazy_static! {
     static ref DEJA_VU_MONO: Font<'static> =
         Font::from_bytes(include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8]).unwrap();
     static ref OPEN_SANS_ITALIC: Font<'static> =
