@@ -38,7 +38,7 @@ crossbeam-utils = { version = "0.6", optional = true }
 num_cpus = { version = "1.0", optional = true }
 
 [dev-dependencies]
-glium = "0.22"
+glium = "0.23"
 image = { version = "0.20", default-features = false, features = ["png_codec"] }
 lazy_static = "1"
 unicode-normalization = "0.1"
