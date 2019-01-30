@@ -772,8 +772,7 @@ impl<'font> Cache<'font> {
                         sync::mpsc::{self, TryRecvError},
                     };
 
-                    let rasterize_queue = crossbeam_deque::Worker::new_fifo();
-                    let rasterize_stealer = rasterize_queue.stealer();
+                    let rasterize_queue = crossbeam_deque::Injector::new();
                     let (to_main, from_stealers) = mpsc::channel();
                     let pad_glyphs = self.pad_glyphs;
 
@@ -782,10 +781,10 @@ impl<'font> Cache<'font> {
                     }
                     crossbeam_utils::thread::scope(|scope| {
                         for _ in 0..num_cpus::get().min(glyph_count).saturating_sub(1) {
-                            let stealer = rasterize_stealer.clone();
+                            let rasterize_queue = &rasterize_queue;
                             let to_main = to_main.clone();
                             scope.spawn(move |_| loop {
-                                match stealer.steal() {
+                                match rasterize_queue.steal() {
                                     Steal::Success((tex_coords, glyph)) => {
                                         let pixels = draw_glyph(tex_coords, glyph, pad_glyphs);
                                         to_main.send((tex_coords, pixels)).unwrap();
@@ -799,13 +798,13 @@ impl<'font> Cache<'font> {
 
                         let mut workers_finished = false;
                         loop {
-                            match rasterize_queue.pop() {
-                                Some((tex_coords, glyph)) => {
+                            match rasterize_queue.steal() {
+                                Steal::Success((tex_coords, glyph)) => {
                                     let pixels = draw_glyph(tex_coords, glyph, pad_glyphs);
                                     uploader(tex_coords, pixels.as_slice());
                                 }
-                                None if workers_finished => break,
-                                None => {}
+                                Steal::Empty if workers_finished => break,
+                                Steal::Empty | Steal::Retry => {}
                             }
 
                             while !workers_finished {
