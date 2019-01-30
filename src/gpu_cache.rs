@@ -766,26 +766,27 @@ impl<'font> Cache<'font> {
 
                 if self.multithread && glyph_count > 1 {
                     // multithread rasterization
-                    use crossbeam_deque::{Pop, Steal};
+                    use crossbeam_deque::Steal;
                     use std::{
                         mem,
                         sync::mpsc::{self, TryRecvError},
                     };
 
-                    let (main, stealer) = crossbeam_deque::fifo();
+                    let rasterize_queue = crossbeam_deque::Worker::new_fifo();
+                    let rasterize_stealer = rasterize_queue.stealer();
                     let (to_main, from_stealers) = mpsc::channel();
                     let pad_glyphs = self.pad_glyphs;
 
                     for el in draw_and_upload {
-                        main.push(el);
+                        rasterize_queue.push(el);
                     }
                     crossbeam_utils::thread::scope(|scope| {
                         for _ in 0..num_cpus::get().min(glyph_count).saturating_sub(1) {
-                            let stealer = stealer.clone();
+                            let stealer = rasterize_stealer.clone();
                             let to_main = to_main.clone();
                             scope.spawn(move |_| loop {
                                 match stealer.steal() {
-                                    Steal::Data((tex_coords, glyph)) => {
+                                    Steal::Success((tex_coords, glyph)) => {
                                         let pixels = draw_glyph(tex_coords, glyph, pad_glyphs);
                                         to_main.send((tex_coords, pixels)).unwrap();
                                     }
@@ -798,13 +799,13 @@ impl<'font> Cache<'font> {
 
                         let mut workers_finished = false;
                         loop {
-                            match main.pop() {
-                                Pop::Data((tex_coords, glyph)) => {
+                            match rasterize_queue.pop() {
+                                Some((tex_coords, glyph)) => {
                                     let pixels = draw_glyph(tex_coords, glyph, pad_glyphs);
                                     uploader(tex_coords, pixels.as_slice());
                                 }
-                                Pop::Empty if workers_finished => break,
-                                _ => {}
+                                None if workers_finished => break,
+                                None => {}
                             }
 
                             while !workers_finished {
