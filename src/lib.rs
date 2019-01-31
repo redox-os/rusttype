@@ -107,6 +107,7 @@ mod rasterizer;
 pub mod gpu_cache;
 
 pub use crate::geometry::{point, vector, Curve, Line, Point, Rect, Vector};
+use approx::relative_eq;
 use stb_truetype as tt;
 use std::fmt;
 use std::sync::Arc;
@@ -609,12 +610,7 @@ impl<'a> Font<'a> {
     ///     })
     /// # ;
     /// ```
-    pub fn layout<'b>(
-        &self,
-        s: &'b str,
-        scale: Scale,
-        start: Point<f32>,
-    ) -> LayoutIter<'_, 'b> {
+    pub fn layout<'b>(&self, s: &'b str, scale: Scale, start: Point<f32>) -> LayoutIter<'_, 'b> {
         LayoutIter {
             font: self,
             chars: s.chars(),
@@ -793,30 +789,7 @@ impl<'a> ScaledGlyph<'a> {
     /// Augments this glyph with positioning information, making methods that
     /// depend on the position of the glyph available.
     pub fn positioned(self, p: Point<f32>) -> PositionedGlyph<'a> {
-        // Use subpixel fraction in floor/ceil rounding to elimate rounding error
-        // from identical subpixel positions
-        let (x_trunc, x_fract) = (p.x.trunc() as i32, p.x.fract());
-        let (y_trunc, y_fract) = (p.y.trunc() as i32, p.y.fract());
-
-        let bb = match self.g.inner {
-            GlyphInner::Proxy(ref font, id) => font
-                .info
-                .get_glyph_bitmap_box_subpixel(id, self.scale.x, self.scale.y, x_fract, y_fract)
-                .map(|bb| Rect {
-                    min: point(x_trunc + bb.x0, y_trunc + bb.y0),
-                    max: point(x_trunc + bb.x1, y_trunc + bb.y1),
-                }),
-            GlyphInner::Shared(ref data) => data.extents.map(|bb| Rect {
-                min: point(
-                    (bb.min.x as f32 * self.scale.x + x_fract).floor() as i32 + x_trunc,
-                    (bb.min.y as f32 * self.scale.y + y_fract).floor() as i32 + y_trunc,
-                ),
-                max: point(
-                    (bb.max.x as f32 * self.scale.x + x_fract).ceil() as i32 + x_trunc,
-                    (bb.max.y as f32 * self.scale.y + y_fract).ceil() as i32 + y_trunc,
-                ),
-            }),
-        };
+        let bb = self.pixel_bounds_at(p);
         PositionedGlyph {
             sg: self,
             position: p,
@@ -922,6 +895,34 @@ impl<'a> ScaledGlyph<'a> {
             g: self.g.standalone(),
             api_scale: self.api_scale,
             scale: self.scale,
+        }
+    }
+
+    #[inline]
+    fn pixel_bounds_at(&self, p: Point<f32>) -> Option<Rect<i32>> {
+        // Use subpixel fraction in floor/ceil rounding to elimate rounding error
+        // from identical subpixel positions
+        let (x_trunc, x_fract) = (p.x.trunc() as i32, p.x.fract());
+        let (y_trunc, y_fract) = (p.y.trunc() as i32, p.y.fract());
+
+        match self.g.inner {
+            GlyphInner::Proxy(ref font, id) => font
+                .info
+                .get_glyph_bitmap_box_subpixel(id, self.scale.x, self.scale.y, x_fract, y_fract)
+                .map(|bb| Rect {
+                    min: point(x_trunc + bb.x0, y_trunc + bb.y0),
+                    max: point(x_trunc + bb.x1, y_trunc + bb.y1),
+                }),
+            GlyphInner::Shared(ref data) => data.extents.map(|bb| Rect {
+                min: point(
+                    (bb.min.x as f32 * self.scale.x + x_fract).floor() as i32 + x_trunc,
+                    (bb.min.y as f32 * self.scale.y + y_fract).floor() as i32 + y_trunc,
+                ),
+                max: point(
+                    (bb.max.x as f32 * self.scale.x + x_fract).ceil() as i32 + x_trunc,
+                    (bb.max.y as f32 * self.scale.y + y_fract).ceil() as i32 + y_trunc,
+                ),
+            }),
         }
     }
 }
@@ -1038,6 +1039,21 @@ impl<'a> PositionedGlyph<'a> {
             bb: self.bb,
             position: self.position,
         }
+    }
+
+    /// Resets positioning information and recalculates the pixel bounding box
+    pub fn set_position(&mut self, p: Point<f32>) {
+        let p_diff = p - self.position;
+        if relative_eq!(p_diff.x.fract(), 0.0) && relative_eq!(p_diff.y.fract(), 0.0) {
+            if let Some(bb) = self.bb.as_mut() {
+                let rounded_diff = vector(p_diff.x.round() as i32, p_diff.y.round() as i32);
+                bb.min = bb.min + rounded_diff;
+                bb.max = bb.max + rounded_diff;
+            }
+        } else {
+            self.bb = self.sg.pixel_bounds_at(p);
+        }
+        self.position = p;
     }
 }
 
