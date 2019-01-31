@@ -54,7 +54,7 @@ fn layout_paragraph<'a>(
         if let Some(bb) = glyph.pixel_bounding_box() {
             if bb.max.x > width as i32 {
                 caret = point(0.0, caret.y + advance_height);
-                glyph = glyph.into_unpositioned().positioned(caret);
+                glyph.set_position(caret);
                 last_glyph_id = None;
             }
         }
