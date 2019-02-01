@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.4
 * Add fn `PositionedGlyph::set_position`
 * gpu_cache: Update crossbeam-deque -> `0.7`, use `Injector` for minor rasterization performance boost.
 
