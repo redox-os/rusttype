@@ -1,3 +1,6 @@
+## Unreleased
+* gpu_cache: `Cache::cache_queued` now returns `CachedBy` for successes which can allow callers to tell that the texture cache has been re-ordered.
+
 ## 0.7.4
 * Add fn `PositionedGlyph::set_position`
 * gpu_cache: Update crossbeam-deque -> `0.7`, use `Injector` for minor rasterization performance boost.

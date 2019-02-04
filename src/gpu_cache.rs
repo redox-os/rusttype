@@ -68,13 +68,13 @@
 //! # Ok(())
 //! # }
 //! ```
+use crate::{point, vector, GlyphId, Point, PositionedGlyph, Rect, Vector};
 use linked_hash_map::LinkedHashMap;
 use rustc_hash::{FxHashMap, FxHasher};
 use std::collections::{HashMap, HashSet};
 use std::error;
 use std::fmt;
 use std::hash::BuildHasherDefault;
-use crate::{point, vector, GlyphId, Point, PositionedGlyph, Rect, Vector};
 
 type FxBuildHasher = BuildHasherDefault<FxHasher>;
 
@@ -453,7 +453,7 @@ impl CacheBuilder {
 }
 
 /// Returned from `Cache::rect_for`.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum CacheReadErr {
     /// Indicates that the requested glyph is not present in the cache
     GlyphNotCached,
@@ -472,7 +472,7 @@ impl error::Error for CacheReadErr {
 }
 
 /// Returned from `Cache::cache_queued`.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum CacheWriteErr {
     /// At least one of the queued glyphs is too big to fit into the cache, even
     /// if all other glyphs are removed.
@@ -493,6 +493,19 @@ impl error::Error for CacheWriteErr {
             CacheWriteErr::NoRoomForWholeQueue => "No room for whole queue",
         }
     }
+}
+
+/// Successful method of caching of the queue.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum CachedBy {
+    /// Added any additional glyphs into the texture without affecting
+    /// the position of any already cached glyphs in the latest queue.
+    ///
+    /// Glyphs not in the latest queue may have been removed.
+    Adding,
+    /// Fit the glyph queue by re-ordering all glyph texture positions.
+    /// Previous texture positions are no longer valid.
+    Reordering,
 }
 
 fn normalised_offset_from_position(position: Point<f32>) -> Vector<f32> {
@@ -599,10 +612,13 @@ impl<'font> Cache<'font> {
     /// to insert the pixel data into, and the pixel data itself. This data is
     /// provided in horizontal scanline format (row major), with stride equal to
     /// the rectangle width.
+    ///
+    /// If successful returns a `CachedBy` that can indicate the validity of
+    /// previously cached glyph textures.
     pub fn cache_queued<F: FnMut(Rect<u32>, &[u8])>(
         &mut self,
         mut uploader: F,
-    ) -> Result<(), CacheWriteErr> {
+    ) -> Result<CachedBy, CacheWriteErr> {
         let mut queue_success = true;
         let from_empty = self.all_glyphs.is_empty();
 
@@ -831,11 +847,11 @@ impl<'font> Cache<'font> {
 
         if queue_success {
             self.queue.clear();
-            Ok(())
+            Ok(CachedBy::Adding)
         } else {
             // clear the cache then try again with optimal packing
             self.clear();
-            self.cache_queued(uploader)
+            self.cache_queued(uploader).map(|_| CachedBy::Reordering)
         }
     }
 
@@ -908,11 +924,7 @@ impl<'font> Cache<'font> {
 }
 
 #[inline]
-fn draw_glyph(
-    tex_coords: Rect<u32>,
-    glyph: &PositionedGlyph<'_>,
-    pad_glyphs: bool,
-) -> ByteArray2d {
+fn draw_glyph(tex_coords: Rect<u32>, glyph: &PositionedGlyph<'_>, pad_glyphs: bool) -> ByteArray2d {
     let mut pixels = ByteArray2d::zeros(tex_coords.height() as usize, tex_coords.width() as usize);
     if pad_glyphs {
         glyph.draw(|x, y, v| {
@@ -1105,5 +1117,31 @@ mod test {
         );
 
         assert_eq!(cache.queue.len(), 1, "cache should have an unchanged queue");
+    }
+
+    /// Provide to caller that the cache was re-ordered to fit the latest queue
+    #[test]
+    fn return_cache_by_reordering() {
+        let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+        let font = FontCollection::from_bytes(font_data as &[u8])
+            .unwrap()
+            .into_font()
+            .unwrap();
+
+        let mut cache = Cache::builder()
+            .dimensions(36, 27)
+            .scale_tolerance(0.1)
+            .position_tolerance(0.1)
+            .build();
+
+        for glyph in font.layout("ABCDEFG", Scale::uniform(16.0), point(0.0, 0.0)) {
+            cache.queue_glyph(0, glyph);
+        }
+        assert_eq!(cache.cache_queued(|_, _| {}), Ok(CachedBy::Adding));
+
+        for glyph in font.layout("DEFGHIJK", Scale::uniform(16.0), point(0.0, 0.0)) {
+            cache.queue_glyph(0, glyph);
+        }
+        assert_eq!(cache.cache_queued(|_, _| {}), Ok(CachedBy::Reordering));
     }
 }
