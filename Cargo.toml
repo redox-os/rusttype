@@ -27,8 +27,8 @@ features = ["gpu_cache"]
 
 [dependencies]
 arrayvec = { version = "0.4", default-features = false }
-stb_truetype = "0.2.2"
-ordered-float = "1"
+stb_truetype = { git = "https://gitlab.redox-os.org/redox-os/stb_truetype-rs.git", branch = "no_std", features = ["no_std"] }
+ordered-float = { version = "1", default-features = false }
 approx = { version = "0.3", default-features = false }
 
 linked-hash-map = { version = "0.5", optional = true }
