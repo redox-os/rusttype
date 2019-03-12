@@ -1,5 +1,7 @@
 use std::ops;
 
+use super::math;
+
 /// A point in 2-dimensional space, with each dimension of type `N`.
 ///
 /// Legal operations on points are addition and subtraction by vectors, and
@@ -320,7 +322,7 @@ impl RealQuadraticSolution {
 pub fn solve_quadratic_real(a: f32, b: f32, c: f32) -> RealQuadraticSolution {
     let discriminant = b * b - 4.0 * a * c;
     if discriminant > 0.0 {
-        let sqrt_d = discriminant.sqrt();
+        let sqrt_d = math::sqrt(discriminant);
         let common = -b + if b >= 0.0 { -sqrt_d } else { sqrt_d };
         let x1 = 2.0 * c / common;
         if a == 0.0 {

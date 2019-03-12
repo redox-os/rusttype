@@ -98,6 +98,7 @@
 )]
 #![cfg_attr(feature = "no_std", no_std)]
 #![cfg_attr(feature = "no_std", feature(alloc))]
+#![cfg_attr(feature = "no_std", feature(core_intrinsics))]
 #![cfg_attr(feature = "bench", feature(test))]
 #[cfg(feature = "no_std")]
 extern crate core as std;
@@ -108,6 +109,7 @@ extern crate num_traits;
 extern crate test;
 
 mod geometry;
+mod math;
 mod rasterizer;
 
 #[cfg(feature = "gpu_cache")]
