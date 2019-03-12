@@ -48,6 +48,7 @@ blake2 = "0.8"
 # Compiles benchmark code, to be avoided normally as this currently requires nightly rust
 bench = ["gpu_cache"]
 gpu_cache = ["linked-hash-map", "rustc-hash", "crossbeam-deque", "crossbeam-utils", "num_cpus"]
+no_std = []
 
 [[example]]
 name = "gpu_cache"

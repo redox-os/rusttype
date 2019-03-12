@@ -1,3 +1,5 @@
+#[cfg(feature = "no_std")]
+use alloc::prelude::*;
 use crate::geometry::*;
 use ordered_float::OrderedFloat;
 use approx::relative_eq;

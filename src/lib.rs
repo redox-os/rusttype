@@ -96,7 +96,13 @@
     clippy::cast_lossless,
     clippy::many_single_char_names
 )]
+#![cfg_attr(feature = "no_std", no_std)]
+#![cfg_attr(feature = "no_std", feature(alloc))]
 #![cfg_attr(feature = "bench", feature(test))]
+#[cfg(feature = "no_std")]
+extern crate core as std;
+#[cfg(feature = "no_std")]
+extern crate alloc;
 #[cfg(feature = "bench")]
 extern crate test;
 
@@ -106,10 +112,15 @@ mod rasterizer;
 #[cfg(feature = "gpu_cache")]
 pub mod gpu_cache;
 
+#[cfg(feature = "no_std")]
+use alloc::prelude::*;
 pub use crate::geometry::{point, vector, Curve, Line, Point, Rect, Vector};
 use approx::relative_eq;
 use stb_truetype as tt;
 use std::fmt;
+#[cfg(feature = "no_std")]
+use alloc::sync::Arc;
+#[cfg(not(feature = "no_std"))]
 use std::sync::Arc;
 
 /// A collection of fonts read straight from a font file's data. The data in the
@@ -1077,12 +1088,14 @@ pub enum Error {
     CollectionContainsMultipleFonts,
 }
 
+#[cfg(not(feature = "no_std"))]
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::result::Result<(), fmt::Error> {
         f.write_str(std::error::Error::description(self))
     }
 }
 
+#[cfg(not(feature = "no_std"))]
 impl std::error::Error for Error {
     fn description(&self) -> &str {
         use self::Error::*;
@@ -1098,6 +1111,7 @@ impl std::error::Error for Error {
     }
 }
 
+#[cfg(not(feature = "no_std"))]
 impl std::convert::From<Error> for std::io::Error {
     fn from(error: Error) -> Self {
         std::io::Error::new(std::io::ErrorKind::Other, error)
