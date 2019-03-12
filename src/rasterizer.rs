@@ -2,6 +2,7 @@
 use alloc::prelude::*;
 use crate::geometry::*;
 use ordered_float::OrderedFloat;
+use num_traits::float::FloatCore;
 use approx::relative_eq;
 
 trait SliceUp: Sized {

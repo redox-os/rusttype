@@ -103,6 +103,7 @@
 extern crate core as std;
 #[cfg(feature = "no_std")]
 extern crate alloc;
+extern crate num_traits;
 #[cfg(feature = "bench")]
 extern crate test;
 
@@ -116,6 +117,7 @@ pub mod gpu_cache;
 use alloc::prelude::*;
 pub use crate::geometry::{point, vector, Curve, Line, Point, Rect, Vector};
 use approx::relative_eq;
+use num_traits::float::FloatCore;
 use stb_truetype as tt;
 use std::fmt;
 #[cfg(feature = "no_std")]
