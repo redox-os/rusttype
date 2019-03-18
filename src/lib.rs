@@ -554,7 +554,7 @@ impl<'a> Font<'a> {
     /// points or glyph ids produced by the given iterator `itr`.
     ///
     /// This is equivalent in behaviour to `itr.map(|c| font.glyph(c))`.
-    pub fn glyphs_for<I: Iterator>(&self, itr: I) -> GlyphIter<'_, I>
+    pub fn glyphs_for<I: Iterator>(&self, itr: I) -> GlyphIter<'a, '_, I>
     where
         I::Item: IntoGlyphId,
     {
@@ -610,7 +610,7 @@ impl<'a> Font<'a> {
     ///     })
     /// # ;
     /// ```
-    pub fn layout<'b>(&self, s: &'b str, scale: Scale, start: Point<f32>) -> LayoutIter<'_, 'b> {
+    pub fn layout<'b>(&'b self, s: &'b str, scale: Scale, start: Point<f32>) -> LayoutIter<'a, 'b> {
         LayoutIter {
             font: self,
             chars: s.chars(),
@@ -635,14 +635,14 @@ impl<'a> Font<'a> {
     }
 }
 #[derive(Clone)]
-pub struct GlyphIter<'a, I: Iterator>
+pub struct GlyphIter<'a, 'b, I: Iterator>
 where
     I::Item: IntoGlyphId,
 {
-    font: &'a Font<'a>,
+    font: &'b Font<'a>,
     itr: I,
 }
-impl<'a, I: Iterator> Iterator for GlyphIter<'a, I>
+impl<'a, 'b, I: Iterator> Iterator for GlyphIter<'a, 'b, I>
 where
     I::Item: IntoGlyphId,
 {
@@ -653,7 +653,7 @@ where
 }
 #[derive(Clone)]
 pub struct LayoutIter<'a, 'b> {
-    font: &'a Font<'a>,
+    font: &'b Font<'a>,
     chars: ::std::str::Chars<'b>,
     caret: f32,
     scale: Scale,
