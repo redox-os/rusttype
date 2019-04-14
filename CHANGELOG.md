@@ -1,3 +1,6 @@
+## 0.7.6
+* `GlyphIter` and `LayoutIter` provide the lifetime of the font data.
+
 ## 0.7.5
 * gpu_cache: `Cache::cache_queued` now returns `CachedBy` for successes which can allow callers to tell that the texture cache has been re-ordered.
 
