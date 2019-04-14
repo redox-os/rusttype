@@ -8,26 +8,8 @@ before_script:
 - rustup toolchain add $toolchain
 
 variables:
-  CARGO_HOME: $CI_PROJECT_DIR/_cargo
   CARGO_INCREMENTAL: 0
   RUST_BACKTRACE: 1
-
-# cache:
-#   key: shared
-#   paths:
-#   - target/
-#   - _cargo/registry/
-#
-# after_script:
-# - du -hd1 {target,_cargo}
-# # remove unneeded bits which can change each build
-# - rm -rf ./target/debug/.fingerprint/rusttype* || true
-# - rm -rf ./target/debug/*{incremental,examples,rusttype}* || true
-# - rm -f ./target/.rustc_info.json || true
-# # remove stuff that hasn't been accessed recently
-# - find ./target -type f -atime +2 -ctime +2 -delete
-# - find ./_cargo -type f -atime +6 -ctime +6 -delete
-# - du -hd1 {target,_cargo}
 
 build:stable:
   stage: build
