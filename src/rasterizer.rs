@@ -1,6 +1,6 @@
 use crate::geometry::*;
-use ordered_float::OrderedFloat;
 use approx::relative_eq;
+use ordered_float::OrderedFloat;
 
 trait SliceUp: Sized {
     type PerSlice: Iterator<Item = Self>;
@@ -97,7 +97,6 @@ impl Iterator for CurveSliceIter {
     type Item = CurveIter;
     fn next(&mut self) -> Option<Self::Item> {
         use crate::geometry::solve_quadratic_real as solve;
-        use crate::geometry::Cut;
         use crate::geometry::RealQuadraticSolution as RQS;
         use arrayvec::ArrayVec;
         if self.i >= self.planes.count {

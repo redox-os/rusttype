@@ -88,10 +88,9 @@
 //!   particular Unicode code point. This will have its own identifying number
 //!   unique to the font, its ID.
 
-#![allow(unknown_lints)]
 #![warn(clippy::all)]
 #![allow(
-    clippy::cyclomatic_complexity,
+    clippy::cognitive_complexity,
     clippy::doc_markdown,
     clippy::cast_lossless,
     clippy::many_single_char_names
@@ -986,7 +985,6 @@ impl<'a> PositionedGlyph<'a> {
     /// }
     /// ```
     pub fn draw<O: FnMut(u32, u32, f32)>(&self, o: O) {
-        use crate::geometry::{Curve, Line};
         use stb_truetype::VertexType;
         let shape = match self.sg.g.inner {
             GlyphInner::Proxy(ref font, id) => {
