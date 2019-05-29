@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<Error>> {
     let mut events_loop = glium::glutin::EventsLoop::new();
     let display = glium::Display::new(window, context, &events_loop)?;
 
-    let dpi_factor = display.gl_window().get_hidpi_factor();
+    let dpi_factor = display.gl_window().window().get_hidpi_factor();
 
     let (cache_width, cache_height) = ((512.0 * dpi_factor) as u32, (512.0 * dpi_factor) as u32);
     let mut cache = Cache::builder()
@@ -115,9 +115,10 @@ Feel free to type out some text, and delete it with Backspace. \
 You can also try resizing this window."
         .into();
     loop {
-        let dpi_factor = display.gl_window().get_hidpi_factor();
+        let dpi_factor = display.gl_window().window().get_hidpi_factor();
         let (width, _): (u32, _) = display
             .gl_window()
+            .window()
             .get_inner_size()
             .ok_or("get_inner_size")?
             .to_physical(dpi_factor)
