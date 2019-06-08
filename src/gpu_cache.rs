@@ -1178,4 +1178,35 @@ mod test {
         }
         assert_eq!(cache.cache_queued(|_, _| {}), Ok(CachedBy::Reordering));
     }
+
+    #[test]
+    fn align_4x4() {
+        // First, test align_4x4 disabled, to confirm non-4x4 alignment
+        align_4x4_helper(false, 5, 19);
+        // Now, test with align_4x4 enabled, to confirm 4x4 alignment
+        align_4x4_helper(true, 8, 20);
+    }
+
+    fn align_4x4_helper(align_4x4: bool, expected_width: u32, expected_height: u32) {
+        let mut cache = Cache::builder()
+            .dimensions(64, 64)
+            .align_4x4(align_4x4)
+            .build();
+        let font = Font::from_bytes(
+            include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
+        )
+        .unwrap();
+        cache.queue_glyph(
+            0,
+            font.glyph('l')
+                .scaled(Scale::uniform(25.0))
+                .positioned(point(0.0, 0.0)),
+        );
+        cache
+            .cache_queued(|rect, _| {
+                assert_eq!(rect.width(), expected_width);
+                assert_eq!(rect.height(), expected_height);
+            })
+            .unwrap();
+    }
 }
