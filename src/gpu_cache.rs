@@ -206,6 +206,7 @@ pub struct Cache<'font> {
     queue: Vec<(FontId, PositionedGlyph<'font>)>,
     all_glyphs: FxHashMap<LossyGlyphInfo, TextureRowGlyphIndex>,
     pad_glyphs: bool,
+    align_4x4: bool,
     multithread: bool,
 }
 
@@ -223,6 +224,7 @@ pub struct Cache<'font> {
 ///     .scale_tolerance(0.1)
 ///     .position_tolerance(0.1)
 ///     .pad_glyphs(true)
+///     .align_4x4(false)
 ///     .multithread(true)
 ///     .build();
 ///
@@ -235,6 +237,7 @@ pub struct CacheBuilder {
     scale_tolerance: f32,
     position_tolerance: f32,
     pad_glyphs: bool,
+    align_4x4: bool,
     multithread: bool,
 }
 
@@ -245,6 +248,7 @@ impl Default for CacheBuilder {
             scale_tolerance: 0.1,
             position_tolerance: 0.1,
             pad_glyphs: true,
+            align_4x4: false,
             multithread: true,
         }
     }
@@ -341,6 +345,21 @@ impl CacheBuilder {
         self.pad_glyphs = pad_glyphs;
         self
     }
+    /// Align glyphs in texture to 4x4 texel boundaries.
+    ///
+    /// If your backend requires texture updates to be aligned to 4x4 texel
+    /// boundaries (e.g. WebGL), this should be set to `true`.
+    ///
+    /// # Example (set to default value)
+    ///
+    /// ```
+    /// # use rusttype::gpu_cache::Cache;
+    /// let cache = Cache::builder().align_4x4(false).build();
+    /// ```
+    pub fn align_4x4(mut self, align_4x4: bool) -> Self {
+        self.align_4x4 = align_4x4;
+        self
+    }
     /// When multiple CPU cores are available spread rasterization work across
     /// all cores.
     ///
@@ -391,6 +410,7 @@ impl CacheBuilder {
             scale_tolerance,
             position_tolerance,
             pad_glyphs,
+            align_4x4,
             multithread,
         } = self.validated();
 
@@ -413,6 +433,7 @@ impl CacheBuilder {
             queue: Vec::new(),
             all_glyphs: HashMap::default(),
             pad_glyphs,
+            align_4x4,
             multithread,
         }
     }
@@ -439,6 +460,7 @@ impl CacheBuilder {
             scale_tolerance,
             position_tolerance,
             pad_glyphs,
+            align_4x4,
             multithread,
         } = self.validated();
 
@@ -447,6 +469,7 @@ impl CacheBuilder {
         cache.scale_tolerance = scale_tolerance;
         cache.position_tolerance = position_tolerance;
         cache.pad_glyphs = pad_glyphs;
+        cache.align_4x4 = align_4x4;
         cache.multithread = multithread;
         cache.clear();
     }
@@ -577,6 +600,7 @@ impl<'font> Cache<'font> {
             position_tolerance: self.position_tolerance,
             scale_tolerance: self.scale_tolerance,
             pad_glyphs: self.pad_glyphs,
+            align_4x4: self.align_4x4,
             multithread: self.multithread,
         }
     }
@@ -661,7 +685,7 @@ impl<'font> Cache<'font> {
                 }
 
                 // Not cached, so add it:
-                let (width, height) = {
+                let (mut width, mut height) = {
                     let bb = glyph.pixel_bounding_box().unwrap();
                     if self.pad_glyphs {
                         (bb.width() as u32 + 2, bb.height() as u32 + 2)
@@ -669,6 +693,11 @@ impl<'font> Cache<'font> {
                         (bb.width() as u32, bb.height() as u32)
                     }
                 };
+                if self.align_4x4 {
+                    // align to the next 4x4 texel boundary
+                    width = width + 3 & !3;
+                    height = height + 3 & !3;
+                }
                 if width >= self.width || height >= self.height {
                     return Result::Err(CacheWriteErr::GlyphTooLarge);
                 }
@@ -1054,6 +1083,7 @@ mod test {
             scale_tolerance: 0.2,
             position_tolerance: 0.3,
             pad_glyphs: false,
+            align_4x4: false,
             multithread: false,
         }
         .build();
@@ -1064,6 +1094,7 @@ mod test {
         assert_relative_eq!(to_builder.scale_tolerance, 0.2);
         assert_relative_eq!(to_builder.position_tolerance, 0.3);
         assert_eq!(to_builder.pad_glyphs, false);
+        assert_eq!(to_builder.align_4x4, false);
         assert_eq!(to_builder.multithread, false);
     }
 
@@ -1074,6 +1105,7 @@ mod test {
             .scale_tolerance(0.2)
             .position_tolerance(0.3)
             .pad_glyphs(false)
+            .align_4x4(true)
             .multithread(true)
             .build();
 
@@ -1101,6 +1133,7 @@ mod test {
             .scale_tolerance(0.05)
             .position_tolerance(0.15)
             .pad_glyphs(true)
+            .align_4x4(false)
             .multithread(false)
             .rebuild(&mut cache);
 
@@ -1109,6 +1142,7 @@ mod test {
         assert_relative_eq!(cache.scale_tolerance, 0.05);
         assert_relative_eq!(cache.position_tolerance, 0.15);
         assert_eq!(cache.pad_glyphs, true);
+        assert_eq!(cache.align_4x4, false);
         assert_eq!(cache.multithread, false);
 
         assert!(
