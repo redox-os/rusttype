@@ -381,10 +381,12 @@ impl CacheBuilder {
         assert!(self.position_tolerance >= 0.0);
         let scale_tolerance = self.scale_tolerance.max(0.001);
         let position_tolerance = self.position_tolerance.max(0.001);
+        #[cfg(not(target_arch = "wasm32"))]
         let multithread = self.multithread && num_cpus::get() > 1;
         Self {
             scale_tolerance,
             position_tolerance,
+            #[cfg(not(target_arch = "wasm32"))]
             multithread,
             ..self
         }
@@ -812,65 +814,73 @@ impl<'font> Cache<'font> {
             }
 
             if queue_success {
-                let glyph_count = draw_and_upload.len();
+                #[cfg(not(target_arch = "wasm32"))] {
+                    let glyph_count = draw_and_upload.len();
 
-                if self.multithread && glyph_count > 1 {
-                    // multithread rasterization
-                    use crossbeam_deque::Steal;
-                    use std::{
-                        mem,
-                        sync::mpsc::{self, TryRecvError},
-                    };
+                    if self.multithread && glyph_count > 1 {
+                        // multithread rasterization
+                        use crossbeam_deque::Steal;
+                        use std::{
+                            mem,
+                            sync::mpsc::{self, TryRecvError},
+                        };
 
-                    let rasterize_queue = crossbeam_deque::Injector::new();
-                    let (to_main, from_stealers) = mpsc::channel();
-                    let pad_glyphs = self.pad_glyphs;
+                        let rasterize_queue = crossbeam_deque::Injector::new();
+                        let (to_main, from_stealers) = mpsc::channel();
+                        let pad_glyphs = self.pad_glyphs;
 
-                    for el in draw_and_upload {
-                        rasterize_queue.push(el);
-                    }
-                    crossbeam_utils::thread::scope(|scope| {
-                        for _ in 0..num_cpus::get().min(glyph_count).saturating_sub(1) {
-                            let rasterize_queue = &rasterize_queue;
-                            let to_main = to_main.clone();
-                            scope.spawn(move |_| loop {
+                        for el in draw_and_upload {
+                            rasterize_queue.push(el);
+                        }
+                        crossbeam_utils::thread::scope(|scope| {
+                            for _ in 0..num_cpus::get().min(glyph_count).saturating_sub(1) {
+                                let rasterize_queue = &rasterize_queue;
+                                let to_main = to_main.clone();
+                                scope.spawn(move |_| loop {
+                                    match rasterize_queue.steal() {
+                                        Steal::Success((tex_coords, glyph)) => {
+                                            let pixels = draw_glyph(tex_coords, glyph, pad_glyphs);
+                                            to_main.send((tex_coords, pixels)).unwrap();
+                                        }
+                                        Steal::Empty => break,
+                                        Steal::Retry => {}
+                                    }
+                                });
+                            }
+                            mem::drop(to_main);
+
+                            let mut workers_finished = false;
+                            loop {
                                 match rasterize_queue.steal() {
                                     Steal::Success((tex_coords, glyph)) => {
                                         let pixels = draw_glyph(tex_coords, glyph, pad_glyphs);
-                                        to_main.send((tex_coords, pixels)).unwrap();
+                                        uploader(tex_coords, pixels.as_slice());
                                     }
-                                    Steal::Empty => break,
-                                    Steal::Retry => {}
+                                    Steal::Empty if workers_finished => break,
+                                    Steal::Empty | Steal::Retry => {}
                                 }
-                            });
-                        }
-                        mem::drop(to_main);
 
-                        let mut workers_finished = false;
-                        loop {
-                            match rasterize_queue.steal() {
-                                Steal::Success((tex_coords, glyph)) => {
-                                    let pixels = draw_glyph(tex_coords, glyph, pad_glyphs);
-                                    uploader(tex_coords, pixels.as_slice());
-                                }
-                                Steal::Empty if workers_finished => break,
-                                Steal::Empty | Steal::Retry => {}
-                            }
-
-                            while !workers_finished {
-                                match from_stealers.try_recv() {
-                                    Ok((tex_coords, pixels)) => {
-                                        uploader(tex_coords, pixels.as_slice())
+                                while !workers_finished {
+                                    match from_stealers.try_recv() {
+                                        Ok((tex_coords, pixels)) => {
+                                            uploader(tex_coords, pixels.as_slice())
+                                        }
+                                        Err(TryRecvError::Disconnected) => workers_finished = true,
+                                        Err(TryRecvError::Empty) => break,
                                     }
-                                    Err(TryRecvError::Disconnected) => workers_finished = true,
-                                    Err(TryRecvError::Empty) => break,
                                 }
                             }
+                        })
+                        .unwrap();
+                    } else {
+                        // single thread rasterization
+                        for (tex_coords, glyph) in draw_and_upload {
+                            let pixels = draw_glyph(tex_coords, glyph, self.pad_glyphs);
+                            uploader(tex_coords, pixels.as_slice());
                         }
-                    })
-                    .unwrap();
-                } else {
-                    // single thread rasterization
+                    }
+                }
+                #[cfg(target_arch = "wasm32")] {
                     for (tex_coords, glyph) in draw_and_upload {
                         let pixels = draw_glyph(tex_coords, glyph, self.pad_glyphs);
                         uploader(tex_coords, pixels.as_slice());
