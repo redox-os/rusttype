@@ -685,7 +685,7 @@ impl<'font> Cache<'font> {
                 }
 
                 // Not cached, so add it:
-                let (mut width, mut height) = {
+                let (unaligned_width, unaligned_height) = {
                     let bb = glyph.pixel_bounding_box().unwrap();
                     if self.pad_glyphs {
                         (bb.width() as u32 + 2, bb.height() as u32 + 2)
@@ -693,18 +693,19 @@ impl<'font> Cache<'font> {
                         (bb.width() as u32, bb.height() as u32)
                     }
                 };
-                if self.align_4x4 {
+                let (aligned_width, aligned_height) = if self.align_4x4 {
                     // align to the next 4x4 texel boundary
-                    width = width + 3 & !3;
-                    height = height + 3 & !3;
-                }
-                if width >= self.width || height >= self.height {
+                    (unaligned_width + 3 & !3, unaligned_height + 3 & !3)
+                } else {
+                    (unaligned_width, unaligned_height)
+                };
+                if aligned_width >= self.width || aligned_height >= self.height {
                     return Result::Err(CacheWriteErr::GlyphTooLarge);
                 }
                 // find row to put the glyph in, most used rows first
                 let mut row_top = None;
                 for (top, row) in self.rows.iter().rev() {
-                    if row.height >= height && self.width - row.width >= width {
+                    if row.height >= aligned_height && self.width - row.width >= aligned_width {
                         // found a spot on an existing row
                         row_top = Some(*top);
                         break;
@@ -715,7 +716,7 @@ impl<'font> Cache<'font> {
                     let mut gap = None;
                     // See if there is space for a new row
                     for (start, end) in &self.space_end_for_start {
-                        if end - start >= height {
+                        if end - start >= aligned_height {
                             gap = Some((*start, *end));
                             break;
                         }
@@ -743,7 +744,7 @@ impl<'font> Cache<'font> {
                                 }
                                 self.space_start_for_end.insert(new_end, new_start);
                                 self.space_end_for_start.insert(new_start, new_end);
-                                if new_end - new_start >= height {
+                                if new_end - new_start >= aligned_height {
                                     // The newly formed gap is big enough
                                     gap = Some((new_start, new_end));
                                     break;
@@ -764,7 +765,7 @@ impl<'font> Cache<'font> {
                     }
                     let (gap_start, gap_end) = gap.unwrap();
                     // fill space for new row
-                    let new_space_start = gap_start + height;
+                    let new_space_start = gap_start + aligned_height;
                     self.space_end_for_start.remove(&gap_start);
                     if new_space_start == gap_end {
                         self.space_start_for_end.remove(&gap_end);
@@ -777,7 +778,7 @@ impl<'font> Cache<'font> {
                         gap_start,
                         Row {
                             width: 0,
-                            height,
+                            height: aligned_height,
                             glyphs: Vec::new(),
                         },
                     );
@@ -786,20 +787,24 @@ impl<'font> Cache<'font> {
                 let row_top = row_top.unwrap();
                 // calculate the target rect
                 let row = self.rows.get_refresh(&row_top).unwrap();
-                let tex_coords = Rect {
+                let aligned_tex_coords = Rect {
                     min: point(row.width, row_top),
-                    max: point(row.width + width, row_top + height),
+                    max: point(row.width + aligned_width, row_top + aligned_height),
+                };
+                let unaligned_tex_coords = Rect {
+                    min: point(row.width, row_top),
+                    max: point(row.width + unaligned_width, row_top + unaligned_height),
                 };
 
-                draw_and_upload.push((tex_coords, glyph));
+                draw_and_upload.push((aligned_tex_coords, glyph));
 
                 // add the glyph to the row
                 row.glyphs.push(GlyphTexInfo {
                     glyph_info,
                     offset: normalised_offset_from_position(glyph.position()),
-                    tex_coords,
+                    tex_coords: unaligned_tex_coords,
                 });
-                row.width += width;
+                row.width += aligned_width;
                 in_use_rows.insert(row_top);
 
                 self.all_glyphs
