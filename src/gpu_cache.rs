@@ -1196,17 +1196,24 @@ mod test {
             include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
         )
         .unwrap();
-        cache.queue_glyph(
-            0,
-            font.glyph('l')
-                .scaled(Scale::uniform(25.0))
-                .positioned(point(0.0, 0.0)),
-        );
+        let glyph = font
+            .glyph('l')
+            .scaled(Scale::uniform(25.0))
+            .positioned(point(0.0, 0.0));
+        cache.queue_glyph(0, glyph.clone());
         cache
             .cache_queued(|rect, _| {
                 assert_eq!(rect.width(), expected_width);
                 assert_eq!(rect.height(), expected_height);
             })
             .unwrap();
+        let (uv_rect, _screen_rect) = cache.rect_for(0, &glyph).unwrap().unwrap();
+        assert_eq!(
+            uv_rect,
+            crate::Rect {
+                min: crate::point(0.015625, 0.015625),
+                max: crate::point(0.0625, 0.28125),
+            }
+        );
     }
 }
