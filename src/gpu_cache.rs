@@ -365,6 +365,10 @@ impl CacheBuilder {
     ///
     /// Significantly reduces worst case latency in multicore environments.
     ///
+    /// # Platform-specific behaviour
+    ///
+    /// This option has no effect on wasm32.
+    ///
     /// # Example (set to default value)
     ///
     /// ```
