@@ -1,3 +1,7 @@
+## Unreleased
+* gpu_cache: Add `CacheBuilder::align_4x4` method which forces texture updates to align to 4x4 pixel boxes.
+* gpu_cache: Disable multithread code and remove dependencies on wasm32.
+
 ## 0.7.6
 * `GlyphIter` and `LayoutIter` provide the lifetime of the font data.
 
