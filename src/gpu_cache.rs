@@ -43,7 +43,7 @@
 //! ```
 //! # use rusttype::{Font, gpu_cache::Cache, point, Scale};
 //! # use std::error::Error;
-//! # fn example() -> Result<(), Box<Error>> {
+//! # fn example() -> Result<(), Box<dyn Error>> {
 //! # let font_data: &[u8] = include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf");
 //! # let font: Font<'static> = Font::from_bytes(font_data)?;
 //! # let glyph = font.glyph('a').scaled(Scale::uniform(25.0)).positioned(point(0.0, 0.0));
