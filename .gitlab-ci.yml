@@ -66,8 +66,7 @@ test:benches:
   dependencies:
   - build:nightly
   script:
-  - cargo +nightly test --bench cache --all-features
-  - cargo +nightly test --bench draw --all-features
+  - cargo +nightly test --benches --all-features
 
 build:nightly:gpu_cache:
   stage: build
