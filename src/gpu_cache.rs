@@ -701,7 +701,7 @@ impl<'font> Cache<'font> {
                 };
                 let (aligned_width, aligned_height) = if self.align_4x4 {
                     // align to the next 4x4 texel boundary
-                    (unaligned_width + 3 & !3, unaligned_height + 3 & !3)
+                    ((unaligned_width + 3) & !3, (unaligned_height + 3) & !3)
                 } else {
                     (unaligned_width, unaligned_height)
                 };
@@ -1230,7 +1230,7 @@ mod test {
         assert_eq!(
             uv_rect,
             crate::Rect {
-                min: crate::point(0.015625, 0.015625),
+                min: crate::point(0.015_625, 0.015_625),
                 max: crate::point(0.0625, 0.28125),
             }
         );
