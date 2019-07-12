@@ -444,8 +444,8 @@ impl CacheBuilder {
         }
     }
 
-    /// Rebuilds a cache with new attributes. Carries over the existing cache
-    /// queue unmodified.
+    /// Rebuilds a `Cache` with new attributes. All cached glyphs are cleared,
+    /// however the glyph queue is retained unmodified.
     ///
     /// # Panics
     ///
