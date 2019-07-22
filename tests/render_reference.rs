@@ -19,9 +19,7 @@ fn draw_luma_alpha(glyph: ScaledGlyph<'_>) -> image::GrayAlphaImage {
         glyph_image.put_pixel(
             x,
             y,
-            LumaA {
-                data: [128, (v * 255.0) as u8],
-            },
+            LumaA([128, (v * 255.0) as u8]),
         )
     });
 

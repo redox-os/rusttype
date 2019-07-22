@@ -50,9 +50,7 @@ fn main() {
                     x + bounding_box.min.x as u32,
                     y + bounding_box.min.y as u32,
                     // Turn the coverage into an alpha value
-                    Rgba {
-                        data: [colour.0, colour.1, colour.2, (v * 255.0) as u8],
-                    },
+                    Rgba([colour.0, colour.1, colour.2, (v * 255.0) as u8]),
                 )
             });
         }
