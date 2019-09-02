@@ -3,6 +3,7 @@
 
 extern crate test;
 
+use once_cell::sync::Lazy;
 use rusttype::gpu_cache::*;
 use rusttype::*;
 
@@ -64,16 +65,16 @@ fn layout_paragraph<'a>(
     result
 }
 
-lazy_static::lazy_static! {
-    static ref FONTS: Vec<Font<'static>> = vec![
+static FONTS: Lazy<Vec<Font<'static>>> = Lazy::new(|| {
+    vec![
         include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
         include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8],
         include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8],
     ]
     .into_iter()
     .map(|bytes| Font::from_bytes(bytes).unwrap())
-    .collect();
-}
+    .collect()
+});
 
 const TEST_STR: &str = include_str!("../tests/lipsum.txt");
 

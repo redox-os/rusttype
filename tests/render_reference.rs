@@ -1,13 +1,14 @@
 use image::{DynamicImage, LumaA};
+use once_cell::sync::Lazy;
 use rusttype::{point, Font, Scale, ScaledGlyph};
 use std::io::Cursor;
 
-lazy_static::lazy_static! {
-    static ref DEJA_VU_MONO: Font<'static> =
-        Font::from_bytes(include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8]).unwrap();
-    static ref OPEN_SANS_ITALIC: Font<'static> =
-        Font::from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8]).unwrap();
-}
+static DEJA_VU_MONO: Lazy<Font<'static>> = Lazy::new(|| {
+    Font::from_bytes(include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8]).unwrap()
+});
+static OPEN_SANS_ITALIC: Lazy<Font<'static>> = Lazy::new(|| {
+    Font::from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8]).unwrap()
+});
 
 fn draw_luma_alpha(glyph: ScaledGlyph<'_>) -> image::GrayAlphaImage {
     let glyph = glyph.positioned(point(0.0, 0.0));
@@ -15,13 +16,7 @@ fn draw_luma_alpha(glyph: ScaledGlyph<'_>) -> image::GrayAlphaImage {
     let mut glyph_image =
         DynamicImage::new_luma_a8(bounds.width() as _, bounds.height() as _).to_luma_alpha();
 
-    glyph.draw(|x, y, v| {
-        glyph_image.put_pixel(
-            x,
-            y,
-            LumaA([128, (v * 255.0) as u8]),
-        )
-    });
+    glyph.draw(|x, y, v| glyph_image.put_pixel(x, y, LumaA([128, (v * 255.0) as u8])));
 
     glyph_image
 }

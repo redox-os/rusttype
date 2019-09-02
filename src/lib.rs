@@ -234,11 +234,11 @@ impl<'a, T: AsRef<[u8]>> From<&'a T> for SharedBytes<'a> {
 }
 
 #[test]
-fn lazy_static_shared_bytes() {
-    lazy_static::lazy_static! {
-        static ref BYTES: Vec<u8> = vec![0, 1, 2, 3];
-    }
-    let shared_bytes: SharedBytes<'static> = (&*BYTES).into();
+fn static_lazy_shared_bytes() {
+    use once_cell::sync::Lazy;
+    static FONT_BYTES: Lazy<Vec<u8>> = Lazy::new(|| vec![0, 1, 2, 3]);
+
+    let shared_bytes: SharedBytes<'static> = (&*FONT_BYTES).into();
     assert_eq!(&*shared_bytes, &[0, 1, 2, 3]);
 }
 
