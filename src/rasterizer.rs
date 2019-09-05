@@ -2,6 +2,10 @@ use crate::geometry::*;
 use approx::relative_eq;
 use ordered_float::OrderedFloat;
 
+use alloc::vec::Vec;
+#[cfg(all(feature = "libm-math", not(feature = "std")))]
+use libm::F32Ext;
+
 trait SliceUp: Sized {
     type PerSlice: Iterator<Item = Self>;
     type Out: Iterator<Item = Self::PerSlice>;
@@ -9,7 +13,7 @@ trait SliceUp: Sized {
     fn slice_up_y(&self, planes: PlaneSet) -> Self::Out;
 }
 
-type LineIter = ::std::option::IntoIter<Line>;
+type LineIter = core::option::IntoIter<Line>;
 
 #[derive(Debug)]
 struct LineSliceIter {
@@ -39,7 +43,7 @@ impl Iterator for LineSliceIter {
         lower_t = lower_t.max(0.0).min(1.0);
         upper_t = upper_t.max(0.0).min(1.0);
         if self.m < 0.0 {
-            ::std::mem::swap(&mut lower_t, &mut upper_t);
+            core::mem::swap(&mut lower_t, &mut upper_t);
         }
         self.i += 1;
         if !relative_eq!(lower_t, upper_t) {
