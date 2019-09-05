@@ -1,3 +1,6 @@
+## Unreleased
+* Support no-std usage by disabling the new default feature `std` and using new features `libm-math` and `has-atomics`. The gpu_cache module/feature requires std.
+
 ## 0.7.7
 * gpu_cache: Add `CacheBuilder::align_4x4` method which forces texture updates to align to 4x4 pixel boxes.
 * gpu_cache: Disable multithread code and remove dependencies on wasm32.
