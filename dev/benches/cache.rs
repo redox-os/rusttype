@@ -1,6 +1,4 @@
 #![feature(test)]
-#![cfg(feature = "gpu_cache")]
-
 extern crate test;
 
 use once_cell::sync::Lazy;
@@ -75,7 +73,7 @@ static FONTS: Lazy<Vec<Font<'static>>> = Lazy::new(|| {
     .collect()
 });
 
-const TEST_STR: &str = include_str!("../dev/tests/lipsum.txt");
+const TEST_STR: &str = include_str!("../tests/lipsum.txt");
 
 /// General use benchmarks.
 mod cache {
