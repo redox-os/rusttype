@@ -10,13 +10,12 @@ fn layout_paragraph<'a>(
     width: u32,
     text: &str,
 ) -> Vec<PositionedGlyph<'a>> {
-    use unicode_normalization::UnicodeNormalization;
     let mut result = Vec::new();
     let v_metrics = font.v_metrics(scale);
     let advance_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
     let mut caret = point(0.0, v_metrics.ascent);
     let mut last_glyph_id = None;
-    for c in text.nfc() {
+    for c in text.chars() {
         if c.is_control() {
             match c {
                 '\r' => {

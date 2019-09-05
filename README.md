@@ -29,6 +29,13 @@ Notable things that RustType does not support *yet*:
 * Some less common TrueType sub-formats.
 * Right-to-left and vertical text layout.
 
+## Testing & examples
+Heavier examples, tests & benchmarks are in the `./dev` directory. This avoids dev-dependency feature bleed.
+
+Run all tests with `cargo test --all --all-features`.
+
+Run examples with `cargo run --example <NAME> -p rusttype-dev`
+
 ## Getting Started
 
 To hit the ground running with RustType, look at the `simple.rs` example
