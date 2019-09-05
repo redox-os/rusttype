@@ -74,9 +74,9 @@ impl<K, V> Drop for BTreeMap<K, V> {
 
 impl<K: Clone, V: Clone> Clone for BTreeMap<K, V> {
     fn clone(&self) -> BTreeMap<K, V> {
-        fn clone_subtree<K: Clone, V: Clone>(
-                node: node::NodeRef<marker::Immut, K, V, marker::LeafOrInternal>)
-                -> BTreeMap<K, V> {
+        fn clone_subtree<'a, K: 'a + Clone, V: 'a + Clone>(
+            node: node::NodeRef<marker::Immut<'a>, K, V, marker::LeafOrInternal>
+        ) -> BTreeMap<K, V> {
 
             match node.force() {
                 Leaf(leaf) => {
