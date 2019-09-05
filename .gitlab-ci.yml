@@ -68,3 +68,11 @@ build:redox:
   script:
   - rustup target add x86_64-unknown-redox --toolchain nightly
   - cargo +nightly build --target=x86_64-unknown-redox -v
+
+build:no_std:
+  stage: build
+  variables:
+    toolchain: stable
+  script:
+  - rustup target add thumbv6m-none-eabi --toolchain stable
+  - cargo +stable build --target thumbv6m-none-eabi --no-default-features --features libm-math -v

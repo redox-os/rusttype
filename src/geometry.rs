@@ -1,4 +1,7 @@
-use std::ops;
+use core::ops;
+
+#[cfg(all(feature = "libm-math", not(feature = "std")))]
+use libm::F32Ext;
 
 /// A point in 2-dimensional space, with each dimension of type `N`.
 ///

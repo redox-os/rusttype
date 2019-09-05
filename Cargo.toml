@@ -27,8 +27,9 @@ features = ["gpu_cache"]
 
 [dependencies]
 arrayvec = { version = "0.4", default-features = false }
-stb_truetype = "0.2.2"
-ordered-float = "1"
+stb_truetype = { version = "0.2.7", default-features = false }
+ordered-float = { version = "1", default-features = false }
+libm = { version = "0.1.4", default-features = false, optional = true }
 approx = { version = "0.3", default-features = false }
 
 linked-hash-map = { version = "0.5", optional = true }
@@ -43,8 +44,15 @@ num_cpus = { version = "1.0", optional = true }
 # don't add any, instead use ./dev
 
 [features]
+default = ["std", "has-atomics"]
+# Activates usage of std.
+std = ["has-atomics", "stb_truetype/std"]
+# Uses libm when not using std. This needs to be active in that case.
+libm-math = ["libm", "stb_truetype/libm"]
+# Some targets don't have atomics, this activates usage of Arc<T> instead of Rc<T>.
+has-atomics = []
 # Adds `gpu_cache` module
-gpu_cache = ["linked-hash-map", "rustc-hash", "crossbeam-deque", "crossbeam-utils", "num_cpus"]
+gpu_cache = ["std", "linked-hash-map", "rustc-hash", "crossbeam-deque", "crossbeam-utils", "num_cpus"]
 
 [workspace]
 # Used for tests, examples etc that require extra dependencies
