@@ -1,23 +1,4 @@
 language: rust
-cache:
-  cargo: true
-rust:
-- stable
-- nightly
-env:
-- RUST_BACKTRACE=full
-matrix:
-  fast_finish: true
-script: |
-  #!/bin/bash
-  cargo build -v
-  cargo test -v
-  cargo build -v --features 'gpu_cache'
-  if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then
-    # test nightly-only bench code
-    cargo test --all-features
-    cargo test --bench cache --all-features
-    cargo test --bench draw --all-features
-  else
-    cargo test --features 'gpu_cache'
-  fi
+rust: stable
+env: RUST_BACKTRACE=full
+script: cargo test --features 'gpu_cache'

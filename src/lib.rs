@@ -87,17 +87,12 @@
 //! * A glyph is a particular font's shape to draw the character for a
 //!   particular Unicode code point. This will have its own identifying number
 //!   unique to the font, its ID.
-
-#![warn(clippy::all)]
 #![allow(
     clippy::cognitive_complexity,
     clippy::doc_markdown,
     clippy::cast_lossless,
     clippy::many_single_char_names
 )]
-#![cfg_attr(feature = "bench", feature(test))]
-#[cfg(feature = "bench")]
-extern crate test;
 
 mod geometry;
 mod rasterizer;
@@ -133,7 +128,7 @@ pub struct FontCollection<'a>(SharedBytes<'a>);
 /// ```
 /// # use rusttype::{Font, Error};
 /// # fn example() -> Result<(), Error> {
-/// let font_data: &[u8] = include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf");
+/// let font_data: &[u8] = include_bytes!("../dev/fonts/dejavu/DejaVuSansMono.ttf");
 /// let font: Font<'static> = Font::from_bytes(font_data)?;
 ///
 /// let owned_font_data: Vec<u8> = font_data.to_vec();
@@ -231,15 +226,6 @@ impl<'a, T: AsRef<[u8]>> From<&'a T> for SharedBytes<'a> {
     fn from(bytes: &'a T) -> SharedBytes<'a> {
         SharedBytes::ByRef(bytes.as_ref())
     }
-}
-
-#[test]
-fn static_lazy_shared_bytes() {
-    use once_cell::sync::Lazy;
-    static FONT_BYTES: Lazy<Vec<u8>> = Lazy::new(|| vec![0, 1, 2, 3]);
-
-    let shared_bytes: SharedBytes<'static> = (&*FONT_BYTES).into();
-    assert_eq!(&*shared_bytes, &[0, 1, 2, 3]);
 }
 
 /// Represents a Unicode code point.

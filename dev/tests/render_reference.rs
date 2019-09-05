@@ -28,7 +28,7 @@ fn render_to_reference_big_biohazard() {
     let new_image = draw_luma_alpha(DEJA_VU_MONO.glyph('☣').scaled(Scale::uniform(600.0)));
 
     // save the new render for manual inspection
-    new_image.save("target/big_biohazard.png").unwrap();
+    new_image.save("../target/big_biohazard.png").unwrap();
 
     let reference = image::load(
         Cursor::new(include_bytes!("reference_big_biohazard.png") as &[u8]),
@@ -59,7 +59,7 @@ fn render_to_reference_w() {
     let new_image = draw_luma_alpha(DEJA_VU_MONO.glyph('w').scaled(Scale::uniform(16.0)));
 
     // save the new render for manual inspection
-    new_image.save("target/w.png").unwrap();
+    new_image.save("../target/w.png").unwrap();
 
     let reference = image::load(
         Cursor::new(include_bytes!("reference_w.png") as &[u8]),
@@ -90,7 +90,7 @@ fn render_to_reference_iota() {
     let new_image = draw_luma_alpha(OPEN_SANS_ITALIC.glyph('ΐ').scaled(Scale::uniform(60.0)));
 
     // save the new render for manual inspection
-    new_image.save("target/iota.png").unwrap();
+    new_image.save("../target/iota.png").unwrap();
 
     let reference = image::load(
         Cursor::new(include_bytes!("reference_iota.png") as &[u8]),

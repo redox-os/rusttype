@@ -44,7 +44,7 @@
 //! # use rusttype::{Font, gpu_cache::Cache, point, Scale};
 //! # use std::error::Error;
 //! # fn example() -> Result<(), Box<dyn Error>> {
-//! # let font_data: &[u8] = include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf");
+//! # let font_data: &[u8] = include_bytes!("../dev/fonts/dejavu/DejaVuSansMono.ttf");
 //! # let font: Font<'static> = Font::from_bytes(font_data)?;
 //! # let glyph = font.glyph('a').scaled(Scale::uniform(25.0)).positioned(point(0.0, 0.0));
 //! # let glyph2 = glyph.clone();
@@ -997,7 +997,7 @@ mod test {
 
     #[test]
     fn cache_test() {
-        let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+        let font_data = include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
         let font = FontCollection::from_bytes(font_data as &[u8])
             .unwrap()
             .into_font()
@@ -1028,7 +1028,7 @@ mod test {
 
     #[test]
     fn need_to_check_whole_cache() {
-        let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+        let font_data = include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
         let font = Font::from_bytes(font_data as &[u8]).unwrap();
 
         let glyph = font.glyph('l');
@@ -1061,7 +1061,7 @@ mod test {
 
     #[test]
     fn lossy_info() {
-        let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+        let font_data = include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
         let font = Font::from_bytes(font_data as &[u8]).unwrap();
         let glyph = font.glyph('l');
 
@@ -1129,7 +1129,7 @@ mod test {
             .build();
 
         let font = Font::from_bytes(
-            include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
+            include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
         )
         .unwrap();
         cache.queue_glyph(
@@ -1175,7 +1175,7 @@ mod test {
     /// Provide to caller that the cache was re-ordered to fit the latest queue
     #[test]
     fn return_cache_by_reordering() {
-        let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+        let font_data = include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
         let font = FontCollection::from_bytes(font_data as &[u8])
             .unwrap()
             .into_font()
@@ -1212,7 +1212,7 @@ mod test {
             .align_4x4(align_4x4)
             .build();
         let font = Font::from_bytes(
-            include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
+            include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
         )
         .unwrap();
         let glyph = font

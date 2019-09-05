@@ -20,7 +20,7 @@ repository = "https://gitlab.redox-os.org/redox-os/rusttype"
 readme = "README.md"
 license = "MIT / Apache-2.0"
 keywords = ["font", "truetype", "opentype", "ttf", "otf"]
-exclude = ["/fonts/**"]
+exclude = ["/dev/**"]
 
 [package.metadata.docs.rs]
 features = ["gpu_cache"]
@@ -40,24 +40,12 @@ crossbeam-utils = { version = "0.6", optional = true }
 num_cpus = { version = "1.0", optional = true }
 
 [dev-dependencies]
-glium = "0.25"
-image = { version = "0.22", default-features = false, features = ["png_codec"] }
-once_cell = "1"
-unicode-normalization = "0.1"
-blake2 = "0.8"
+# don't add any, instead use ./dev
 
 [features]
-# Compiles benchmark code, to be avoided normally as this currently requires nightly rust
-bench = ["gpu_cache"]
 # Adds `gpu_cache` module
 gpu_cache = ["linked-hash-map", "rustc-hash", "crossbeam-deque", "crossbeam-utils", "num_cpus"]
 
-[[example]]
-name = "gpu_cache"
-required-features = ["gpu_cache"]
-
-[[example]]
-name = "image"
-
-[[example]]
-name = "simple"
+[workspace]
+# Used for tests, examples etc that require extra dependencies
+members = ["dev"]
