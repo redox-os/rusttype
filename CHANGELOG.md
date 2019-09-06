@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.8
 * Support no-std usage by disabling the new default feature `std` and using new features `libm-math` and `has-atomics`. The gpu_cache module/feature requires std.
 
 ## 0.7.7

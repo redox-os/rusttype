@@ -38,7 +38,7 @@ Run examples with `cargo run --example <NAME> -p rusttype-dev`
 
 ## Getting Started
 
-To hit the ground running with RustType, look at the `simple.rs` example
+To hit the ground running with RustType, look at `dev/examples/simple.rs`
 supplied with the crate. It demonstrates loading a font file, rasterising an
 arbitrary string, and displaying the result as ASCII art. If you prefer to just
 look at the documentation, the entry point for loading fonts is
