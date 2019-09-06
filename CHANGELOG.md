@@ -1,3 +1,6 @@
+## 0.7.9
+* Use semver trick to re-expect rusttype `0.8` with default-features on.
+
 ## 0.7.7
 * gpu_cache: Add `CacheBuilder::align_4x4` method which forces texture updates to align to 4x4 pixel boxes.
 * gpu_cache: Disable multithread code and remove dependencies on wasm32.
