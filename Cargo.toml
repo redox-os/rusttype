@@ -1,6 +1,6 @@
 [package]
 name = "rusttype"
-version = "0.7.8"
+version = "0.8.0"
 authors = [
     "Dylan Ede <dylanede@googlemail.com>",
     "Jeremy Soller <jackpot51@gmail.com>",
@@ -27,7 +27,7 @@ features = ["gpu_cache"]
 
 [dependencies]
 arrayvec = { version = "0.4", default-features = false }
-stb_truetype = { version = "0.2.7", default-features = false }
+stb_truetype = { version = "0.3", default-features = false }
 ordered-float = { version = "1", default-features = false }
 libm = { version = "0.1.4", default-features = false, optional = true }
 approx = { version = "0.3", default-features = false }
