@@ -46,7 +46,7 @@ fn layout_paragraph<'a>(
     result
 }
 
-fn main() -> Result<(), Box<Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let font = Font::from_bytes(font_data as &[u8])?;
 
