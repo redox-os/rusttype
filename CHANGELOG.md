@@ -1,3 +1,6 @@
+## Unreleased
+* Update arrayvec -> `0.5`.
+
 ## 0.8
 * Support no-std usage by disabling the new default feature `std` and using new features `libm-math` and `has-atomics`. The gpu_cache module/feature requires std.
 
@@ -22,10 +25,10 @@ _yanked_
 * gpu_cache: Update crossbeam-deque -> `0.7`, use `Injector` for minor rasterization performance boost.
 
 ## 0.7.3
-* gpu_cache: Update crossbeam-utils -> `0.6`
+* gpu_cache: Update crossbeam-utils -> `0.6`.
 
 ## 0.7.2
-* Update ordered-float -> `1`
+* Update ordered-float -> `1`.
 
 ## 0.7.1
 * Fix `PositionedGlyph::pixel_bounding_box()` size inconsistencies at different positions with identical sub-pixel positions.

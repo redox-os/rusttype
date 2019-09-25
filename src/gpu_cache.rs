@@ -48,7 +48,7 @@
 //! # let font: Font<'static> = Font::from_bytes(font_data)?;
 //! # let glyph = font.glyph('a').scaled(Scale::uniform(25.0)).positioned(point(0.0, 0.0));
 //! # let glyph2 = glyph.clone();
-//! # let update_gpu_texture = |_, _| {};
+//! # fn update_gpu_texture(_: rusttype::Rect<u32>, _: &[u8]) {};
 //! // Build a default Cache.
 //! let mut cache = Cache::builder().build();
 //!
