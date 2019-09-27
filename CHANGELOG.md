@@ -1,4 +1,4 @@
-## Unreleased
+## 0.8.1
 * Update arrayvec -> `0.5`.
 
 ## 0.8
