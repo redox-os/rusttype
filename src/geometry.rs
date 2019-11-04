@@ -212,9 +212,9 @@ impl BoundingBox<f32> for Curve {
             let _1mt = 1.0 - t;
             let inflection = _1mt * _1mt * p[0].x + 2.0 * _1mt * t * p[1].x + t * t * p[2].x;
             if p[1].x < p[0].x {
-                (inflection, p[0].x.max(p[2].x))
+                (inflection, math::max(p[0].x, p[2].x))
             } else {
-                (p[0].x.min(p[2].x), inflection)
+                (math::min(p[0].x, p[2].x), inflection)
             }
         }
     }
@@ -230,9 +230,9 @@ impl BoundingBox<f32> for Curve {
             let _1mt = 1.0 - t;
             let inflection = _1mt * _1mt * p[0].y + 2.0 * _1mt * t * p[1].y + t * t * p[2].y;
             if p[1].y < p[0].y {
-                (inflection, p[0].y.max(p[2].y))
+                (inflection, math::max(p[0].y, p[2].y))
             } else {
-                (p[0].y.min(p[2].y), inflection)
+                (math::min(p[0].y, p[2].y), inflection)
             }
         }
     }

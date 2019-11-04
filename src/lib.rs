@@ -97,7 +97,6 @@
     clippy::many_single_char_names
 )]
 #![cfg_attr(feature = "no_std", no_std)]
-#![cfg_attr(feature = "no_std", feature(alloc))]
 #![cfg_attr(feature = "no_std", feature(core_intrinsics))]
 #![cfg_attr(feature = "bench", feature(test))]
 #[cfg(feature = "no_std")]
@@ -116,7 +115,9 @@ mod rasterizer;
 pub mod gpu_cache;
 
 #[cfg(feature = "no_std")]
-use alloc::prelude::*;
+use alloc::boxed::Box;
+#[cfg(feature = "no_std")]
+use alloc::vec::Vec;
 pub use crate::geometry::{point, vector, Curve, Line, Point, Rect, Vector};
 use approx::relative_eq;
 use num_traits::float::FloatCore;

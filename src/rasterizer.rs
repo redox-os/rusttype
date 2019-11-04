@@ -1,6 +1,7 @@
 #[cfg(feature = "no_std")]
-use alloc::prelude::*;
+use alloc::vec::Vec;
 use crate::geometry::*;
+use crate::math;
 use ordered_float::OrderedFloat;
 use num_traits::float::FloatCore;
 use approx::relative_eq;
@@ -39,8 +40,8 @@ impl Iterator for LineSliceIter {
         let upper_d = self.planes.start + self.planes.step * upper;
         let mut lower_t = (lower_d - self.c) / self.m;
         let mut upper_t = (upper_d - self.c) / self.m;
-        lower_t = lower_t.max(0.0).min(1.0);
-        upper_t = upper_t.max(0.0).min(1.0);
+        lower_t = math::min(math::max(lower_t, 0.0), 1.0);
+        upper_t = math::min(math::max(upper_t, 0.0), 1.0);
         if self.m < 0.0 {
             ::std::mem::swap(&mut lower_t, &mut upper_t);
         }
@@ -123,10 +124,10 @@ impl Iterator for CurveSliceIter {
                     (a, c, d, b)
                 };
                 let (a, b, c, d) = (
-                    a.min(1.0).max(0.0),
-                    b.min(1.0).max(0.0),
-                    c.min(1.0).max(0.0),
-                    d.min(1.0).max(0.0),
+                    math::max(math::min(a, 1.0), 0.0),
+                    math::max(math::min(b, 1.0), 0.0),
+                    math::max(math::min(c, 1.0), 0.0),
+                    math::max(math::min(d, 1.0), 0.0),
                 );
                 if !relative_eq!(a, b) {
                     result.push(self.curve.cut_from_to(a, b));
@@ -142,8 +143,8 @@ impl Iterator for CurveSliceIter {
             | (RQS::One(a), RQS::One(b)) => {
                 // One piece
                 let (a, b) = if a > b { (b, a) } else { (a, b) };
-                let a = a.min(1.0).max(0.0);
-                let b = b.min(1.0).max(0.0);
+                let a = math::max(math::min(a, 1.0), 0.0);
+                let b = math::max(math::min(b, 1.0), 0.0);
                 if !relative_eq!(a, b) {
                     result.push(self.curve.cut_from_to(a, b));
                 }
@@ -237,7 +238,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
             let planes = PlaneSet {
                 start: lower,
                 step: 1.0,
-                count: (bb.max.y.ceil() - lower).max(1.0) as usize,
+                count: math::max(bb.max.y.ceil() - lower, 1.0) as usize,
             };
             active_lines_y.push(line.slice_up_y(planes));
             next_line += 1;
@@ -249,7 +250,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
             let planes = PlaneSet {
                 start: lower,
                 step: 1.0,
-                count: (bb.max.y.ceil() - lower).max(1.0) as usize,
+                count: math::max(bb.max.y.ceil() - lower, 1.0) as usize,
             };
             active_curves_y.push(curve.slice_up_y(planes));
             next_curve += 1;
@@ -312,7 +313,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
                     let planes = PlaneSet {
                         start: lower,
                         step: 1.0,
-                        count: (max.ceil() - lower).max(1.0) as usize,
+                        count: math::max(max.ceil() - lower, 1.0) as usize,
                     };
                     active_lines_x.push(line.slice_up_x(planes));
                     next_line += 1;
@@ -324,7 +325,7 @@ pub fn rasterize<O: FnMut(u32, u32, f32)>(
                     let planes = PlaneSet {
                         start: lower,
                         step: 1.0,
-                        count: (max.ceil() - lower).max(1.0) as usize,
+                        count: math::max(max.ceil() - lower, 1.0) as usize,
                     };
                     active_curves_x.push(curve.slice_up_x(planes));
                     next_curve += 1;
