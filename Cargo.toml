@@ -37,7 +37,7 @@ rustc-hash = { version = "1", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 crossbeam-deque = { version = "0.7", optional = true }
-crossbeam-utils = { version = "0.6", optional = true }
+crossbeam-utils = { version = "0.7", optional = true }
 num_cpus = { version = "1.0", optional = true }
 
 [dev-dependencies]
