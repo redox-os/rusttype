@@ -1,4 +1,4 @@
-## Unreleased
+## 0.8.2
 * Update crossbeam-utils -> `0.7`.
 * Update libm -> `0.2.1`.
 
