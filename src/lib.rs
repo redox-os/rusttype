@@ -100,6 +100,9 @@ extern crate alloc;
 mod geometry;
 mod rasterizer;
 
+#[cfg(all(feature = "libm-math", not(feature = "std")))]
+mod nostd_float;
+
 #[cfg(feature = "gpu_cache")]
 pub mod gpu_cache;
 
@@ -116,7 +119,7 @@ use alloc::sync::Arc;
 #[cfg(not(feature = "std"))]
 use alloc::{boxed::Box, vec::Vec};
 #[cfg(all(feature = "libm-math", not(feature = "std")))]
-use libm::F32Ext;
+use crate::nostd_float::FloatExt;
 
 /// A collection of fonts read straight from a font file's data. The data in the
 /// collection is not validated. This structure may or may not own the font

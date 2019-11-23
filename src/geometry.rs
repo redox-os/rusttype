@@ -1,7 +1,7 @@
 use core::ops;
 
 #[cfg(all(feature = "libm-math", not(feature = "std")))]
-use libm::F32Ext;
+use crate::nostd_float::FloatExt;
 
 /// A point in 2-dimensional space, with each dimension of type `N`.
 ///

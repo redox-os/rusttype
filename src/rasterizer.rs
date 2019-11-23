@@ -4,7 +4,7 @@ use ordered_float::OrderedFloat;
 
 use alloc::vec::Vec;
 #[cfg(all(feature = "libm-math", not(feature = "std")))]
-use libm::F32Ext;
+use crate::nostd_float::FloatExt;
 
 trait SliceUp: Sized {
     type PerSlice: Iterator<Item = Self>;

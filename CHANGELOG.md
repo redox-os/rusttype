@@ -1,3 +1,7 @@
+## Unreleased
+* Update crossbeam-utils -> `0.7`.
+* Update libm -> `0.2.1`.
+
 ## 0.8.1
 * Update arrayvec -> `0.5`.
 
