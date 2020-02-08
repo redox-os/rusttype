@@ -489,16 +489,13 @@ pub enum CacheReadErr {
 }
 impl fmt::Display for CacheReadErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", error::Error::description(self))
-    }
-}
-impl error::Error for CacheReadErr {
-    fn description(&self) -> &str {
         match *self {
             CacheReadErr::GlyphNotCached => "Glyph not cached",
         }
+        .fmt(f)
     }
 }
+impl error::Error for CacheReadErr {}
 
 /// Returned from `Cache::cache_queued`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -512,17 +509,15 @@ pub enum CacheWriteErr {
 }
 impl fmt::Display for CacheWriteErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", error::Error::description(self))
-    }
-}
-impl error::Error for CacheWriteErr {
-    fn description(&self) -> &str {
         match *self {
             CacheWriteErr::GlyphTooLarge => "Glyph too large",
             CacheWriteErr::NoRoomForWholeQueue => "No room for whole queue",
         }
+        .fmt(f)
     }
 }
+
+impl error::Error for CacheWriteErr {}
 
 /// Successful method of caching of the queue.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -818,7 +813,8 @@ impl<'font> Cache<'font> {
             }
 
             if queue_success {
-                #[cfg(not(target_arch = "wasm32"))] {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
                     let glyph_count = draw_and_upload.len();
 
                     if self.multithread && glyph_count > 1 {
@@ -884,7 +880,8 @@ impl<'font> Cache<'font> {
                         }
                     }
                 }
-                #[cfg(target_arch = "wasm32")] {
+                #[cfg(target_arch = "wasm32")]
+                {
                     for (tex_coords, glyph) in draw_and_upload {
                         let pixels = draw_glyph(tex_coords, glyph, self.pad_glyphs);
                         uploader(tex_coords, pixels.as_slice());
@@ -1128,9 +1125,9 @@ mod test {
             .multithread(true)
             .build();
 
-        let font = Font::from_bytes(
-            include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
-        )
+        let font = Font::from_bytes(include_bytes!(
+            "../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf"
+        ) as &[u8])
         .unwrap();
         cache.queue_glyph(
             0,
@@ -1211,9 +1208,9 @@ mod test {
             .dimensions(64, 64)
             .align_4x4(align_4x4)
             .build();
-        let font = Font::from_bytes(
-            include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
-        )
+        let font = Font::from_bytes(include_bytes!(
+            "../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf"
+        ) as &[u8])
         .unwrap();
         let glyph = font
             .glyph('l')
