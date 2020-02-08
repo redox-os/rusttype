@@ -43,23 +43,23 @@ test:stable:gpu_cache:
   script:
   - cargo +stable test --features 'gpu_cache'
 
+# Heavier testing using rusttype-dev
+test:dev:
+  stage: test
+  variables:
+    toolchain: stable
+  dependencies:
+  - build:stable:gpu_cache
+  script:
+  - cargo test --workspace --all-features
+  - cargo test --workspace --all-features --benches
+
 build:nightly:gpu_cache:
   stage: build
   variables:
     toolchain: nightly
   script:
   - cargo +nightly build --features 'gpu_cache'
-
-# Heavier testing using rusttype-dev
-test:dev:
-  stage: test
-  variables:
-    toolchain: nightly
-  dependencies:
-  - build:nightly:gpu_cache
-  script:
-  - cargo +nightly test --all --all-features
-  - cargo +nightly test --all --all-features --benches
 
 build:redox:
   stage: build

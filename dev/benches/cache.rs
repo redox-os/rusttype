@@ -1,6 +1,4 @@
-#![feature(test)]
-extern crate test;
-
+use criterion::{criterion_group, criterion_main, Criterion};
 use once_cell::sync::Lazy;
 use rusttype::gpu_cache::*;
 use rusttype::*;
@@ -75,21 +73,21 @@ static FONTS: Lazy<Vec<Font<'static>>> = Lazy::new(|| {
 
 const TEST_STR: &str = include_str!("../tests/lipsum.txt");
 
-/// General use benchmarks.
-mod cache {
-    use super::*;
+// **************************************************************************
+// General use benchmarks.
+// **************************************************************************
 
-    /// Benchmark using a single font at "don't care" position tolerance
-    #[bench]
-    fn high_position_tolerance(b: &mut ::test::Bencher) {
-        let font_id = 0;
-        let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
-        let mut cache = Cache::builder()
-            .dimensions(1024, 1024)
-            .scale_tolerance(0.1)
-            .position_tolerance(1.0)
-            .build();
+/// Benchmark using a single font at "don't care" position tolerance
+fn bench_high_position_tolerance(c: &mut Criterion) {
+    let font_id = 0;
+    let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
+    let mut cache = Cache::builder()
+        .dimensions(1024, 1024)
+        .scale_tolerance(0.1)
+        .position_tolerance(1.0)
+        .build();
 
+    c.bench_function("high_position_tolerance", |b| {
         b.iter(|| {
             for glyph in &glyphs {
                 cache.queue_glyph(font_id, glyph.clone());
@@ -107,16 +105,17 @@ mod cache {
                     glyph.id().0
                 );
             }
-        });
-    }
+        })
+    });
+}
 
-    /// Benchmark using a single font with default tolerances
-    #[bench]
-    fn single_font(b: &mut ::test::Bencher) {
-        let font_id = 0;
-        let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
-        let mut cache = Cache::builder().dimensions(1024, 1024).build();
+/// Benchmark using a single font with default tolerances
+fn bench_single_font(c: &mut Criterion) {
+    let font_id = 0;
+    let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
+    let mut cache = Cache::builder().dimensions(1024, 1024).build();
 
+    c.bench_function("single_font", |b| {
         b.iter(|| {
             for glyph in &glyphs {
                 cache.queue_glyph(font_id, glyph.clone());
@@ -134,28 +133,29 @@ mod cache {
                     glyph.id().0
                 );
             }
-        });
-    }
+        })
+    });
+}
 
-    /// Benchmark using multiple fonts with default tolerances
-    #[bench]
-    fn multi_font(b: &mut ::test::Bencher) {
-        // Use a smaller amount of the test string, to offset the extra font-glyph
-        // bench load
-        let up_to_index = TEST_STR
-            .char_indices()
-            .nth(TEST_STR.chars().count() / FONTS.len())
-            .unwrap()
-            .0;
-        let string = &TEST_STR[..up_to_index];
+/// Benchmark using multiple fonts with default tolerances
+fn bench_multi_font(c: &mut Criterion) {
+    // Use a smaller amount of the test string, to offset the extra font-glyph
+    // bench load
+    let up_to_index = TEST_STR
+        .char_indices()
+        .nth(TEST_STR.chars().count() / FONTS.len())
+        .unwrap()
+        .0;
+    let string = &TEST_STR[..up_to_index];
 
-        let font_glyphs: Vec<_> = FONTS
-            .iter()
-            .enumerate()
-            .map(|(id, font)| (id, test_glyphs(font, string)))
-            .collect();
-        let mut cache = Cache::builder().dimensions(1024, 1024).build();
+    let font_glyphs: Vec<_> = FONTS
+        .iter()
+        .enumerate()
+        .map(|(id, font)| (id, test_glyphs(font, string)))
+        .collect();
+    let mut cache = Cache::builder().dimensions(1024, 1024).build();
 
+    c.bench_function("mutli_font", |b| {
         b.iter(|| {
             for &(font_id, ref glyphs) in &font_glyphs {
                 for glyph in glyphs {
@@ -178,24 +178,25 @@ mod cache {
                     );
                 }
             }
-        });
-    }
+        })
+    });
+}
 
-    /// Benchmark using multiple fonts with default tolerances, clears the
-    /// cache each run to test the population "first run" performance
-    #[bench]
-    fn multi_font_population(b: &mut ::test::Bencher) {
-        // Use a much smaller amount of the test string, to offset the extra font-glyph
-        // bench load & much slower performance of fresh population each run
-        let up_to_index = TEST_STR.char_indices().nth(70).unwrap().0;
-        let string = &TEST_STR[..up_to_index];
+/// Benchmark using multiple fonts with default tolerances, clears the
+/// cache each run to test the population "first run" performance
+fn bench_multi_font_population(c: &mut Criterion) {
+    // Use a much smaller amount of the test string, to offset the extra font-glyph
+    // bench load & much slower performance of fresh population each run
+    let up_to_index = TEST_STR.char_indices().nth(70).unwrap().0;
+    let string = &TEST_STR[..up_to_index];
 
-        let font_glyphs: Vec<_> = FONTS
-            .iter()
-            .enumerate()
-            .map(|(id, font)| (id, test_glyphs(font, string)))
-            .collect();
+    let font_glyphs: Vec<_> = FONTS
+        .iter()
+        .enumerate()
+        .map(|(id, font)| (id, test_glyphs(font, string)))
+        .collect();
 
+    c.bench_function("multi_font_population", |b| {
         b.iter(|| {
             let mut cache = Cache::builder().dimensions(1024, 1024).build();
 
@@ -220,45 +221,46 @@ mod cache {
                     );
                 }
             }
-        });
+        })
+    });
+}
+
+/// Benchmark using multiple fonts and a different text group of glyphs
+/// each run
+fn bench_moving_text(c: &mut Criterion) {
+    let chars: Vec<_> = TEST_STR.chars().collect();
+    let subsection_len = chars.len() / FONTS.len();
+    let distinct_subsection: Vec<_> = chars.windows(subsection_len).collect();
+
+    let mut first_glyphs = vec![];
+    let mut middle_glyphs = vec![];
+    let mut last_glyphs = vec![];
+
+    for (id, font) in FONTS.iter().enumerate() {
+        let first_str: String = distinct_subsection[0].iter().collect();
+        first_glyphs.push((id, test_glyphs(font, &first_str)));
+
+        let middle_str: String = distinct_subsection[distinct_subsection.len() / 2]
+            .iter()
+            .collect();
+        middle_glyphs.push((id, test_glyphs(font, &middle_str)));
+
+        let last_str: String = distinct_subsection[distinct_subsection.len() - 1]
+            .iter()
+            .collect();
+        last_glyphs.push((id, test_glyphs(font, &last_str)));
     }
 
-    /// Benchmark using multiple fonts and a different text group of glyphs
-    /// each run
-    #[bench]
-    fn moving_text(b: &mut ::test::Bencher) {
-        let chars: Vec<_> = TEST_STR.chars().collect();
-        let subsection_len = chars.len() / FONTS.len();
-        let distinct_subsection: Vec<_> = chars.windows(subsection_len).collect();
+    let test_variants = [first_glyphs, middle_glyphs, last_glyphs];
+    let mut test_variants = test_variants.iter().cycle();
 
-        let mut first_glyphs = vec![];
-        let mut middle_glyphs = vec![];
-        let mut last_glyphs = vec![];
+    let mut cache = Cache::builder()
+        .dimensions(1500, 1500)
+        .scale_tolerance(0.1)
+        .position_tolerance(0.1)
+        .build();
 
-        for (id, font) in FONTS.iter().enumerate() {
-            let first_str: String = distinct_subsection[0].iter().collect();
-            first_glyphs.push((id, test_glyphs(font, &first_str)));
-
-            let middle_str: String = distinct_subsection[distinct_subsection.len() / 2]
-                .iter()
-                .collect();
-            middle_glyphs.push((id, test_glyphs(font, &middle_str)));
-
-            let last_str: String = distinct_subsection[distinct_subsection.len() - 1]
-                .iter()
-                .collect();
-            last_glyphs.push((id, test_glyphs(font, &last_str)));
-        }
-
-        let test_variants = [first_glyphs, middle_glyphs, last_glyphs];
-        let mut test_variants = test_variants.iter().cycle();
-
-        let mut cache = Cache::builder()
-            .dimensions(1500, 1500)
-            .scale_tolerance(0.1)
-            .position_tolerance(0.1)
-            .build();
-
+    c.bench_function("moving_text", |b| {
         b.iter(|| {
             // switch text variant each run to force cache to deal with moving text
             // requirements
@@ -284,28 +286,28 @@ mod cache {
                     );
                 }
             }
-        });
-    }
+        })
+    });
 }
 
-/// Benchmarks for cases that should generally be avoided by the cache user if
-/// at all possible (ie by picking a better initial cache size).
-mod cache_bad_cases {
-    use super::*;
+// **************************************************************************
+// Benchmarks for cases that should generally be avoided by the cache user if
+// at all possible (ie by picking a better initial cache size).
+// **************************************************************************
 
-    /// Cache isn't large enough for a queue so a new cache is created to hold
-    /// the queue.
-    #[bench]
-    fn resizing(b: &mut ::test::Bencher) {
-        let up_to_index = TEST_STR.char_indices().nth(120).unwrap().0;
-        let string = &TEST_STR[..up_to_index];
+/// Cache isn't large enough for a queue so a new cache is created to hold
+/// the queue.
+fn bench_resizing(c: &mut Criterion) {
+    let up_to_index = TEST_STR.char_indices().nth(120).unwrap().0;
+    let string = &TEST_STR[..up_to_index];
 
-        let font_glyphs: Vec<_> = FONTS
-            .iter()
-            .enumerate()
-            .map(|(id, font)| (id, test_glyphs(font, string)))
-            .collect();
+    let font_glyphs: Vec<_> = FONTS
+        .iter()
+        .enumerate()
+        .map(|(id, font)| (id, test_glyphs(font, string)))
+        .collect();
 
+    c.bench_function("resizing", |b| {
         b.iter(|| {
             let mut cache = Cache::builder().dimensions(256, 256).build();
 
@@ -336,47 +338,48 @@ mod cache_bad_cases {
                     );
                 }
             }
-        });
+        })
+    });
+}
+
+/// Benchmark using multiple fonts and a different text group of glyphs
+/// each run. The cache is only large enough to fit each run if it is
+/// cleared and re-built.
+fn bench_moving_text_thrashing(c: &mut Criterion) {
+    let chars: Vec<_> = TEST_STR.chars().collect();
+    let subsection_len = 60;
+    let distinct_subsection: Vec<_> = chars.windows(subsection_len).collect();
+
+    let mut first_glyphs = vec![];
+    let mut middle_glyphs = vec![];
+    let mut last_glyphs = vec![];
+
+    for (id, font) in FONTS.iter().enumerate() {
+        let first_str: String = distinct_subsection[0].iter().collect();
+        first_glyphs.push((id, test_glyphs(font, &first_str)));
+
+        let middle_str: String = distinct_subsection[distinct_subsection.len() / 2]
+            .iter()
+            .collect();
+        middle_glyphs.push((id, test_glyphs(font, &middle_str)));
+
+        let last_str: String = distinct_subsection[distinct_subsection.len() - 1]
+            .iter()
+            .collect();
+        last_glyphs.push((id, test_glyphs(font, &last_str)));
     }
 
-    /// Benchmark using multiple fonts and a different text group of glyphs
-    /// each run. The cache is only large enough to fit each run if it is
-    /// cleared and re-built.
-    #[bench]
-    fn moving_text_thrashing(b: &mut ::test::Bencher) {
-        let chars: Vec<_> = TEST_STR.chars().collect();
-        let subsection_len = 60;
-        let distinct_subsection: Vec<_> = chars.windows(subsection_len).collect();
+    let test_variants = [first_glyphs, middle_glyphs, last_glyphs];
 
-        let mut first_glyphs = vec![];
-        let mut middle_glyphs = vec![];
-        let mut last_glyphs = vec![];
+    // Cache is only a little larger than each variants size meaning a lot of
+    // re-ordering, re-rasterization & re-uploading has to occur.
+    let mut cache = Cache::builder()
+        .dimensions(450, 450)
+        .scale_tolerance(0.1)
+        .position_tolerance(0.1)
+        .build();
 
-        for (id, font) in FONTS.iter().enumerate() {
-            let first_str: String = distinct_subsection[0].iter().collect();
-            first_glyphs.push((id, test_glyphs(font, &first_str)));
-
-            let middle_str: String = distinct_subsection[distinct_subsection.len() / 2]
-                .iter()
-                .collect();
-            middle_glyphs.push((id, test_glyphs(font, &middle_str)));
-
-            let last_str: String = distinct_subsection[distinct_subsection.len() - 1]
-                .iter()
-                .collect();
-            last_glyphs.push((id, test_glyphs(font, &last_str)));
-        }
-
-        let test_variants = [first_glyphs, middle_glyphs, last_glyphs];
-
-        // Cache is only a little larger than each variants size meaning a lot of
-        // re-ordering, re-rasterization & re-uploading has to occur.
-        let mut cache = Cache::builder()
-            .dimensions(450, 450)
-            .scale_tolerance(0.1)
-            .position_tolerance(0.1)
-            .build();
-
+    c.bench_function("moving_text_thrashing", |b| {
         b.iter(|| {
             // switch text variant each run to force cache to deal with moving text
             // requirements
@@ -403,6 +406,19 @@ mod cache_bad_cases {
                     }
                 }
             }
-        });
-    }
+        })
+    });
 }
+
+criterion_group!(
+    benches,
+    bench_high_position_tolerance,
+    bench_single_font,
+    bench_multi_font,
+    bench_multi_font_population,
+    bench_moving_text,
+    bench_resizing,
+    bench_moving_text_thrashing,
+);
+
+criterion_main!(benches);
