@@ -32,7 +32,7 @@ fn render_to_reference_big_biohazard() {
 
     let reference = image::load(
         Cursor::new(include_bytes!("reference_big_biohazard.png") as &[u8]),
-        image::PNG,
+        image::ImageFormat::Png,
     )
     .expect("!image::load")
     .to_luma_alpha();
@@ -63,7 +63,7 @@ fn render_to_reference_w() {
 
     let reference = image::load(
         Cursor::new(include_bytes!("reference_w.png") as &[u8]),
-        image::PNG,
+        image::ImageFormat::Png,
     )
     .expect("!image::load")
     .to_luma_alpha();
@@ -94,7 +94,7 @@ fn render_to_reference_iota() {
 
     let reference = image::load(
         Cursor::new(include_bytes!("reference_iota.png") as &[u8]),
-        image::PNG,
+        image::ImageFormat::Png,
     )
     .expect("!image::load")
     .to_luma_alpha();
