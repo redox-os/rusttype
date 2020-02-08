@@ -2,6 +2,7 @@ use glium::*;
 use rusttype::gpu_cache::Cache;
 use rusttype::{point, vector, Font, PositionedGlyph, Rect, Scale};
 use std::borrow::Cow;
+use std::env;
 use std::error::Error;
 
 fn layout_paragraph<'a>(
@@ -46,6 +47,10 @@ fn layout_paragraph<'a>(
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    if cfg!(target_os = "linux") && env::var("WINIT_UNIX_BACKEND").is_err() {
+        env::set_var("WINIT_UNIX_BACKEND", "x11");
+    }
+
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     let font = Font::from_bytes(font_data as &[u8])?;
 
