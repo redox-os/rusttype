@@ -70,7 +70,6 @@ fn bench_draw_w(c: &mut Criterion) {
             "c0e795601e3412144d1bfdc0cd94d9507aa9775a0f0f4f9862fe7ec7e83d7684"
         );
     });
-
 }
 
 fn bench_draw_iota(c: &mut Criterion) {
@@ -102,7 +101,6 @@ fn bench_draw_iota(c: &mut Criterion) {
             "cdad348e38263a13f68ae41a95ce3b900d2881375a745232309ebd568a27cd4c"
         );
     });
-
 }
 
 criterion_group!(

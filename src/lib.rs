@@ -116,10 +116,10 @@ use alloc::rc::Rc as Arc;
 #[cfg(feature = "has-atomics")]
 use alloc::sync::Arc;
 
-#[cfg(not(feature = "std"))]
-use alloc::{boxed::Box, vec::Vec};
 #[cfg(all(feature = "libm-math", not(feature = "std")))]
 use crate::nostd_float::FloatExt;
+#[cfg(not(feature = "std"))]
+use alloc::{boxed::Box, vec::Vec};
 
 /// A collection of fonts read straight from a font file's data. The data in the
 /// collection is not validated. This structure may or may not own the font

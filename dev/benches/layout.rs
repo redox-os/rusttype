@@ -14,7 +14,7 @@ fn bench_layout_a_sentence(c: &mut Criterion) {
 
     c.bench_function("layout_a_sentence", |b| {
         let mut glyphs = vec![];
-        
+
         b.iter(|| {
             glyphs.clear();
             glyphs.extend(font.layout(SENTENCE, Scale::uniform(25.0), point(100.0, 25.0)))

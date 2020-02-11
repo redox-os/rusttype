@@ -1,4 +1,8 @@
 use glium::*;
+use glutin::{
+    event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event_loop::ControlFlow,
+};
 use rusttype::gpu_cache::Cache;
 use rusttype::{point, vector, Font, PositionedGlyph, Rect, Scale};
 use std::borrow::Cow;
@@ -6,7 +10,7 @@ use std::env;
 use std::error::Error;
 
 fn layout_paragraph<'a>(
-    font: &'a Font,
+    font: &Font<'a>,
     scale: Scale,
     width: u32,
     text: &str,
@@ -52,19 +56,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-    let font = Font::from_bytes(font_data as &[u8])?;
+    let font: Font<'static> = Font::from_bytes(font_data as &[u8])?;
 
-    let window = glium::glutin::WindowBuilder::new()
-        .with_dimensions((512, 512).into())
+    let window = glium::glutin::window::WindowBuilder::new()
+        .with_inner_size(glium::glutin::dpi::PhysicalSize::new(512, 512))
         .with_title("RustType GPU cache example");
     let context = glium::glutin::ContextBuilder::new().with_vsync(true);
-    let mut events_loop = glium::glutin::EventsLoop::new();
-    let display = glium::Display::new(window, context, &events_loop)?;
+    let event_loop = glium::glutin::event_loop::EventLoop::new();
+    let display = glium::Display::new(window, context, &event_loop)?;
 
-    let dpi_factor = display.gl_window().window().get_hidpi_factor();
+    let scale = display.gl_window().window().scale_factor();
 
-    let (cache_width, cache_height) = ((512.0 * dpi_factor) as u32, (512.0 * dpi_factor) as u32);
-    let mut cache = Cache::builder()
+    let (cache_width, cache_height) = ((512.0 * scale) as u32, (512.0 * scale) as u32);
+    let mut cache: Cache<'static> = Cache::builder()
         .dimensions(cache_width, cache_height)
         .build();
 
@@ -118,164 +122,148 @@ fn main() -> Result<(), Box<dyn Error>> {
 Feel free to type out some text, and delete it with Backspace. \
 You can also try resizing this window."
         .into();
-    loop {
-        let dpi_factor = display.gl_window().window().get_hidpi_factor();
-        let (width, _): (u32, _) = display
-            .gl_window()
-            .window()
-            .get_inner_size()
-            .ok_or("get_inner_size")?
-            .to_physical(dpi_factor)
-            .into();
-        let dpi_factor = dpi_factor as f32;
 
-        let mut finished = false;
-        events_loop.poll_events(|event| {
-            use glium::glutin::*;
-
-            if let Event::WindowEvent { event, .. } = event {
-                match event {
-                    WindowEvent::CloseRequested => finished = true,
-                    WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(keypress),
-                                ..
-                            },
-                        ..
-                    } => match keypress {
-                        VirtualKeyCode::Escape => finished = true,
-                        VirtualKeyCode::Back => {
-                            text.pop();
-                        }
-                        _ => (),
-                    },
-                    WindowEvent::ReceivedCharacter(c) => {
-                        if c != '\u{7f}' && c != '\u{8}' {
-                            text.push(c);
-                        }
-                    }
-                    _ => {}
+    event_loop.run(move |event, _, control_flow| {
+        match event {
+            Event::WindowEvent { event, .. } => match event {
+                WindowEvent::KeyboardInput {
+                    input:
+                        KeyboardInput {
+                            virtual_keycode: Some(VirtualKeyCode::Escape),
+                            ..
+                        },
+                    ..
                 }
-            }
-        });
-        if finished {
-            break;
-        }
-
-        let glyphs = layout_paragraph(&font, Scale::uniform(24.0 * dpi_factor), width, &text);
-        for glyph in &glyphs {
-            cache.queue_glyph(0, glyph.clone());
-        }
-        cache.cache_queued(|rect, data| {
-            cache_tex.main_level().write(
-                glium::Rect {
-                    left: rect.min.x,
-                    bottom: rect.min.y,
-                    width: rect.width(),
-                    height: rect.height(),
-                },
-                glium::texture::RawImage2d {
-                    data: Cow::Borrowed(data),
-                    width: rect.width(),
-                    height: rect.height(),
-                    format: glium::texture::ClientFormat::U8,
-                },
-            );
-        })?;
-
-        let uniforms = uniform! {
-            tex: cache_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest)
-        };
-
-        let vertex_buffer = {
-            #[derive(Copy, Clone)]
-            struct Vertex {
-                position: [f32; 2],
-                tex_coords: [f32; 2],
-                colour: [f32; 4],
-            }
-
-            implement_vertex!(Vertex, position, tex_coords, colour);
-            let colour = [0.0, 0.0, 0.0, 1.0];
-            let (screen_width, screen_height) = {
-                let (w, h) = display.get_framebuffer_dimensions();
-                (w as f32, h as f32)
-            };
-            let origin = point(0.0, 0.0);
-            let vertices: Vec<Vertex> = glyphs
-                .iter()
-                .flat_map(|g| {
-                    if let Ok(Some((uv_rect, screen_rect))) = cache.rect_for(0, g) {
-                        let gl_rect = Rect {
-                            min: origin
-                                + (vector(
-                                    screen_rect.min.x as f32 / screen_width - 0.5,
-                                    1.0 - screen_rect.min.y as f32 / screen_height - 0.5,
-                                )) * 2.0,
-                            max: origin
-                                + (vector(
-                                    screen_rect.max.x as f32 / screen_width - 0.5,
-                                    1.0 - screen_rect.max.y as f32 / screen_height - 0.5,
-                                )) * 2.0,
-                        };
-                        arrayvec::ArrayVec::<[Vertex; 6]>::from([
-                            Vertex {
-                                position: [gl_rect.min.x, gl_rect.max.y],
-                                tex_coords: [uv_rect.min.x, uv_rect.max.y],
-                                colour,
-                            },
-                            Vertex {
-                                position: [gl_rect.min.x, gl_rect.min.y],
-                                tex_coords: [uv_rect.min.x, uv_rect.min.y],
-                                colour,
-                            },
-                            Vertex {
-                                position: [gl_rect.max.x, gl_rect.min.y],
-                                tex_coords: [uv_rect.max.x, uv_rect.min.y],
-                                colour,
-                            },
-                            Vertex {
-                                position: [gl_rect.max.x, gl_rect.min.y],
-                                tex_coords: [uv_rect.max.x, uv_rect.min.y],
-                                colour,
-                            },
-                            Vertex {
-                                position: [gl_rect.max.x, gl_rect.max.y],
-                                tex_coords: [uv_rect.max.x, uv_rect.max.y],
-                                colour,
-                            },
-                            Vertex {
-                                position: [gl_rect.min.x, gl_rect.max.y],
-                                tex_coords: [uv_rect.min.x, uv_rect.max.y],
-                                colour,
-                            },
-                        ])
-                    } else {
-                        arrayvec::ArrayVec::new()
+                | WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                WindowEvent::ReceivedCharacter(c) => {
+                    if c != '\u{7f}' && c != '\u{8}' {
+                        text.push(c);
                     }
-                })
-                .collect();
+                }
+                _ => (),
+            }
+            Event::RedrawRequested(_) => {
+                let scale = display.gl_window().window().scale_factor();
+                let (width, _): (u32, _) = display
+                    .gl_window()
+                    .window()
+                    .inner_size()
+                    .into();
+                let scale = scale as f32;
 
-            glium::VertexBuffer::new(&display, &vertices)?
-        };
+                let glyphs = layout_paragraph(&font, Scale::uniform(24.0 * scale), width, &text);
+                for glyph in &glyphs {
+                    cache.queue_glyph(0, glyph.clone());
+                }
+                cache.cache_queued(|rect, data| {
+                    cache_tex.main_level().write(
+                        glium::Rect {
+                            left: rect.min.x,
+                            bottom: rect.min.y,
+                            width: rect.width(),
+                            height: rect.height(),
+                        },
+                        glium::texture::RawImage2d {
+                            data: Cow::Borrowed(data),
+                            width: rect.width(),
+                            height: rect.height(),
+                            format: glium::texture::ClientFormat::U8,
+                        },
+                    );
+                }).unwrap();
 
-        let mut target = display.draw();
-        target.clear_color(1.0, 1.0, 1.0, 0.0);
-        target.draw(
-            &vertex_buffer,
-            glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
-            &program,
-            &uniforms,
-            &glium::DrawParameters {
-                blend: glium::Blend::alpha_blending(),
-                ..Default::default()
-            },
-        )?;
+                let uniforms = uniform! {
+                    tex: cache_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest)
+                };
 
-        target.finish()?;
-    }
+                let vertex_buffer = {
+                    #[derive(Copy, Clone)]
+                    struct Vertex {
+                        position: [f32; 2],
+                        tex_coords: [f32; 2],
+                        colour: [f32; 4],
+                    }
 
-    Ok(())
+                    implement_vertex!(Vertex, position, tex_coords, colour);
+                    let colour = [0.0, 0.0, 0.0, 1.0];
+                    let (screen_width, screen_height) = {
+                        let (w, h) = display.get_framebuffer_dimensions();
+                        (w as f32, h as f32)
+                    };
+                    let origin = point(0.0, 0.0);
+                    let vertices: Vec<Vertex> = glyphs
+                        .iter()
+                        .flat_map(|g| {
+                            if let Ok(Some((uv_rect, screen_rect))) = cache.rect_for(0, g) {
+                                let gl_rect = Rect {
+                                    min: origin
+                                        + (vector(
+                                            screen_rect.min.x as f32 / screen_width - 0.5,
+                                            1.0 - screen_rect.min.y as f32 / screen_height - 0.5,
+                                        )) * 2.0,
+                                    max: origin
+                                        + (vector(
+                                            screen_rect.max.x as f32 / screen_width - 0.5,
+                                            1.0 - screen_rect.max.y as f32 / screen_height - 0.5,
+                                        )) * 2.0,
+                                };
+                                arrayvec::ArrayVec::<[Vertex; 6]>::from([
+                                    Vertex {
+                                        position: [gl_rect.min.x, gl_rect.max.y],
+                                        tex_coords: [uv_rect.min.x, uv_rect.max.y],
+                                        colour,
+                                    },
+                                    Vertex {
+                                        position: [gl_rect.min.x, gl_rect.min.y],
+                                        tex_coords: [uv_rect.min.x, uv_rect.min.y],
+                                        colour,
+                                    },
+                                    Vertex {
+                                        position: [gl_rect.max.x, gl_rect.min.y],
+                                        tex_coords: [uv_rect.max.x, uv_rect.min.y],
+                                        colour,
+                                    },
+                                    Vertex {
+                                        position: [gl_rect.max.x, gl_rect.min.y],
+                                        tex_coords: [uv_rect.max.x, uv_rect.min.y],
+                                        colour,
+                                    },
+                                    Vertex {
+                                        position: [gl_rect.max.x, gl_rect.max.y],
+                                        tex_coords: [uv_rect.max.x, uv_rect.max.y],
+                                        colour,
+                                    },
+                                    Vertex {
+                                        position: [gl_rect.min.x, gl_rect.max.y],
+                                        tex_coords: [uv_rect.min.x, uv_rect.max.y],
+                                        colour,
+                                    },
+                                ])
+                            } else {
+                                arrayvec::ArrayVec::new()
+                            }
+                        })
+                        .collect();
+
+                    glium::VertexBuffer::new(&display, &vertices).unwrap()
+                };
+
+                let mut target = display.draw();
+                target.clear_color(1.0, 1.0, 1.0, 0.0);
+                target.draw(
+                    &vertex_buffer,
+                    glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+                    &program,
+                    &uniforms,
+                    &glium::DrawParameters {
+                        blend: glium::Blend::alpha_blending(),
+                        ..Default::default()
+                    },
+                ).unwrap();
+
+                target.finish().unwrap();
+            }
+            _ => (),
+        }
+    });
 }

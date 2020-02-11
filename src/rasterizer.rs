@@ -2,9 +2,9 @@ use crate::geometry::*;
 use approx::relative_eq;
 use ordered_float::OrderedFloat;
 
-use alloc::vec::Vec;
 #[cfg(all(feature = "libm-math", not(feature = "std")))]
 use crate::nostd_float::FloatExt;
+use alloc::vec::Vec;
 
 trait SliceUp: Sized {
     type PerSlice: Iterator<Item = Self>;
