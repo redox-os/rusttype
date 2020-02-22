@@ -136,9 +136,12 @@ You can also try resizing this window."
                 }
                 | WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                 WindowEvent::ReceivedCharacter(c) => {
-                    if c != '\u{7f}' && c != '\u{8}' {
-                        text.push(c);
+                    match c {
+                        '\u{8}' => { text.pop(); },
+                        _ if c != '\u{7f}' => text.push(c),
+                        _ => {}
                     }
+                    display.gl_window().window().request_redraw();
                 }
                 _ => (),
             }
