@@ -4,10 +4,10 @@ use once_cell::sync::Lazy;
 use rusttype::*;
 
 static DEJA_VU_MONO: Lazy<Font<'static>> = Lazy::new(|| {
-    Font::from_bytes(include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8]).unwrap()
+    Font::try_from_bytes(include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8]).unwrap()
 });
 static OPEN_SANS_ITALIC: Lazy<Font<'static>> = Lazy::new(|| {
-    Font::from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8]).unwrap()
+    Font::try_from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8]).unwrap()
 });
 
 fn bench_draw_big_biohazard(c: &mut Criterion) {
@@ -36,7 +36,7 @@ fn bench_draw_big_biohazard(c: &mut Criterion) {
         // verify the draw result against static reference hash
         assert_eq!(
             format!("{:x}", Blake2s::digest(&target)),
-            "8e3927a33c6d563d45f82fb9620dea8036274b403523a2e98cd5f93eafdb2125"
+            "307a2514a191b827a214174d6c5d109599f0ec4b42d466bde91d10bdd5f8e22d"
         );
     });
 }
@@ -98,7 +98,7 @@ fn bench_draw_iota(c: &mut Criterion) {
         // verify the draw result against static reference hash
         assert_eq!(
             format!("{:x}", Blake2s::digest(&target)),
-            "cdad348e38263a13f68ae41a95ce3b900d2881375a745232309ebd568a27cd4c"
+            "d8fa90d375a7dc2c8c821395e8cef8baefb78046e4a7a93d87f96509add6a65c"
         );
     });
 }

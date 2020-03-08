@@ -989,16 +989,13 @@ fn draw_glyph(tex_coords: Rect<u32>, glyph: &PositionedGlyph<'_>, pad_glyphs: bo
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Font, FontCollection, Scale};
+    use crate::{Font, Scale};
     use approx::*;
 
     #[test]
     fn cache_test() {
         let font_data = include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-        let font = FontCollection::from_bytes(font_data as &[u8])
-            .unwrap()
-            .into_font()
-            .unwrap();
+        let font = Font::try_from_bytes(font_data as &[u8]).unwrap();
 
         let mut cache = Cache::builder()
             .dimensions(32, 32)
@@ -1026,7 +1023,7 @@ mod test {
     #[test]
     fn need_to_check_whole_cache() {
         let font_data = include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-        let font = Font::from_bytes(font_data as &[u8]).unwrap();
+        let font = Font::try_from_bytes(font_data as &[u8]).unwrap();
 
         let glyph = font.glyph('l');
 
@@ -1059,7 +1056,7 @@ mod test {
     #[test]
     fn lossy_info() {
         let font_data = include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-        let font = Font::from_bytes(font_data as &[u8]).unwrap();
+        let font = Font::try_from_bytes(font_data as &[u8]).unwrap();
         let glyph = font.glyph('l');
 
         let small = glyph.clone().scaled(Scale::uniform(9.91));
@@ -1125,7 +1122,7 @@ mod test {
             .multithread(true)
             .build();
 
-        let font = Font::from_bytes(include_bytes!(
+        let font = Font::try_from_bytes(include_bytes!(
             "../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf"
         ) as &[u8])
         .unwrap();
@@ -1173,10 +1170,7 @@ mod test {
     #[test]
     fn return_cache_by_reordering() {
         let font_data = include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-        let font = FontCollection::from_bytes(font_data as &[u8])
-            .unwrap()
-            .into_font()
-            .unwrap();
+        let font = Font::try_from_bytes(font_data as &[u8]).unwrap();
 
         let mut cache = Cache::builder()
             .dimensions(36, 27)
@@ -1208,7 +1202,7 @@ mod test {
             .dimensions(64, 64)
             .align_4x4(align_4x4)
             .build();
-        let font = Font::from_bytes(include_bytes!(
+        let font = Font::try_from_bytes(include_bytes!(
             "../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf"
         ) as &[u8])
         .unwrap();

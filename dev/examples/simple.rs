@@ -1,16 +1,27 @@
-use rusttype::{point, FontCollection, PositionedGlyph, Scale};
+use rusttype::{point, Font, Scale};
 use std::io::Write;
 
 fn main() {
-    let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-    let collection = FontCollection::from_bytes(font_data as &[u8]).unwrap_or_else(|e| {
-        panic!("error constructing a FontCollection from bytes: {}", e);
-    });
-    let font = collection
-        .into_font() // only succeeds if collection consists of one font
-        .unwrap_or_else(|e| {
-            panic!("error turning FontCollection into a Font: {}", e);
-        });
+    let font = if let Some(font_path) = std::env::args().nth(1) {
+        let font_path = std::env::current_dir().unwrap().join(font_path);
+        let data = std::fs::read(&font_path).unwrap();
+        Font::try_from_vec(data).unwrap_or_else(|| {
+            panic!(format!(
+                "error constructing a Font from data at {:?}",
+                font_path
+            ));
+        })
+    } else {
+        panic!("No font specified")
+    };
+
+    //
+    // let font_data =
+    // include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+    //     Font::try_from_bytes(font_data as &[u8]).unwrap_or_else(|_| {
+    //         panic!("error constructing a Font from bytes");
+    //     })
+    // };
 
     // Desired font pixel height
     let height: f32 = 12.4; // to get 80 chars across (fits most terminals); adjust as desired
@@ -31,7 +42,7 @@ fn main() {
     let offset = point(0.0, v_metrics.ascent);
 
     // Glyphs to draw for "RustType". Feel free to try other strings.
-    let glyphs: Vec<PositionedGlyph<'_>> = font.layout("RustType", scale, offset).collect();
+    let glyphs: Vec<_> = font.layout("RustType", scale, offset).collect();
 
     // Find the most visually pleasing width to display
     let width = glyphs

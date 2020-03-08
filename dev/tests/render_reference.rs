@@ -4,10 +4,10 @@ use rusttype::{point, Font, Scale, ScaledGlyph};
 use std::io::Cursor;
 
 static DEJA_VU_MONO: Lazy<Font<'static>> = Lazy::new(|| {
-    Font::from_bytes(include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8]).unwrap()
+    Font::try_from_bytes(include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8]).unwrap()
 });
 static OPEN_SANS_ITALIC: Lazy<Font<'static>> = Lazy::new(|| {
-    Font::from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8]).unwrap()
+    Font::try_from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8]).unwrap()
 });
 
 fn draw_luma_alpha(glyph: ScaledGlyph<'_>) -> image::GrayAlphaImage {

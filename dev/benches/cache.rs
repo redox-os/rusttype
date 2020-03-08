@@ -67,7 +67,7 @@ static FONTS: Lazy<Vec<Font<'static>>> = Lazy::new(|| {
         include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8],
     ]
     .into_iter()
-    .map(|bytes| Font::from_bytes(bytes).unwrap())
+    .map(|bytes| Font::try_from_bytes(bytes).unwrap())
     .collect()
 });
 
