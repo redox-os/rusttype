@@ -45,7 +45,7 @@
 //! # use std::error::Error;
 //! # fn example() -> Result<(), Box<dyn Error>> {
 //! # let font_data: &[u8] = include_bytes!("../dev/fonts/dejavu/DejaVuSansMono.ttf");
-//! # let font: Font<'static> = Font::from_bytes(font_data)?;
+//! # let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
 //! # let glyph = font.glyph('a').scaled(Scale::uniform(25.0)).positioned(point(0.0, 0.0));
 //! # let glyph2 = glyph.clone();
 //! # fn update_gpu_texture(_: rusttype::Rect<u32>, _: &[u8]) {};

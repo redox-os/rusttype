@@ -28,7 +28,7 @@ features = ["gpu_cache"]
 [dependencies]
 ordered-float = { version = "1", default-features = false }
 approx = { version = "0.3", default-features = false }
-ttf-parser = "0.4"
+ttf-parser = { version = "0.4", default-features = false }
 
 libm = { version = "0.2.1", default-features = false, optional = true }
 
@@ -44,9 +44,9 @@ num_cpus = { version = "1.0", optional = true }
 # don't add any, instead use ./dev
 
 [features]
-default = ["std", "has-atomics"]
+default = ["std"]
 # Activates usage of std.
-std = ["has-atomics"]
+std = ["has-atomics", "ttf-parser/default"]
 # Uses libm when not using std. This needs to be active in that case.
 libm-math = ["libm"]
 # Some targets don't have atomics, this activates usage of Arc<T> instead of Rc<T>.
