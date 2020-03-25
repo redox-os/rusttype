@@ -28,7 +28,7 @@ features = ["gpu_cache"]
 [dependencies]
 ordered-float = { version = "1", default-features = false }
 approx = { version = "0.3", default-features = false }
-ttf-parser = { version = "0.4", default-features = false }
+ttf-parser = { version = "0.5", default-features = false }
 
 libm = { version = "0.2.1", default-features = false, optional = true }
 
