@@ -196,55 +196,52 @@ You can also try resizing this window."
                     let origin = point(0.0, 0.0);
                     let vertices: Vec<Vertex> = glyphs
                         .iter()
-                        .flat_map(|g| {
-                            if let Ok(Some((uv_rect, screen_rect))) = cache.rect_for(0, g) {
-                                let gl_rect = Rect {
-                                    min: origin
-                                        + (vector(
-                                            screen_rect.min.x as f32 / screen_width - 0.5,
-                                            1.0 - screen_rect.min.y as f32 / screen_height - 0.5,
-                                        )) * 2.0,
-                                    max: origin
-                                        + (vector(
-                                            screen_rect.max.x as f32 / screen_width - 0.5,
-                                            1.0 - screen_rect.max.y as f32 / screen_height - 0.5,
-                                        )) * 2.0,
-                                };
-                                arrayvec::ArrayVec::<[Vertex; 6]>::from([
-                                    Vertex {
-                                        position: [gl_rect.min.x, gl_rect.max.y],
-                                        tex_coords: [uv_rect.min.x, uv_rect.max.y],
-                                        colour,
-                                    },
-                                    Vertex {
-                                        position: [gl_rect.min.x, gl_rect.min.y],
-                                        tex_coords: [uv_rect.min.x, uv_rect.min.y],
-                                        colour,
-                                    },
-                                    Vertex {
-                                        position: [gl_rect.max.x, gl_rect.min.y],
-                                        tex_coords: [uv_rect.max.x, uv_rect.min.y],
-                                        colour,
-                                    },
-                                    Vertex {
-                                        position: [gl_rect.max.x, gl_rect.min.y],
-                                        tex_coords: [uv_rect.max.x, uv_rect.min.y],
-                                        colour,
-                                    },
-                                    Vertex {
-                                        position: [gl_rect.max.x, gl_rect.max.y],
-                                        tex_coords: [uv_rect.max.x, uv_rect.max.y],
-                                        colour,
-                                    },
-                                    Vertex {
-                                        position: [gl_rect.min.x, gl_rect.max.y],
-                                        tex_coords: [uv_rect.min.x, uv_rect.max.y],
-                                        colour,
-                                    },
-                                ])
-                            } else {
-                                arrayvec::ArrayVec::new()
-                            }
+                        .filter_map(|g| cache.rect_for(0, g).ok().flatten())
+                        .flat_map(|(uv_rect, screen_rect)| {
+                            let gl_rect = Rect {
+                                min: origin
+                                    + (vector(
+                                        screen_rect.min.x as f32 / screen_width - 0.5,
+                                        1.0 - screen_rect.min.y as f32 / screen_height - 0.5,
+                                    )) * 2.0,
+                                max: origin
+                                    + (vector(
+                                        screen_rect.max.x as f32 / screen_width - 0.5,
+                                        1.0 - screen_rect.max.y as f32 / screen_height - 0.5,
+                                    )) * 2.0,
+                            };
+                            vec![
+                                Vertex {
+                                    position: [gl_rect.min.x, gl_rect.max.y],
+                                    tex_coords: [uv_rect.min.x, uv_rect.max.y],
+                                    colour,
+                                },
+                                Vertex {
+                                    position: [gl_rect.min.x, gl_rect.min.y],
+                                    tex_coords: [uv_rect.min.x, uv_rect.min.y],
+                                    colour,
+                                },
+                                Vertex {
+                                    position: [gl_rect.max.x, gl_rect.min.y],
+                                    tex_coords: [uv_rect.max.x, uv_rect.min.y],
+                                    colour,
+                                },
+                                Vertex {
+                                    position: [gl_rect.max.x, gl_rect.min.y],
+                                    tex_coords: [uv_rect.max.x, uv_rect.min.y],
+                                    colour,
+                                },
+                                Vertex {
+                                    position: [gl_rect.max.x, gl_rect.max.y],
+                                    tex_coords: [uv_rect.max.x, uv_rect.max.y],
+                                    colour,
+                                },
+                                Vertex {
+                                    position: [gl_rect.min.x, gl_rect.max.y],
+                                    tex_coords: [uv_rect.min.x, uv_rect.max.y],
+                                    colour,
+                                },
+                            ]
                         })
                         .collect();
 
