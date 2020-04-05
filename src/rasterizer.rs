@@ -5,6 +5,7 @@ use ordered_float::OrderedFloat;
 #[cfg(all(feature = "libm-math", not(feature = "std")))]
 use crate::nostd_float::FloatExt;
 use alloc::vec::Vec;
+use core::iter;
 
 trait SliceUp: Sized {
     type PerSlice: Iterator<Item = Self>;
@@ -86,7 +87,7 @@ impl SliceUp for Line {
     }
 }
 
-type CurveIter = arrayvec::IntoIter<[Curve; 2]>;
+type CurveIter = iter::Chain<iter::Once<Curve>, core::option::IntoIter<Curve>>;
 
 struct CurveSliceIter {
     curve: Curve,
@@ -102,7 +103,6 @@ impl Iterator for CurveSliceIter {
     fn next(&mut self) -> Option<Self::Item> {
         use crate::geometry::solve_quadratic_real as solve;
         use crate::geometry::RealQuadraticSolution as RQS;
-        use arrayvec::ArrayVec;
         if self.i >= self.planes.count {
             return None;
         }
@@ -113,7 +113,10 @@ impl Iterator for CurveSliceIter {
         let upper_d = self.planes.start + self.planes.step * upper;
         let l_sol = solve(self.a, self.b, self.c_shift - lower_d);
         let u_sol = solve(self.a, self.b, self.c_shift - upper_d);
-        let mut result = ArrayVec::<[Curve; 2]>::new();
+
+        let mut curve1 = None;
+        let mut curve2 = None;
+
         match (l_sol.in_order(), u_sol.in_order()) {
             (RQS::Two(a, b), RQS::Two(c, d)) => {
                 // Two pieces
@@ -128,11 +131,14 @@ impl Iterator for CurveSliceIter {
                     c.min(1.0).max(0.0),
                     d.min(1.0).max(0.0),
                 );
-                if !relative_eq!(a, b) {
-                    result.push(self.curve.cut_from_to(a, b));
-                }
-                if !relative_eq!(c, d) {
-                    result.push(self.curve.cut_from_to(c, d));
+                match (relative_eq!(a, b), relative_eq!(c, d)) {
+                    (false, false) => {
+                        curve1 = Some(self.curve.cut_from_to(a, b));
+                        curve2 = Some(self.curve.cut_from_to(c, d));
+                    }
+                    (false, true) => curve1 = Some(self.curve.cut_from_to(a, b)),
+                    (true, false) => curve1 = Some(self.curve.cut_from_to(c, d)),
+                    _ => {}
                 }
             }
             (RQS::Two(a, b), RQS::None)
@@ -145,12 +151,12 @@ impl Iterator for CurveSliceIter {
                 let a = a.min(1.0).max(0.0);
                 let b = b.min(1.0).max(0.0);
                 if !relative_eq!(a, b) {
-                    result.push(self.curve.cut_from_to(a, b));
+                    curve1 = Some(self.curve.cut_from_to(a, b));
                 }
             }
             (RQS::All, RQS::None) | (RQS::None, RQS::All) => {
                 // coincident with one plane
-                result.push(self.curve);
+                curve1 = Some(self.curve);
             }
             (RQS::None, RQS::None) => {
                 if self.a == 0.0
@@ -159,12 +165,16 @@ impl Iterator for CurveSliceIter {
                     && self.c_shift <= upper_d
                 {
                     // parallel to planes, inbetween
-                    result.push(self.curve);
+                    curve1 = Some(self.curve);
                 }
             }
             _ => unreachable!(), // impossible
         }
-        Some(result.into_iter())
+
+        match curve1 {
+            Some(curve) => Some(iter::once(curve).chain(curve2)),
+            None => None
+        }
     }
 }
 
