@@ -110,13 +110,19 @@ pub mod gpu_cache;
 pub use crate::geometry::{point, vector, Point, Rect, Vector};
 pub use font::*;
 
-use approx::relative_eq;
 use core::fmt;
 
 #[cfg(all(feature = "libm-math", not(feature = "std")))]
 use crate::nostd_float::FloatExt;
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
+
+/// Good enough relatively equal test for floats.
+macro_rules! relative_eq {
+    ($a:expr, $b:expr) => {
+        ($a - $b).abs() <= core::f32::EPSILON
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct GlyphId(pub u16);
