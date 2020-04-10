@@ -23,6 +23,15 @@ pub struct Point<N> {
     pub y: N,
 }
 
+impl <N: Default> Default for Point<N> {
+    fn default() -> Self {
+        Point {
+            x: N::default(),
+            y: N::default()
+        }
+    }
+}
+
 /// A vector in 2-dimensional space, with each dimension of type `N`.
 ///
 /// Legal operations on vectors are addition and subtraction by vectors,
@@ -33,6 +42,16 @@ pub struct Vector<N> {
     pub x: N,
     pub y: N,
 }
+
+impl <N: Default> Default for Vector<N> {
+    fn default() -> Self {
+        Vector {
+            x: N::default(),
+            y: N::default()
+        }
+    }
+}
+
 /// A convenience function for generating `Point`s.
 #[inline]
 pub fn point<N>(x: N, y: N) -> Point<N> {
@@ -143,13 +162,13 @@ impl<N: ops::Add<Output = N>> ops::Add<Point<N>> for Vector<N> {
 }
 
 /// A straight line between two points, `p[0]` and `p[1]`
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Line {
     pub p: [Point<f32>; 2],
 }
 /// A quadratic Bezier curve, starting at `p[0]`, ending at `p[2]`, with control
 /// point `p[1]`.
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Curve {
     pub p: [Point<f32>; 3],
 }
@@ -160,6 +179,16 @@ pub struct Rect<N> {
     pub min: Point<N>,
     pub max: Point<N>,
 }
+
+impl <N: Default> Default for Rect<N> {
+    fn default() -> Self {
+        Rect {
+            min: Point::default(),
+            max: Point::default()
+        }
+    }
+}
+
 impl<N: ops::Sub<Output = N> + Copy> Rect<N> {
     pub fn width(&self) -> N {
         self.max.x - self.min.x
