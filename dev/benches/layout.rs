@@ -13,7 +13,7 @@ fn bench_layout_a_sentence(c: &mut Criterion) {
         Font::try_from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8])
             .unwrap();
 
-    c.bench_function("layout_a_sentence (bytes)", |b| {
+    c.bench_function("layout_a_sentence", |b| {
         let mut glyphs = vec![];
 
         b.iter(|| {
