@@ -30,11 +30,11 @@ Heavier examples, tests & benchmarks are in the `./dev` directory. This avoids d
 
 Run all tests with `cargo test --all --all-features`.
 
-Run examples with `cargo run --example <NAME> -p rusttype-dev`
+Run examples with `cargo run --example <NAME> -p dev`
 
 ## Getting Started
 
-To hit the ground running with RustType, look at `dev/examples/simple.rs`
+To hit the ground running with RustType, look at `dev/examples/ascii.rs`
 supplied with the crate. It demonstrates loading a font file, rasterising an
 arbitrary string, and displaying the result as ASCII art. If you prefer to just
 look at the documentation, the entry point for loading fonts is `Font`,

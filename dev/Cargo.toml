@@ -1,5 +1,5 @@
 [package]
-name = "rusttype-dev"
+name = "dev"
 version = "0.1.0"
 description = "Tests, examples & benchmarks avoiding dependency feature bleed"
 edition = "2018"

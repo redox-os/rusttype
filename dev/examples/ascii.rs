@@ -1,3 +1,4 @@
+//! Render example where each glyph pixel is output as an ascii character.
 use rusttype::{point, Font, Scale};
 use std::io::Write;
 
@@ -12,16 +13,10 @@ fn main() {
             ));
         })
     } else {
-        panic!("No font specified")
+        eprintln!("No font specified ... using WenQuanYiMicroHei.ttf");
+        let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+        Font::try_from_bytes(font_data as &[u8]).expect("error constructing a Font from bytes")
     };
-
-    //
-    // let font_data =
-    // include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-    //     Font::try_from_bytes(font_data as &[u8]).unwrap_or_else(|_| {
-    //         panic!("error constructing a Font from bytes");
-    //     })
-    // };
 
     // Desired font pixel height
     let height: f32 = 12.4; // to get 80 chars across (fits most terminals); adjust as desired

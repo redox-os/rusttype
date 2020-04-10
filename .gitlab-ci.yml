@@ -43,7 +43,7 @@ test:stable:gpu_cache:
   script:
   - cargo +stable test --features 'gpu_cache'
 
-# Heavier testing using rusttype-dev
+# Heavier testing using "dev"
 test:dev:
   stage: test
   variables:
