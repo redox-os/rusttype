@@ -31,7 +31,7 @@
 //! supplied with the crate. It demonstrates loading a font file, rasterising an
 //! arbitrary string, and displaying the result as ASCII art. If you prefer to
 //! just look at the documentation, the entry point for loading fonts is
-//! `FontCollection`, from which you can access individual fonts, then their
+//! `Font`, from which you can access individual fonts, then their
 //! glyphs.
 //!
 //! # Glyphs
@@ -99,7 +99,7 @@ extern crate alloc;
 
 mod font;
 mod geometry;
-mod rasterizer;
+mod outliner;
 
 #[cfg(all(feature = "libm-math", not(feature = "std")))]
 mod nostd_float;
@@ -107,7 +107,7 @@ mod nostd_float;
 #[cfg(feature = "gpu_cache")]
 pub mod gpu_cache;
 
-pub use crate::geometry::{point, vector, Curve, Line, Point, Rect, Vector};
+pub use crate::geometry::{point, vector, Point, Rect, Vector};
 pub use font::*;
 
 use approx::relative_eq;
@@ -132,9 +132,7 @@ impl From<GlyphId> for ttf_parser::GlyphId {
     }
 }
 
-/// A single glyph of a font. this may either be a thin wrapper referring to the
-/// font and the glyph id, or it may be a standalone glyph that owns the data
-/// needed by it.
+/// A single glyph of a font.
 ///
 /// A `Glyph` does not have an inherent scale or position associated with it. To
 /// augment a glyph with a size, give it a scale using `scaled`. You can then
@@ -146,10 +144,7 @@ pub struct Glyph<'font> {
 }
 
 impl<'font> Glyph<'font> {
-    /// The font to which this glyph belongs. If the glyph is a standalone glyph
-    /// that owns its resources, it no longer has a reference to the font which
-    /// it was created from (using `standalone()`). In which case, `None` is
-    /// returned.
+    /// The font to which this glyph belongs.
     pub fn font(&self) -> &Font<'font> {
         &self.font
     }
@@ -234,10 +229,7 @@ impl<'font> ScaledGlyph<'font> {
         self.g.id()
     }
 
-    /// The font to which this glyph belongs. If the glyph is a standalone glyph
-    /// that owns its resources, it no longer has a reference to the font which
-    /// it was created from (using `standalone()`). In which case, `None` is
-    /// returned.
+    /// The font to which this glyph belongs.
     #[inline]
     pub fn font(&self) -> &Font<'font> {
         self.g.font()
@@ -365,10 +357,7 @@ impl<'font> PositionedGlyph<'font> {
         self.sg.id()
     }
 
-    /// The font to which this glyph belongs. If the glyph is a standalone glyph
-    /// that owns its resources, it no longer has a reference to the font which
-    /// it was created from (using `standalone()`). In which case, `None` is
-    /// returned.
+    /// The font to which this glyph belongs.
     #[inline]
     pub fn font(&self) -> &Font<'font> {
         self.sg.font()
@@ -427,20 +416,23 @@ impl<'font> PositionedGlyph<'font> {
             return;
         };
 
+        let width = (bb.max.x - bb.min.x) as u32;
+        let height = (bb.max.y - bb.min.y) as u32;
+
         let offset = vector(bb.min.x as f32, bb.min.y as f32);
-        let mut outliner = Outliner::new(&self, offset);
+
+        let mut outliner = crate::outliner::OutlineRasterizer::new(
+            self.position - offset,
+            self.sg.scale,
+            width as _,
+            height as _,
+        );
 
         self.font()
             .inner()
             .outline_glyph(self.id().into(), &mut outliner);
 
-        rasterizer::rasterize(
-            &outliner.lines,
-            &outliner.curves,
-            (bb.max.x - bb.min.x) as u32,
-            (bb.max.y - bb.min.y) as u32,
-            o,
-        );
+        outliner.rasterizer.for_each_pixel_2d(o);
     }
 
     /// Resets positioning information and recalculates the pixel bounding box
@@ -563,91 +555,4 @@ impl<'b> Iterator for LayoutIter<'b> {
             g
         })
     }
-}
-
-struct Outliner {
-    lines: Vec<Line>,
-    curves: Vec<Curve>,
-    last: Point<f32>,
-
-    position: Point<f32>,
-    scale: Vector<f32>,
-    offset: Vector<f32>,
-}
-
-// struct OffsetOutlines {
-//     lines: Vec<Line>,
-//     curves: Vec<Curve>,
-// }
-
-impl Outliner {
-    fn new(glyph: &PositionedGlyph<'_>, offset: Vector<f32>) -> Self {
-        Self {
-            lines: <_>::default(),
-            curves: <_>::default(),
-            last: point(0.0, 0.0),
-            position: glyph.position,
-            scale: glyph.sg.scale,
-            offset,
-        }
-    }
-
-    // fn offset(self, offset: Vector<f32>) -> OffsetOutlines {
-    //     let mut lines = self.lines;
-    //     let mut curves = self.curves;
-    //
-    //     lines.iter_mut().for_each(|l| l.p.iter_mut().for_each(|p| *p = *p - offset));
-    //     curves.iter_mut().for_each(|l| l.p.iter_mut().for_each(|p| *p = *p - offset));
-    //
-    //     OffsetOutlines {
-    //         lines,
-    //         curves,
-    //     }
-    // }
-}
-
-impl ttf_parser::OutlineBuilder for Outliner {
-    fn move_to(&mut self, x: f32, y: f32) {
-        self.last = point(
-            x as f32 * self.scale.x + self.position.x,
-            -y as f32 * self.scale.y + self.position.y,
-        ) - self.offset;
-    }
-
-    fn line_to(&mut self, x: f32, y: f32) {
-        let end = point(
-            x as f32 * self.scale.x + self.position.x,
-            -y as f32 * self.scale.y + self.position.y,
-        ) - self.offset;
-
-        self.lines.push(Line {
-            p: [self.last, end],
-        });
-
-        self.last = end;
-    }
-
-    fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
-        let end = point(
-            x as f32 * self.scale.x + self.position.x,
-            -y as f32 * self.scale.y + self.position.y,
-        ) - self.offset;
-
-        let control = point(
-            x1 as f32 * self.scale.x + self.position.x,
-            -y1 as f32 * self.scale.y + self.position.y,
-        ) - self.offset;
-
-        self.curves.push(Curve {
-            p: [self.last, control, end],
-        });
-
-        self.last = end;
-    }
-
-    fn curve_to(&mut self, _x1: f32, _y1: f32, _x2: f32, _y2: f32, _x: f32, _y: f32) {
-        todo!("otf curves not yet supported")
-    }
-
-    fn close(&mut self) {}
 }

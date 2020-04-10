@@ -9,6 +9,9 @@ static DEJA_VU_MONO: Lazy<Font<'static>> = Lazy::new(|| {
 static OPEN_SANS_ITALIC: Lazy<Font<'static>> = Lazy::new(|| {
     Font::try_from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8]).unwrap()
 });
+static EXO2_OFT: Lazy<Font<'static>> = Lazy::new(|| {
+    Font::try_from_bytes(include_bytes!("../fonts/Exo2-Light.otf") as &[u8]).unwrap()
+});
 
 fn draw_luma_alpha(glyph: ScaledGlyph<'_>) -> image::GrayAlphaImage {
     let glyph = glyph.positioned(point(0.0, 0.0));
@@ -94,6 +97,36 @@ fn render_to_reference_iota() {
 
     let reference = image::load(
         Cursor::new(include_bytes!("reference_iota.png") as &[u8]),
+        image::ImageFormat::Png,
+    )
+    .expect("!image::load")
+    .to_luma_alpha();
+
+    assert_eq!(reference.dimensions(), new_image.dimensions());
+
+    for y in 0..reference.height() {
+        for x in 0..reference.width() {
+            assert_eq!(
+                reference.get_pixel(x, y),
+                new_image.get_pixel(x, y),
+                "unexpected alpha difference at ({}, {})",
+                x,
+                y
+            );
+        }
+    }
+}
+
+/// Render a 300px 'ę' character that uses cubic beziers & require it to match the reference.
+#[test]
+fn render_to_reference_oft_tailed_e() {
+    let new_image = draw_luma_alpha(EXO2_OFT.glyph('ę').scaled(Scale::uniform(300.0)));
+
+    // save the new render for manual inspection
+    new_image.save("../target/otf_tailed_e.png").unwrap();
+
+    let reference = image::load(
+        Cursor::new(include_bytes!("reference_otf_tailed_e.png") as &[u8]),
         image::ImageFormat::Png,
     )
     .expect("!image::load")

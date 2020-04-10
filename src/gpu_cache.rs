@@ -973,13 +973,13 @@ fn draw_glyph(tex_coords: Rect<u32>, glyph: &PositionedGlyph<'_>, pad_glyphs: bo
     let mut pixels = ByteArray2d::zeros(tex_coords.height() as usize, tex_coords.width() as usize);
     if pad_glyphs {
         glyph.draw(|x, y, v| {
-            let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
+            let v = (v * 255.0).round() as u8;
             // `+ 1` accounts for top/left glyph padding
             pixels[(y as usize + 1, x as usize + 1)] = v;
         });
     } else {
         glyph.draw(|x, y, v| {
-            let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
+            let v = (v * 255.0).round() as u8;
             pixels[(y as usize, x as usize)] = v;
         });
     }
