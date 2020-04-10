@@ -17,19 +17,10 @@ use crate::nostd_float::FloatExt;
 /// # let t = 0.5; let p0 = point(0.0, 0.0); let p1 = point(0.0, 0.0);
 /// let interpolated_point = p0 + (p1 - p0) * t;
 /// ```
-#[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, Default, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct Point<N> {
     pub x: N,
     pub y: N,
-}
-
-impl <N: Default> Default for Point<N> {
-    fn default() -> Self {
-        Point {
-            x: N::default(),
-            y: N::default()
-        }
-    }
 }
 
 /// A vector in 2-dimensional space, with each dimension of type `N`.
@@ -37,19 +28,10 @@ impl <N: Default> Default for Point<N> {
 /// Legal operations on vectors are addition and subtraction by vectors,
 /// addition by points (to give points), and multiplication and division by
 /// scalars.
-#[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, Default, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct Vector<N> {
     pub x: N,
     pub y: N,
-}
-
-impl <N: Default> Default for Vector<N> {
-    fn default() -> Self {
-        Vector {
-            x: N::default(),
-            y: N::default()
-        }
-    }
 }
 
 /// A convenience function for generating `Point`s.
@@ -174,19 +156,10 @@ pub struct Curve {
 }
 /// A rectangle, with top-left corner at `min`, and bottom-right corner at
 /// `max`.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Rect<N> {
     pub min: Point<N>,
     pub max: Point<N>,
-}
-
-impl <N: Default> Default for Rect<N> {
-    fn default() -> Self {
-        Rect {
-            min: Point::default(),
-            max: Point::default()
-        }
-    }
 }
 
 impl<N: ops::Sub<Output = N> + Copy> Rect<N> {
