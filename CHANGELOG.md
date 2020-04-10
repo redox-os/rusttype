@@ -1,5 +1,6 @@
-## Unreleased
+## 0.8.3
 * Remove arrayvec dependency.
+* Add `Default` implementations for geometry structs.
 
 ## 0.8.2
 * Update crossbeam-utils -> `0.7`.
