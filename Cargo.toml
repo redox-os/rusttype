@@ -48,7 +48,7 @@ default = ["std"]
 # Activates usage of std.
 std = ["has-atomics", "ttf-parser/default", "ab_glyph_rasterizer/default"]
 # Uses libm when not using std. This needs to be active in that case.
-libm-math = ["libm"]
+libm-math = ["libm", "ab_glyph_rasterizer/libm"]
 # Some targets don't have atomics, this activates usage of Arc<T> instead of Rc<T>.
 has-atomics = []
 # Adds `gpu_cache` module

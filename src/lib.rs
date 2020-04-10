@@ -114,8 +114,6 @@ use core::fmt;
 
 #[cfg(all(feature = "libm-math", not(feature = "std")))]
 use crate::nostd_float::FloatExt;
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
 
 /// Good enough relatively equal test for floats.
 macro_rules! relative_eq {
