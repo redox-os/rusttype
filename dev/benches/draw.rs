@@ -8,8 +8,11 @@ static DEJA_VU_MONO: Lazy<Font<'static>> = Lazy::new(|| {
 static OPEN_SANS_ITALIC: Lazy<Font<'static>> = Lazy::new(|| {
     Font::try_from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8]).unwrap()
 });
-static EXO2_OFT: Lazy<Font<'static>> = Lazy::new(|| {
+static EXO2_OTF: Lazy<Font<'static>> = Lazy::new(|| {
     Font::try_from_bytes(include_bytes!("../fonts/Exo2-Light.otf") as &[u8]).unwrap()
+});
+static EXO2_TTF: Lazy<Font<'static>> = Lazy::new(|| {
+    Font::try_from_bytes(include_bytes!("../fonts/Exo2-Light.ttf") as &[u8]).unwrap()
 });
 
 fn draw_big_biohazard(c: &mut Criterion) {
@@ -90,8 +93,8 @@ fn draw_iota(c: &mut Criterion) {
     });
 }
 
-fn draw_oft_tailed_e(c: &mut Criterion) {
-    let glyph = EXO2_OFT
+fn draw_otf_tailed_e(c: &mut Criterion) {
+    let glyph = EXO2_OTF
         .glyph('ę')
         .scaled(Scale::uniform(300.0))
         .positioned(point(0.0, 0.0));
@@ -106,7 +109,33 @@ fn draw_oft_tailed_e(c: &mut Criterion) {
     );
 
     let mut target = [0u8; WIDTH * HEIGHT];
-    c.bench_function("draw_oft_tailed_e", |b| {
+    c.bench_function("draw_otf_tailed_e", |b| {
+        b.iter(|| {
+            glyph.draw(|x, y, alpha| {
+                let (x, y) = (x as usize, y as usize);
+                target[WIDTH * y + x] = (alpha * 255.0) as u8;
+            })
+        });
+    });
+}
+
+fn draw_ttf_tailed_e(c: &mut Criterion) {
+    let glyph = EXO2_TTF
+        .glyph('ę')
+        .scaled(Scale::uniform(300.0))
+        .positioned(point(0.0, 0.0));
+
+    const WIDTH: usize = 106;
+    const HEIGHT: usize = 177;
+
+    let bounds = glyph.pixel_bounding_box().unwrap();
+    assert_eq!(
+        (bounds.width() as usize, bounds.height() as usize),
+        (WIDTH, HEIGHT)
+    );
+
+    let mut target = [0u8; WIDTH * HEIGHT];
+    c.bench_function("draw_ttf_tailed_e", |b| {
         b.iter(|| {
             glyph.draw(|x, y, alpha| {
                 let (x, y) = (x as usize, y as usize);
@@ -121,7 +150,8 @@ criterion_group!(
     draw_big_biohazard,
     draw_w,
     draw_iota,
-    draw_oft_tailed_e,
+    draw_otf_tailed_e,
+    draw_ttf_tailed_e,
 );
 
 criterion_main!(draw_benches);
