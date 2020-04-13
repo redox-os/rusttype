@@ -115,13 +115,6 @@ use core::fmt;
 #[cfg(all(feature = "libm-math", not(feature = "std")))]
 use crate::nostd_float::FloatExt;
 
-/// Good enough relatively equal test for floats.
-macro_rules! relative_eq {
-    ($a:expr, $b:expr) => {
-        ($a - $b).abs() <= core::f32::EPSILON
-    };
-}
-
 #[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct GlyphId(pub u16);
 
@@ -442,7 +435,7 @@ impl<'font> PositionedGlyph<'font> {
     /// Resets positioning information and recalculates the pixel bounding box
     pub fn set_position(&mut self, p: Point<f32>) {
         let p_diff = p - self.position;
-        if relative_eq!(p_diff.x.fract(), 0.0) && relative_eq!(p_diff.y.fract(), 0.0) {
+        if p_diff.x.fract().is_near_zero() && p_diff.y.fract().is_near_zero() {
             if let Some(bb) = self.bb.as_mut() {
                 let rounded_diff = vector(p_diff.x.round() as i32, p_diff.y.round() as i32);
                 bb.min = bb.min + rounded_diff;
@@ -558,5 +551,16 @@ impl<'b> Iterator for LayoutIter<'b> {
             self.last_glyph = Some(g.id());
             g
         })
+    }
+}
+
+pub(crate) trait NearZero {
+    /// Returns if this number is kinda pretty much zero.
+    fn is_near_zero(self) -> bool;
+}
+impl NearZero for f32 {
+    #[inline]
+    fn is_near_zero(self) -> bool {
+        self.abs() <= core::f32::EPSILON
     }
 }
