@@ -1,3 +1,10 @@
+## Unreleased
+* Major rework to use crates **ttf-parser** & **ab_glyph_rasterizer** to respectively read and render OpenType .oft format fonts.
+* Remove dependencies **approx**, **stb_truetype** & **ordered-float** along with in-crate rasterization code.
+* Strip back some non-vital API functionality.
+  - Remove support for `.standalone()` variants which are sparsely used.
+  - Remove some functions that didn't immediately translate to ttf-parser. Please raise issues to re-add any you relied on via the new stack.
+
 ## 0.8.3
 * Remove arrayvec dependency.
 * Add `Default` implementations for geometry structs.

@@ -5,7 +5,7 @@ fn main() {
     // Load the font
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
     // This only succeeds if collection consists of one font
-    let font = Font::from_bytes(font_data as &[u8]).expect("Error constructing Font");
+    let font = Font::try_from_bytes(font_data as &[u8]).expect("Error constructing Font");
 
     // The font size to use
     let scale = Scale::uniform(32.0);

@@ -6,26 +6,22 @@ RustType is a pure Rust alternative to libraries like FreeType.
 
 The current capabilities of RustType:
 
-* Reading TrueType formatted fonts and font collections. This includes `*.ttf`
-  as well as a subset of `*.otf` font files.
+* Reading OpenType formatted fonts and font collections. This includes `*.ttf`
+  as well as `*.otf` font files.
 * Retrieving glyph shapes and commonly used properties for a font and its glyphs.
 * Laying out glyphs horizontally using horizontal and vertical metrics, and
   glyph-pair-specific kerning.
 * Rasterising glyphs with sub-pixel positioning using an accurate analytical
   algorithm (not based on sampling).
 * Managing a font cache on the GPU with the `gpu_cache` module. This keeps
-  recently used glyph renderings
-  in a dynamic cache in GPU memory to minimise texture uploads per-frame. It
-  also allows you keep the draw call count for text very low, as all glyphs are
-  kept in one GPU texture.
+  recently used glyph renderings in a dynamic cache in GPU memory to minimise
+  texture uploads per-frame. It also allows you keep the draw call count for
+  text very low, as all glyphs are kept in one GPU texture.
 
 Notable things that RustType does not support *yet*:
 
-* OpenType formatted fonts that are not just TrueType fonts (OpenType is a
-  superset of TrueType). Notably there is no support yet for cubic Bezier curves
-  used in glyphs.
 * Font hinting.
-* Ligatures of any kind
+* Ligatures of any kind.
 * Some less common TrueType sub-formats.
 * Right-to-left and vertical text layout.
 
@@ -34,28 +30,21 @@ Heavier examples, tests & benchmarks are in the `./dev` directory. This avoids d
 
 Run all tests with `cargo test --all --all-features`.
 
-Run examples with `cargo run --example <NAME> -p rusttype-dev`
+Run examples with `cargo run --example <NAME> -p dev`
 
 ## Getting Started
 
-To hit the ground running with RustType, look at `dev/examples/simple.rs`
+To hit the ground running with RustType, look at `dev/examples/ascii.rs`
 supplied with the crate. It demonstrates loading a font file, rasterising an
 arbitrary string, and displaying the result as ASCII art. If you prefer to just
-look at the documentation, the entry point for loading fonts is
-`FontCollection`, from which you can access individual fonts, then their glyphs.
+look at the documentation, the entry point for loading fonts is `Font`,
+from which you can access individual fonts, then their glyphs.
 
 ## Future Plans
 
 The initial motivation for the project was to provide easy-to-use font rendering for games.
 There are numerous avenues for improving RustType. Ideas:
 
-* Some form of hinting for improved legibility at small font sizes.
-* Replacing the dependency on
-  [stb_truetype-rs](https://gitlab.redox-os.org/redox-os/stb_truetype-rs)
-  (a translation of [stb_truetype.h](https://github.com/nothings/stb/blob/master/stb_truetype.h)),
-  with OpenType font loading written in idiomatic Rust.
-* Add support for cubic curves in OpenType fonts.
-* Extract the rasterisation code into a separate vector graphics rendering crate.
 * Support for some common forms of ligatures.
 * And, eventually, support for embedded right-to-left Unicode text.
 

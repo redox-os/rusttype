@@ -45,7 +45,7 @@
 //! # use std::error::Error;
 //! # fn example() -> Result<(), Box<dyn Error>> {
 //! # let font_data: &[u8] = include_bytes!("../dev/fonts/dejavu/DejaVuSansMono.ttf");
-//! # let font: Font<'static> = Font::from_bytes(font_data)?;
+//! # let font: Font<'static> = Font::try_from_bytes(font_data).unwrap();
 //! # let glyph = font.glyph('a').scaled(Scale::uniform(25.0)).positioned(point(0.0, 0.0));
 //! # let glyph2 = glyph.clone();
 //! # fn update_gpu_texture(_: rusttype::Rect<u32>, _: &[u8]) {};
@@ -973,13 +973,13 @@ fn draw_glyph(tex_coords: Rect<u32>, glyph: &PositionedGlyph<'_>, pad_glyphs: bo
     let mut pixels = ByteArray2d::zeros(tex_coords.height() as usize, tex_coords.width() as usize);
     if pad_glyphs {
         glyph.draw(|x, y, v| {
-            let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
+            let v = (v * 255.0).round() as u8;
             // `+ 1` accounts for top/left glyph padding
             pixels[(y as usize + 1, x as usize + 1)] = v;
         });
     } else {
         glyph.draw(|x, y, v| {
-            let v = (v * 255.0).round().max(0.0).min(255.0) as u8;
+            let v = (v * 255.0).round() as u8;
             pixels[(y as usize, x as usize)] = v;
         });
     }
@@ -989,16 +989,13 @@ fn draw_glyph(tex_coords: Rect<u32>, glyph: &PositionedGlyph<'_>, pad_glyphs: bo
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Font, FontCollection, Scale};
+    use crate::{Font, Scale};
     use approx::*;
 
     #[test]
     fn cache_test() {
         let font_data = include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-        let font = FontCollection::from_bytes(font_data as &[u8])
-            .unwrap()
-            .into_font()
-            .unwrap();
+        let font = Font::try_from_bytes(font_data as &[u8]).unwrap();
 
         let mut cache = Cache::builder()
             .dimensions(32, 32)
@@ -1026,7 +1023,7 @@ mod test {
     #[test]
     fn need_to_check_whole_cache() {
         let font_data = include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-        let font = Font::from_bytes(font_data as &[u8]).unwrap();
+        let font = Font::try_from_bytes(font_data as &[u8]).unwrap();
 
         let glyph = font.glyph('l');
 
@@ -1059,7 +1056,7 @@ mod test {
     #[test]
     fn lossy_info() {
         let font_data = include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-        let font = Font::from_bytes(font_data as &[u8]).unwrap();
+        let font = Font::try_from_bytes(font_data as &[u8]).unwrap();
         let glyph = font.glyph('l');
 
         let small = glyph.clone().scaled(Scale::uniform(9.91));
@@ -1125,7 +1122,7 @@ mod test {
             .multithread(true)
             .build();
 
-        let font = Font::from_bytes(include_bytes!(
+        let font = Font::try_from_bytes(include_bytes!(
             "../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf"
         ) as &[u8])
         .unwrap();
@@ -1173,10 +1170,7 @@ mod test {
     #[test]
     fn return_cache_by_reordering() {
         let font_data = include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-        let font = FontCollection::from_bytes(font_data as &[u8])
-            .unwrap()
-            .into_font()
-            .unwrap();
+        let font = Font::try_from_bytes(font_data as &[u8]).unwrap();
 
         let mut cache = Cache::builder()
             .dimensions(36, 27)
@@ -1208,7 +1202,7 @@ mod test {
             .dimensions(64, 64)
             .align_4x4(align_4x4)
             .build();
-        let font = Font::from_bytes(include_bytes!(
+        let font = Font::try_from_bytes(include_bytes!(
             "../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf"
         ) as &[u8])
         .unwrap();

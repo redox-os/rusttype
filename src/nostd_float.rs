@@ -1,7 +1,6 @@
 pub(crate) trait FloatExt {
     fn floor(self) -> Self;
     fn ceil(self) -> Self;
-    fn sqrt(self) -> Self;
     fn fract(self) -> Self;
     fn trunc(self) -> Self;
     fn round(self) -> Self;
@@ -16,10 +15,6 @@ impl FloatExt for f32 {
     #[inline]
     fn ceil(self) -> Self {
         libm::ceilf(self)
-    }
-    #[inline]
-    fn sqrt(self) -> Self {
-        libm::sqrtf(self)
     }
     #[inline]
     fn fract(self) -> Self {

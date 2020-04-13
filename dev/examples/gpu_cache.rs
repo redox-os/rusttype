@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-    let font: Font<'static> = Font::from_bytes(font_data as &[u8])?;
+    let font = Font::try_from_bytes(font_data as &[u8]).unwrap();
 
     let window = glium::glutin::window::WindowBuilder::new()
         .with_inner_size(glium::glutin::dpi::PhysicalSize::new(512, 512))

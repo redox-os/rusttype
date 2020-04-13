@@ -26,9 +26,8 @@ exclude = ["/dev/**"]
 features = ["gpu_cache"]
 
 [dependencies]
-stb_truetype = { version = "0.3.1", default-features = false }
-ordered-float = { version = "1", default-features = false }
-approx = { version = "0.3", default-features = false }
+ttf-parser = { version = "0.5", default-features = false }
+ab_glyph_rasterizer = { version = "0.1", default-features = false }
 
 libm = { version = "0.2.1", default-features = false, optional = true }
 
@@ -41,14 +40,15 @@ crossbeam-utils = { version = "0.7", optional = true }
 num_cpus = { version = "1.0", optional = true }
 
 [dev-dependencies]
-# don't add any, instead use ./dev
+# don't add any more, instead use ./dev
+approx = { version = "0.3", default-features = false }
 
 [features]
-default = ["std", "has-atomics"]
+default = ["std"]
 # Activates usage of std.
-std = ["has-atomics", "stb_truetype/std"]
+std = ["has-atomics", "ttf-parser/default", "ab_glyph_rasterizer/default"]
 # Uses libm when not using std. This needs to be active in that case.
-libm-math = ["libm", "stb_truetype/libm"]
+libm-math = ["libm", "ab_glyph_rasterizer/libm"]
 # Some targets don't have atomics, this activates usage of Arc<T> instead of Rc<T>.
 has-atomics = []
 # Adds `gpu_cache` module
