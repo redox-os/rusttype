@@ -10,7 +10,12 @@ pub(crate) struct OutlineRasterizer {
 }
 
 impl OutlineRasterizer {
-    pub(crate) fn new(position: Point<f32>, scale: Vector<f32>, width: usize, height: usize) -> Self {
+    pub(crate) fn new(
+        position: Point<f32>,
+        scale: Vector<f32>,
+        width: usize,
+        height: usize,
+    ) -> Self {
         Self {
             rasterizer: Rasterizer::new(width, height),
             last: ab_point(0.0, 0.0),

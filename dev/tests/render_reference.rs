@@ -9,9 +9,8 @@ static DEJA_VU_MONO: Lazy<Font<'static>> = Lazy::new(|| {
 static OPEN_SANS_ITALIC: Lazy<Font<'static>> = Lazy::new(|| {
     Font::try_from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8]).unwrap()
 });
-static EXO2_OFT: Lazy<Font<'static>> = Lazy::new(|| {
-    Font::try_from_bytes(include_bytes!("../fonts/Exo2-Light.otf") as &[u8]).unwrap()
-});
+static EXO2_OFT: Lazy<Font<'static>> =
+    Lazy::new(|| Font::try_from_bytes(include_bytes!("../fonts/Exo2-Light.otf") as &[u8]).unwrap());
 
 fn draw_luma_alpha(glyph: ScaledGlyph<'_>) -> image::GrayAlphaImage {
     let glyph = glyph.positioned(point(0.0, 0.0));
@@ -117,7 +116,8 @@ fn render_to_reference_iota() {
     }
 }
 
-/// Render a 300px 'ę' character that uses cubic beziers & require it to match the reference.
+/// Render a 300px 'ę' character that uses cubic beziers & require it to match
+/// the reference.
 #[test]
 fn render_to_reference_oft_tailed_e() {
     let new_image = draw_luma_alpha(EXO2_OFT.glyph('ę').scaled(Scale::uniform(300.0)));

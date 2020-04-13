@@ -8,12 +8,10 @@ static DEJA_VU_MONO: Lazy<Font<'static>> = Lazy::new(|| {
 static OPEN_SANS_ITALIC: Lazy<Font<'static>> = Lazy::new(|| {
     Font::try_from_bytes(include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8]).unwrap()
 });
-static EXO2_OTF: Lazy<Font<'static>> = Lazy::new(|| {
-    Font::try_from_bytes(include_bytes!("../fonts/Exo2-Light.otf") as &[u8]).unwrap()
-});
-static EXO2_TTF: Lazy<Font<'static>> = Lazy::new(|| {
-    Font::try_from_bytes(include_bytes!("../fonts/Exo2-Light.ttf") as &[u8]).unwrap()
-});
+static EXO2_OTF: Lazy<Font<'static>> =
+    Lazy::new(|| Font::try_from_bytes(include_bytes!("../fonts/Exo2-Light.otf") as &[u8]).unwrap());
+static EXO2_TTF: Lazy<Font<'static>> =
+    Lazy::new(|| Font::try_from_bytes(include_bytes!("../fonts/Exo2-Light.ttf") as &[u8]).unwrap());
 
 fn draw_big_biohazard(c: &mut Criterion) {
     let glyph = DEJA_VU_MONO

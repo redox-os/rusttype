@@ -222,15 +222,15 @@ impl<'font> Font<'font> {
 
 /// Functionality to allow owned font data using ttf-parser.
 ///
-/// This requires _unsafe_ usage to implement pinned self referencing, as ttf-parser does not
-/// currently support owned data directly.
+/// This requires _unsafe_ usage to implement pinned self referencing, as
+/// ttf-parser does not currently support owned data directly.
 mod owned_ttf_parser {
-    use super::{Font, Arc};
+    use super::{Arc, Font};
+    #[cfg(not(feature = "std"))]
+    use alloc::{boxed::Box, vec::Vec};
     use core::marker::PhantomPinned;
     use core::pin::Pin;
     use core::slice;
-    #[cfg(not(feature = "std"))]
-    use alloc::{boxed::Box, vec::Vec};
 
     pub type OwnedFont = Pin<Box<VecFont>>;
 
@@ -276,8 +276,9 @@ mod owned_ttf_parser {
             Some(Arc::new(b))
         }
 
-        // Must not leak the fake 'static lifetime that we lied about earlier to the compiler.
-        // Since the lifetime 'a will not outlive our owned data it's safe to provide Font<'a>
+        // Must not leak the fake 'static lifetime that we lied about earlier to the
+        // compiler. Since the lifetime 'a will not outlive our owned data it's
+        // safe to provide Font<'a>
         #[inline]
         pub fn inner_ref<'a>(self: &'a Pin<Box<Self>>) -> &'a ttf_parser::Font<'a> {
             match self.font.as_ref() {

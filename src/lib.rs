@@ -119,7 +119,7 @@ use crate::nostd_float::FloatExt;
 macro_rules! relative_eq {
     ($a:expr, $b:expr) => {
         ($a - $b).abs() <= core::f32::EPSILON
-    }
+    };
 }
 
 #[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
