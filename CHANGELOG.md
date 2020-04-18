@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.0
 * Major rework to use crates **ttf-parser** & **ab_glyph_rasterizer** to respectively read and render OpenType .oft format fonts.
 * Remove dependencies **approx**, **stb_truetype** & **ordered-float** along with in-crate rasterization code.
 * Strip back some non-vital API functionality.
