@@ -1,6 +1,6 @@
 [package]
 name = "rusttype"
-version = "0.8.3"
+version = "0.9.0"
 authors = [
     "Dylan Ede <dylanede@googlemail.com>",
     "Jeremy Soller <jackpot51@gmail.com>",
@@ -27,7 +27,7 @@ features = ["gpu_cache"]
 
 [dependencies]
 ttf-parser = { version = "0.5", default-features = false }
-ab_glyph_rasterizer = { version = "0.1", default-features = false }
+ab_glyph_rasterizer = { version = "0.1.1", default-features = false }
 
 libm = { version = "0.2.1", default-features = false, optional = true }
 
