@@ -115,6 +115,8 @@ use core::fmt;
 #[cfg(all(feature = "libm-math", not(feature = "std")))]
 use crate::nostd_float::FloatExt;
 
+pub use ttf_parser::OutlineBuilder;
+
 #[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct GlyphId(pub u16);
 
@@ -242,6 +244,18 @@ impl<'font> ScaledGlyph<'font> {
         &self.g
     }
 
+    /// Builds the outline of the glyph with the builder specified. Returns `false` when the
+    /// outline is either malformed or empty.
+    pub fn build_outline(&self, builder: &mut impl OutlineBuilder) -> bool {
+        let mut outliner =
+            crate::outliner::OutlineScaler::new(builder, vector(self.scale.x, -self.scale.y));
+
+        self.font()
+            .inner()
+            .outline_glyph(self.id().into(), &mut outliner)
+            .is_some()
+    }
+
     /// Augments this glyph with positioning information, making methods that
     /// depend on the position of the glyph available.
     pub fn positioned(self, p: Point<f32>) -> PositionedGlyph<'font> {
@@ -316,7 +330,7 @@ impl<'font> ScaledGlyph<'font> {
 
     #[inline]
     fn pixel_bounds_at(&self, p: Point<f32>) -> Option<Rect<i32>> {
-        // Use subpixel fraction in floor/ceil rounding to elimate rounding error
+        // Use subpixel fraction in floor/ceil rounding to eliminate rounding error
         // from identical subpixel positions
         let (x_trunc, x_fract) = (p.x.trunc() as i32, p.x.fract());
         let (y_trunc, y_fract) = (p.y.trunc() as i32, p.y.fract());
@@ -386,6 +400,22 @@ impl<'font> PositionedGlyph<'font> {
         self.position
     }
 
+    /// Builds the outline of the glyph with the builder specified. Returns `false` when the
+    /// outline is either malformed or empty.
+    pub fn build_outline(&self, builder: &mut impl OutlineBuilder) -> bool {
+        let bb = if let Some(bb) = self.bb.as_ref() {
+            bb
+        } else {
+            return false;
+        };
+
+        let offset = vector(bb.min.x as f32, bb.min.y as f32);
+
+        let mut outliner = crate::outliner::OutlineTranslator::new(builder, self.position - offset);
+
+        self.sg.build_outline(&mut outliner)
+    }
+
     /// Rasterises this glyph. For each pixel in the rect given by
     /// `pixel_bounding_box()`, `o` is called:
     ///
@@ -416,18 +446,9 @@ impl<'font> PositionedGlyph<'font> {
         let width = (bb.max.x - bb.min.x) as u32;
         let height = (bb.max.y - bb.min.y) as u32;
 
-        let offset = vector(bb.min.x as f32, bb.min.y as f32);
+        let mut outliner = crate::outliner::OutlineRasterizer::new(width as _, height as _);
 
-        let mut outliner = crate::outliner::OutlineRasterizer::new(
-            self.position - offset,
-            self.sg.scale,
-            width as _,
-            height as _,
-        );
-
-        self.font()
-            .inner()
-            .outline_glyph(self.id().into(), &mut outliner);
+        self.build_outline(&mut outliner);
 
         outliner.rasterizer.for_each_pixel_2d(o);
     }
@@ -459,7 +480,7 @@ impl fmt::Debug for PositionedGlyph<'_> {
 }
 
 /// Defines the size of a rendered face of a font, in pixels, horizontally and
-/// vertically. A vertical scale of `y` pixels means that the distance betwen
+/// vertically. A vertical scale of `y` pixels means that the distance between
 /// the ascent and descent lines (see `VMetrics`) of the face will be `y`
 /// pixels. If `x` and `y` are equal the scaling is uniform. Non-uniform scaling
 /// by a factor *f* in the horizontal direction is achieved by setting `x` equal
