@@ -1,10 +1,11 @@
 use crate::{Glyph, GlyphIter, IntoGlyphId, LayoutIter, Point, Scale, VMetrics};
-use core::fmt;
-
 #[cfg(not(feature = "has-atomics"))]
 use alloc::rc::Rc as Arc;
 #[cfg(feature = "has-atomics")]
 use alloc::sync::Arc;
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+use core::fmt;
 
 /// A single font. This may or may not own the font data.
 ///
@@ -28,7 +29,7 @@ use alloc::sync::Arc;
 /// ```
 #[derive(Clone)]
 pub enum Font<'a> {
-    Ref(Arc<ttf_parser::Font<'a>>),
+    Ref(Arc<owned_ttf_parser::Font<'a>>),
     Owned(Arc<owned_ttf_parser::OwnedFont>),
 }
 
@@ -50,17 +51,33 @@ impl Font<'_> {
     ///
     /// Returns `None` for invalid data.
     pub fn try_from_bytes_and_index(bytes: &[u8], index: u32) -> Option<Font<'_>> {
-        let inner = Arc::new(ttf_parser::Font::from_data(bytes, index)?);
+        let inner = Arc::new(owned_ttf_parser::Font::from_data(bytes, index)?);
         Some(Font::Ref(inner))
+    }
+
+    /// Creates a Font from owned font data.
+    ///
+    /// Returns `None` for invalid data.
+    pub fn try_from_vec(data: Vec<u8>) -> Option<Font<'static>> {
+        Self::try_from_vec_and_index(data, 0)
+    }
+
+    /// Creates a Font from owned font data & a font collection `index`.
+    ///
+    /// Returns `None` for invalid data.
+    pub fn try_from_vec_and_index(data: Vec<u8>, index: u32) -> Option<Font<'static>> {
+        let inner = Arc::new(owned_ttf_parser::OwnedFont::from_vec(data, index)?);
+        Some(Font::Owned(inner))
     }
 }
 
 impl<'font> Font<'font> {
     #[inline]
-    pub(crate) fn inner(&self) -> &ttf_parser::Font<'_> {
+    pub(crate) fn inner(&self) -> &owned_ttf_parser::Font<'_> {
+        use owned_ttf_parser::AsFontRef;
         match self {
             Self::Ref(f) => f,
-            Self::Owned(f) => f.inner_ref(),
+            Self::Owned(f) => f.as_font(),
         }
     }
 
@@ -217,74 +234,5 @@ impl<'font> Font<'font> {
         let inner = self.inner();
         let fheight = f32::from(inner.ascender()) - f32::from(inner.descender());
         height / fheight
-    }
-}
-
-/// Functionality to allow owned font data using ttf-parser.
-///
-/// This requires _unsafe_ usage to implement pinned self referencing, as
-/// ttf-parser does not currently support owned data directly.
-mod owned_ttf_parser {
-    use super::{Arc, Font};
-    #[cfg(not(feature = "std"))]
-    use alloc::{boxed::Box, vec::Vec};
-    use core::marker::PhantomPinned;
-    use core::pin::Pin;
-    use core::slice;
-
-    pub type OwnedFont = Pin<Box<VecFont>>;
-
-    impl Font<'_> {
-        /// Creates a Font from owned font data.
-        ///
-        /// Returns `None` for invalid data.
-        pub fn try_from_vec(data: Vec<u8>) -> Option<Font<'static>> {
-            Self::try_from_vec_and_index(data, 0)
-        }
-
-        /// Creates a Font from owned font data & a font collection `index`.
-        ///
-        /// Returns `None` for invalid data.
-        pub fn try_from_vec_and_index(data: Vec<u8>, index: u32) -> Option<Font<'static>> {
-            let inner = VecFont::try_from_vec(data, index)?;
-            Some(Font::Owned(inner))
-        }
-    }
-
-    pub struct VecFont {
-        data: Vec<u8>,
-        font: Option<ttf_parser::Font<'static>>,
-        _pin: PhantomPinned,
-    }
-
-    impl VecFont {
-        /// Creates an underlying font object from owned data.
-        pub fn try_from_vec(data: Vec<u8>, index: u32) -> Option<Arc<Pin<Box<Self>>>> {
-            let font = Self {
-                data,
-                font: None,
-                _pin: PhantomPinned,
-            };
-            let mut b = Box::pin(font);
-            unsafe {
-                // 'static lifetime is a lie, this data is owned, it has pseudo-self lifetime.
-                let slice: &'static [u8] = slice::from_raw_parts(b.data.as_ptr(), b.data.len());
-                let mut_ref: Pin<&mut Self> = Pin::as_mut(&mut b);
-                let mut_inner = mut_ref.get_unchecked_mut();
-                mut_inner.font = Some(ttf_parser::Font::from_data(slice, index)?);
-            }
-            Some(Arc::new(b))
-        }
-
-        // Must not leak the fake 'static lifetime that we lied about earlier to the
-        // compiler. Since the lifetime 'a will not outlive our owned data it's
-        // safe to provide Font<'a>
-        #[inline]
-        pub fn inner_ref<'a>(self: &'a Pin<Box<Self>>) -> &'a ttf_parser::Font<'a> {
-            match self.font.as_ref() {
-                Some(f) => f,
-                None => unsafe { core::hint::unreachable_unchecked() },
-            }
-        }
     }
 }
