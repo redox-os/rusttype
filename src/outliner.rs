@@ -1,6 +1,6 @@
 use crate::{Point, Vector};
 use ab_glyph_rasterizer::{point as ab_point, Point as AbPoint, Rasterizer};
-use ttf_parser::OutlineBuilder;
+use owned_ttf_parser::OutlineBuilder;
 
 pub(crate) struct OutlineScaler<'b, T: ?Sized> {
     inner: &'b mut T,

@@ -1,3 +1,8 @@
+## Unreleased
+* Use crate owned_ttf_parser to provide `OwnedFont` eliminating direct unsafe usage in rusttype.
+* Remove unused legacy trait `BoundingBox`.
+* Add `ScaledGlyph::build_outline` & `PositionedGlyph::build_outline` methods.
+
 ## 0.9.0
 * Major rework to use crates **ttf-parser** & **ab_glyph_rasterizer** to respectively read and render OpenType .oft format fonts.
 * Remove dependencies **approx**, **stb_truetype** & **ordered-float** along with in-crate rasterization code.

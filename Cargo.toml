@@ -26,7 +26,7 @@ exclude = ["/dev/**"]
 features = ["gpu_cache"]
 
 [dependencies]
-ttf-parser = { version = "0.5", default-features = false }
+owned_ttf_parser = { version = "0.5.1", default-features = false }
 ab_glyph_rasterizer = { version = "0.1.1", default-features = false }
 
 libm = { version = "0.2.1", default-features = false, optional = true }
@@ -46,7 +46,7 @@ approx = { version = "0.3", default-features = false }
 [features]
 default = ["std"]
 # Activates usage of std.
-std = ["has-atomics", "ttf-parser/default", "ab_glyph_rasterizer/default"]
+std = ["has-atomics", "owned_ttf_parser/default", "ab_glyph_rasterizer/default"]
 # Uses libm when not using std. This needs to be active in that case.
 libm-math = ["libm", "ab_glyph_rasterizer/libm"]
 # Some targets don't have atomics, this activates usage of Arc<T> instead of Rc<T>.

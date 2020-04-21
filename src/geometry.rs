@@ -156,16 +156,3 @@ impl<N: ops::Sub<Output = N> + Copy> Rect<N> {
         self.max.y - self.min.y
     }
 }
-
-pub trait BoundingBox<N> {
-    fn bounding_box(&self) -> Rect<N> {
-        let (min_x, max_x) = self.x_bounds();
-        let (min_y, max_y) = self.y_bounds();
-        Rect {
-            min: point(min_x, min_y),
-            max: point(max_x, max_y),
-        }
-    }
-    fn x_bounds(&self) -> (N, N);
-    fn y_bounds(&self) -> (N, N);
-}

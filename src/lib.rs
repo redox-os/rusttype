@@ -115,17 +115,17 @@ use core::fmt;
 #[cfg(all(feature = "libm-math", not(feature = "std")))]
 use crate::nostd_float::FloatExt;
 
-pub use ttf_parser::OutlineBuilder;
+pub use owned_ttf_parser::OutlineBuilder;
 
 #[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct GlyphId(pub u16);
 
-impl From<ttf_parser::GlyphId> for GlyphId {
-    fn from(id: ttf_parser::GlyphId) -> Self {
+impl From<owned_ttf_parser::GlyphId> for GlyphId {
+    fn from(id: owned_ttf_parser::GlyphId) -> Self {
         Self(id.0)
     }
 }
-impl From<GlyphId> for ttf_parser::GlyphId {
+impl From<GlyphId> for owned_ttf_parser::GlyphId {
     fn from(id: GlyphId) -> Self {
         Self(id.0)
     }
@@ -244,8 +244,8 @@ impl<'font> ScaledGlyph<'font> {
         &self.g
     }
 
-    /// Builds the outline of the glyph with the builder specified. Returns `false` when the
-    /// outline is either malformed or empty.
+    /// Builds the outline of the glyph with the builder specified. Returns
+    /// `false` when the outline is either malformed or empty.
     pub fn build_outline(&self, builder: &mut impl OutlineBuilder) -> bool {
         let mut outliner =
             crate::outliner::OutlineScaler::new(builder, vector(self.scale.x, -self.scale.y));
@@ -290,7 +290,7 @@ impl<'font> ScaledGlyph<'font> {
     /// `pixel_bounding_box`, the conservative pixel-boundary bounding box. The
     /// coordinates are relative to the glyph's origin.
     pub fn exact_bounding_box(&self) -> Option<Rect<f32>> {
-        let ttf_parser::Rect {
+        let owned_ttf_parser::Rect {
             x_min,
             y_min,
             x_max,
@@ -309,7 +309,7 @@ impl<'font> ScaledGlyph<'font> {
         shift_x: f32,
         shift_y: f32,
     ) -> Option<Rect<i32>> {
-        let ttf_parser::Rect {
+        let owned_ttf_parser::Rect {
             x_min,
             y_min,
             x_max,
@@ -400,8 +400,8 @@ impl<'font> PositionedGlyph<'font> {
         self.position
     }
 
-    /// Builds the outline of the glyph with the builder specified. Returns `false` when the
-    /// outline is either malformed or empty.
+    /// Builds the outline of the glyph with the builder specified. Returns
+    /// `false` when the outline is either malformed or empty.
     pub fn build_outline(&self, builder: &mut impl OutlineBuilder) -> bool {
         let bb = if let Some(bb) = self.bb.as_ref() {
             bb
@@ -516,7 +516,7 @@ impl IntoGlyphId for char {
     fn into_glyph_id(self, font: &Font<'_>) -> GlyphId {
         font.inner()
             .glyph_index(self)
-            .unwrap_or(ttf_parser::GlyphId(0))
+            .unwrap_or(owned_ttf_parser::GlyphId(0))
             .into()
     }
 }
