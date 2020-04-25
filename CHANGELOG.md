@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.1
 * Use crate owned_ttf_parser to provide `OwnedFont` eliminating direct unsafe usage in rusttype.
 * Remove unused legacy trait `BoundingBox`.
 * Add `ScaledGlyph::build_outline` & `PositionedGlyph::build_outline` methods.
