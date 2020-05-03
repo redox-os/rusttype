@@ -63,8 +63,8 @@ fn layout_paragraph<'a>(
 static FONTS: Lazy<Vec<Font<'static>>> = Lazy::new(|| {
     vec![
         include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf") as &[u8],
-        include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf") as &[u8],
         include_bytes!("../fonts/opensans/OpenSans-Italic.ttf") as &[u8],
+        include_bytes!("../fonts/Exo2-Light.otf") as &[u8],
     ]
     .into_iter()
     .map(|bytes| Font::try_from_bytes(bytes).unwrap())
@@ -110,12 +110,40 @@ fn bench_high_position_tolerance(c: &mut Criterion) {
 }
 
 /// Benchmark using a single font with default tolerances
-fn bench_single_font(c: &mut Criterion) {
+fn bench_single_ttf(c: &mut Criterion) {
     let font_id = 0;
     let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
     let mut cache = Cache::builder().dimensions(1024, 1024).build();
 
-    c.bench_function("single_font", |b| {
+    c.bench_function("single_ttf", |b| {
+        b.iter(|| {
+            for glyph in &glyphs {
+                cache.queue_glyph(font_id, glyph.clone());
+            }
+
+            cache.cache_queued(|_, _| {}).expect("cache_queued");
+
+            for (index, glyph) in glyphs.iter().enumerate() {
+                let rect = cache.rect_for(font_id, glyph);
+                assert!(
+                    rect.is_ok(),
+                    "Gpu cache rect lookup failed ({:?}) for glyph index {}, id {}",
+                    rect,
+                    index,
+                    glyph.id().0
+                );
+            }
+        })
+    });
+}
+
+/// Benchmark using a single font with default tolerances
+fn bench_single_otf(c: &mut Criterion) {
+    let font_id = 2;
+    let glyphs = test_glyphs(&FONTS[font_id], TEST_STR);
+    let mut cache = Cache::builder().dimensions(1024, 1024).build();
+
+    c.bench_function("single_otf", |b| {
         b.iter(|| {
             for glyph in &glyphs {
                 cache.queue_glyph(font_id, glyph.clone());
@@ -374,7 +402,7 @@ fn bench_moving_text_thrashing(c: &mut Criterion) {
     // Cache is only a little larger than each variants size meaning a lot of
     // re-ordering, re-rasterization & re-uploading has to occur.
     let mut cache = Cache::builder()
-        .dimensions(450, 450)
+        .dimensions(320, 320)
         .scale_tolerance(0.1)
         .position_tolerance(0.1)
         .build();
@@ -413,7 +441,8 @@ fn bench_moving_text_thrashing(c: &mut Criterion) {
 criterion_group!(
     benches,
     bench_high_position_tolerance,
-    bench_single_font,
+    bench_single_ttf,
+    bench_single_otf,
     bench_multi_font,
     bench_multi_font_population,
     bench_moving_text,
