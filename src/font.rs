@@ -217,10 +217,13 @@ impl<'font> Font<'font> {
         };
         let kern = self
             .inner()
-            .glyphs_kerning(first_id, second_id)
+            .kerning_subtables()
+            .filter(|st| st.is_horizontal() && !st.is_variable())
+            .filter_map(|st| st.glyphs_kerning(first_id, second_id))
+            .next()
             .unwrap_or(0);
 
-        factor * kern as f32
+        factor * f32::from(kern)
     }
 
     /// Computes a scale factor to produce a font whose "height" is 'pixels'

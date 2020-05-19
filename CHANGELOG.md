@@ -1,3 +1,6 @@
+## Unreleased
+* Update ttf-parser -> `0.6`.
+
 ## 0.9.1
 * Use crate owned_ttf_parser to provide `OwnedFont` eliminating direct unsafe usage in rusttype.
 * Remove unused legacy trait `BoundingBox`.
