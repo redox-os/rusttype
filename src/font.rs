@@ -190,7 +190,12 @@ impl<'font> Font<'font> {
     ///     })
     /// # ;
     /// ```
-    pub fn layout<'b>(&'b self, s: &'b str, scale: Scale, start: Point<f32>) -> LayoutIter<'b> {
+    pub fn layout<'f, 's>(
+        &'f self,
+        s: &'s str,
+        scale: Scale,
+        start: Point<f32>,
+    ) -> LayoutIter<'f, 's> {
         LayoutIter {
             font: self,
             chars: s.chars(),
