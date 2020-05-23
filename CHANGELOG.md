@@ -1,5 +1,6 @@
 ## Unreleased
 * Update ttf-parser -> `0.6`.
+* Use more flexible lifetime bounds for `Font::layout`.
 
 ## 0.9.1
 * Use crate owned_ttf_parser to provide `OwnedFont` eliminating direct unsafe usage in rusttype.

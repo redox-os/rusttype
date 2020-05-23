@@ -549,19 +549,19 @@ where
 }
 
 #[derive(Clone)]
-pub struct LayoutIter<'b> {
-    font: &'b Font<'b>,
-    chars: core::str::Chars<'b>,
+pub struct LayoutIter<'font, 's> {
+    font: &'font Font<'font>,
+    chars: core::str::Chars<'s>,
     caret: f32,
     scale: Scale,
     start: Point<f32>,
     last_glyph: Option<GlyphId>,
 }
 
-impl<'b> Iterator for LayoutIter<'b> {
-    type Item = PositionedGlyph<'b>;
+impl<'font, 's> Iterator for LayoutIter<'font, 's> {
+    type Item = PositionedGlyph<'font>;
 
-    fn next(&mut self) -> Option<PositionedGlyph<'b>> {
+    fn next(&mut self) -> Option<PositionedGlyph<'font>> {
         self.chars.next().map(|c| {
             let g = self.font.glyph(c).scaled(self.scale);
             if let Some(last) = self.last_glyph {
