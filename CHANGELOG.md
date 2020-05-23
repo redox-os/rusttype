@@ -1,4 +1,4 @@
-## Unreleased
+## 0.9.2
 * Update ttf-parser -> `0.6`.
 * Use more flexible lifetime bounds for `Font::layout`.
 
