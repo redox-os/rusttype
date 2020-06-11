@@ -35,7 +35,7 @@ fn bench_layout_a_sentence(c: &mut Criterion) {
             .unwrap();
         }
         assert_eq!(
-            format!("{:x}", hash.result()),
+            format!("{:x}", hash.finalize()),
             "c2a3483ddf5598ec869440c62d17efa5a4fe72f9893bcc05dd17be2adcaa7629"
         );
     });
@@ -66,7 +66,7 @@ fn bench_layout_a_sentence(c: &mut Criterion) {
             .unwrap();
         }
         assert_eq!(
-            format!("{:x}", hash.result()),
+            format!("{:x}", hash.finalize()),
             "c2a3483ddf5598ec869440c62d17efa5a4fe72f9893bcc05dd17be2adcaa7629"
         );
     });
@@ -95,7 +95,7 @@ fn bench_layout_a_sentence(c: &mut Criterion) {
             .unwrap();
         }
         assert_eq!(
-            format!("{:x}", hash.result()),
+            format!("{:x}", hash.finalize()),
             "255381ba7ae154c0208f8e73a8620f78dcc2728b15fb9ec952026a99797d4ddc"
         );
     });
@@ -124,7 +124,7 @@ fn bench_layout_a_sentence(c: &mut Criterion) {
             .unwrap();
         }
         assert_eq!(
-            format!("{:x}", hash.result()),
+            format!("{:x}", hash.finalize()),
             "255381ba7ae154c0208f8e73a8620f78dcc2728b15fb9ec952026a99797d4ddc"
         );
     });
