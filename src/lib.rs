@@ -138,7 +138,7 @@ impl From<GlyphId> for owned_ttf_parser::GlyphId {
 /// position it using `positioned`.
 #[derive(Clone)]
 pub struct Glyph<'font> {
-    font: Font<'font>,
+    font: &'font Font<'font>,
     id: GlyphId,
 }
 
