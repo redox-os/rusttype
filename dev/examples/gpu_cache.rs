@@ -3,6 +3,7 @@ use glutin::{
     event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
 };
+use once_cell::sync::Lazy;
 use rusttype::gpu_cache::Cache;
 use rusttype::{point, vector, Font, PositionedGlyph, Rect, Scale};
 use std::borrow::Cow;
@@ -10,7 +11,7 @@ use std::env;
 use std::error::Error;
 
 fn layout_paragraph<'a>(
-    font: &Font<'a>,
+    font: &'a Font<'_>,
     scale: Scale,
     width: u32,
     text: &str,
@@ -50,13 +51,15 @@ fn layout_paragraph<'a>(
     result
 }
 
+static FONT: Lazy<Font> = Lazy::new(|| {
+    let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
+    Font::try_from_bytes(font_data as &[u8]).unwrap()
+});
+
 fn main() -> Result<(), Box<dyn Error>> {
     if cfg!(target_os = "linux") && env::var("WINIT_UNIX_BACKEND").is_err() {
         env::set_var("WINIT_UNIX_BACKEND", "x11");
     }
-
-    let font_data = include_bytes!("../fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
-    let font = Font::try_from_bytes(font_data as &[u8]).unwrap();
 
     let window = glium::glutin::window::WindowBuilder::new()
         .with_inner_size(glium::glutin::dpi::PhysicalSize::new(512, 512))
@@ -154,7 +157,7 @@ You can also try resizing this window."
                     .into();
                 let scale = scale as f32;
 
-                let glyphs = layout_paragraph(&font, Scale::uniform(24.0 * scale), width, &text);
+                let glyphs = layout_paragraph(&FONT, Scale::uniform(24.0 * scale), width, &text);
                 for glyph in &glyphs {
                     cache.queue_glyph(0, glyph.clone());
                 }
