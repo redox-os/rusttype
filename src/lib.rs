@@ -528,29 +528,29 @@ impl<G: Into<GlyphId>> IntoGlyphId for G {
 }
 
 #[derive(Clone)]
-pub struct GlyphIter<'b, I: Iterator>
+pub struct GlyphIter<'a, 'font, I: Iterator>
 where
     I::Item: IntoGlyphId,
 {
-    font: &'b Font<'b>,
+    font: &'a Font<'font>,
     itr: I,
 }
 
-impl<'b, I> Iterator for GlyphIter<'b, I>
+impl<'a, 'font, I> Iterator for GlyphIter<'a, 'font, I>
 where
     I: Iterator,
     I::Item: IntoGlyphId,
 {
-    type Item = Glyph<'b>;
+    type Item = Glyph<'font>;
 
-    fn next(&mut self) -> Option<Glyph<'b>> {
+    fn next(&mut self) -> Option<Glyph<'font>> {
         self.itr.next().map(|c| self.font.glyph(c))
     }
 }
 
 #[derive(Clone)]
-pub struct LayoutIter<'font, 's> {
-    font: &'font Font<'font>,
+pub struct LayoutIter<'a, 'font, 's> {
+    font: &'a Font<'font>,
     chars: core::str::Chars<'s>,
     caret: f32,
     scale: Scale,
@@ -558,7 +558,7 @@ pub struct LayoutIter<'font, 's> {
     last_glyph: Option<GlyphId>,
 }
 
-impl<'font, 's> Iterator for LayoutIter<'font, 's> {
+impl<'a, 'font, 's> Iterator for LayoutIter<'a, 'font, 's> {
     type Item = PositionedGlyph<'font>;
 
     fn next(&mut self) -> Option<PositionedGlyph<'font>> {

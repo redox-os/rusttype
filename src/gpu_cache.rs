@@ -997,7 +997,7 @@ mod test {
         let font_data = include_bytes!("../dev/fonts/wqy-microhei/WenQuanYiMicroHei.ttf");
         let font = Font::try_from_bytes(font_data as &[u8]).unwrap();
 
-        let mut cache = Cache::builder()
+        let mut cache: Cache<'static> = Cache::builder()
             .dimensions(32, 32)
             .scale_tolerance(0.1)
             .position_tolerance(0.1)

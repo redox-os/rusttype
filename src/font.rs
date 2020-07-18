@@ -137,7 +137,7 @@ impl<'font> Font<'font> {
     /// points or glyph ids produced by the given iterator `itr`.
     ///
     /// This is equivalent in behaviour to `itr.map(|c| font.glyph(c))`.
-    pub fn glyphs_for<I: Iterator>(&self, itr: I) -> GlyphIter<'_, I>
+    pub fn glyphs_for<'a, I: Iterator>(&'a self, itr: I) -> GlyphIter<'a, 'font, I>
     where
         I::Item: IntoGlyphId,
     {
@@ -177,25 +177,25 @@ impl<'font> Font<'font> {
     /// # let (scale, start) = (Scale::uniform(0.0), point(0.0, 0.0));
     /// # let font: Font = unimplemented!();
     /// font.glyphs_for("Hello World!".chars())
-    ///     .scan((None, 0.0), |&mut (mut last, mut x), g| {
+    ///     .scan((None, 0.0), |(last, x), g| {
     ///         let g = g.scaled(scale);
     ///         if let Some(last) = last {
-    ///             x += font.pair_kerning(scale, last, g.id());
+    ///             *x += font.pair_kerning(scale, *last, g.id());
     ///         }
     ///         let w = g.h_metrics().advance_width;
-    ///         let next = g.positioned(start + vector(x, 0.0));
-    ///         last = Some(next.id());
-    ///         x += w;
+    ///         let next = g.positioned(start + vector(*x, 0.0));
+    ///         *last = Some(next.id());
+    ///         *x += w;
     ///         Some(next)
     ///     })
     /// # ;
     /// ```
-    pub fn layout<'f, 's>(
-        &'f self,
+    pub fn layout<'a, 's>(
+        &'a self,
         s: &'s str,
         scale: Scale,
         start: Point<f32>,
-    ) -> LayoutIter<'f, 's> {
+    ) -> LayoutIter<'a, 'font, 's> {
         LayoutIter {
             font: self,
             chars: s.chars(),
