@@ -11,7 +11,7 @@ fn mock_gpu_upload(_region: Rect<u32>, _bytes: &[u8]) {
     while now.elapsed() < Duration::from_micros(2) {}
 }
 
-fn test_glyphs<'a>(font: &Font<'a>, string: &str) -> Vec<PositionedGlyph<'a>> {
+fn test_glyphs<'a>(font: &'a Font<'_>, string: &str) -> Vec<PositionedGlyph<'a>> {
     let mut glyphs = vec![];
     // Set of scales, found through brute force, to reproduce GlyphNotCached issue
     // Cache settings also affect this, it occurs when position_tolerance is < 1.0
@@ -24,7 +24,7 @@ fn test_glyphs<'a>(font: &Font<'a>, string: &str) -> Vec<PositionedGlyph<'a>> {
 }
 
 fn layout_paragraph<'a>(
-    font: &Font<'a>,
+    font: &'a Font<'_>,
     scale: Scale,
     width: u32,
     text: &str,

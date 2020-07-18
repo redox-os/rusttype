@@ -1,8 +1,4 @@
 use crate::{Glyph, GlyphIter, IntoGlyphId, LayoutIter, Point, Scale, VMetrics};
-#[cfg(not(feature = "has-atomics"))]
-use alloc::rc::Rc as Arc;
-#[cfg(feature = "has-atomics")]
-use alloc::sync::Arc;
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 use core::fmt;
@@ -27,10 +23,9 @@ use core::fmt;
 /// # Some(())
 /// # }
 /// ```
-#[derive(Clone)]
 pub enum Font<'a> {
-    Ref(Arc<owned_ttf_parser::Font<'a>>),
-    Owned(Arc<owned_ttf_parser::OwnedFont>),
+    Ref(owned_ttf_parser::Font<'a>),
+    Owned(owned_ttf_parser::OwnedFont),
 }
 
 impl fmt::Debug for Font<'_> {
@@ -51,7 +46,7 @@ impl Font<'_> {
     ///
     /// Returns `None` for invalid data.
     pub fn try_from_bytes_and_index(bytes: &[u8], index: u32) -> Option<Font<'_>> {
-        let inner = Arc::new(owned_ttf_parser::Font::from_data(bytes, index)?);
+        let inner = owned_ttf_parser::Font::from_data(bytes, index)?;
         Some(Font::Ref(inner))
     }
 
@@ -66,7 +61,7 @@ impl Font<'_> {
     ///
     /// Returns `None` for invalid data.
     pub fn try_from_vec_and_index(data: Vec<u8>, index: u32) -> Option<Font<'static>> {
-        let inner = Arc::new(owned_ttf_parser::OwnedFont::from_vec(data, index)?);
+        let inner = owned_ttf_parser::OwnedFont::from_vec(data, index)?;
         Some(Font::Owned(inner))
     }
 }
@@ -121,12 +116,12 @@ impl<'font> Font<'font> {
     ///
     /// Note that code points without corresponding glyphs in this font map to
     /// the ".notdef" glyph, glyph 0.
-    pub fn glyph<C: IntoGlyphId>(&self, id: C) -> Glyph<'font> {
+    pub fn glyph<C: IntoGlyphId>(&self, id: C) -> Glyph<'_> {
         let gid = id.into_glyph_id(self);
         assert!((gid.0 as usize) < self.glyph_count());
         // font clone either a reference clone, or arc clone
         Glyph {
-            font: self.clone(),
+            font: self,
             id: gid,
         }
     }
