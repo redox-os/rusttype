@@ -1,3 +1,6 @@
+## Unreleased
+* Improve lifetime flexibility for `Font::glyphs_for` & `Font::layout`.
+
 ## 0.9.2
 * Update ttf-parser -> `0.6`.
 * Use more flexible lifetime bounds for `Font::layout`.
