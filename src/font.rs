@@ -29,8 +29,8 @@ use core::fmt;
 /// ```
 #[derive(Clone)]
 pub enum Font<'a> {
-    Ref(Arc<owned_ttf_parser::Font<'a>>),
-    Owned(Arc<owned_ttf_parser::OwnedFont>),
+    Ref(Arc<owned_ttf_parser::Face<'a>>),
+    Owned(Arc<owned_ttf_parser::OwnedFace>),
 }
 
 impl fmt::Debug for Font<'_> {
@@ -51,7 +51,7 @@ impl Font<'_> {
     ///
     /// Returns `None` for invalid data.
     pub fn try_from_bytes_and_index(bytes: &[u8], index: u32) -> Option<Font<'_>> {
-        let inner = Arc::new(owned_ttf_parser::Font::from_data(bytes, index)?);
+        let inner = Arc::new(owned_ttf_parser::Face::from_slice(bytes, index).ok()?);
         Some(Font::Ref(inner))
     }
 
@@ -66,18 +66,18 @@ impl Font<'_> {
     ///
     /// Returns `None` for invalid data.
     pub fn try_from_vec_and_index(data: Vec<u8>, index: u32) -> Option<Font<'static>> {
-        let inner = Arc::new(owned_ttf_parser::OwnedFont::from_vec(data, index)?);
+        let inner = Arc::new(owned_ttf_parser::OwnedFace::from_vec(data, index).ok()?);
         Some(Font::Owned(inner))
     }
 }
 
 impl<'font> Font<'font> {
     #[inline]
-    pub(crate) fn inner(&self) -> &owned_ttf_parser::Font<'_> {
-        use owned_ttf_parser::AsFontRef;
+    pub(crate) fn inner(&self) -> &owned_ttf_parser::Face<'_> {
+        use owned_ttf_parser::AsFaceRef;
         match self {
             Self::Ref(f) => f,
-            Self::Owned(f) => f.as_font(),
+            Self::Owned(f) => f.as_face_ref(),
         }
     }
 
@@ -224,8 +224,7 @@ impl<'font> Font<'font> {
             .inner()
             .kerning_subtables()
             .filter(|st| st.is_horizontal() && !st.is_variable())
-            .filter_map(|st| st.glyphs_kerning(first_id, second_id))
-            .next()
+            .find_map(|st| st.glyphs_kerning(first_id, second_id))
             .unwrap_or(0);
 
         factor * f32::from(kern)

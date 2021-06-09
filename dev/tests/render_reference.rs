@@ -16,7 +16,7 @@ fn draw_luma_alpha(glyph: ScaledGlyph<'_>) -> image::GrayAlphaImage {
     let glyph = glyph.positioned(point(0.0, 0.0));
     let bounds = glyph.pixel_bounding_box().unwrap();
     let mut glyph_image =
-        DynamicImage::new_luma_a8(bounds.width() as _, bounds.height() as _).to_luma_alpha();
+        DynamicImage::new_luma_a8(bounds.width() as _, bounds.height() as _).to_luma_alpha8();
 
     glyph.draw(|x, y, v| glyph_image.put_pixel(x, y, LumaA([128, (v * 255.0) as u8])));
 
@@ -37,7 +37,7 @@ fn render_to_reference_big_biohazard() {
         image::ImageFormat::Png,
     )
     .expect("!image::load")
-    .to_luma_alpha();
+    .to_luma_alpha8();
 
     assert_eq!(reference.dimensions(), new_image.dimensions());
 
@@ -68,7 +68,7 @@ fn render_to_reference_w() {
         image::ImageFormat::Png,
     )
     .expect("!image::load")
-    .to_luma_alpha();
+    .to_luma_alpha8();
 
     assert_eq!(reference.dimensions(), new_image.dimensions());
 
@@ -99,7 +99,7 @@ fn render_to_reference_iota() {
         image::ImageFormat::Png,
     )
     .expect("!image::load")
-    .to_luma_alpha();
+    .to_luma_alpha8();
 
     assert_eq!(reference.dimensions(), new_image.dimensions());
 
@@ -130,7 +130,7 @@ fn render_to_reference_oft_tailed_e() {
         image::ImageFormat::Png,
     )
     .expect("!image::load")
-    .to_luma_alpha();
+    .to_luma_alpha8();
 
     assert_eq!(reference.dimensions(), new_image.dimensions());
 

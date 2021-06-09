@@ -26,7 +26,7 @@ exclude = ["/dev/**"]
 features = ["gpu_cache"]
 
 [dependencies]
-owned_ttf_parser = { version = "0.6", default-features = false }
+owned_ttf_parser = { version = "0.9", default-features = false }
 ab_glyph_rasterizer = { version = "0.1.1", default-features = false }
 
 libm = { version = "0.2.1", default-features = false, optional = true }
