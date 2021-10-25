@@ -1,5 +1,11 @@
 ## Unreleased
 * Improve lifetime flexibility for `Font::glyphs_for` & `Font::layout`.
+* Update owned_ttf_parser -> `0.12`.
+* Update ab_glyph_rasterizer => `0.1.4`.
+* Update crossbeam-queue -> `0.8`.
+* Update crossbeam-utils -> `0.8`.
+* Update num_cpus => `1.13`.
+* Update approx => `0.5`.
 
 ## 0.9.2
 * Update ttf-parser -> `0.6`.

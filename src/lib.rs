@@ -577,11 +577,11 @@ impl<'a, 'font, 's> Iterator for LayoutIter<'a, 'font, 's> {
 
 pub(crate) trait NearZero {
     /// Returns if this number is kinda pretty much zero.
-    fn is_near_zero(self) -> bool;
+    fn is_near_zero(&self) -> bool;
 }
 impl NearZero for f32 {
     #[inline]
-    fn is_near_zero(self) -> bool {
+    fn is_near_zero(&self) -> bool {
         self.abs() <= core::f32::EPSILON
     }
 }
