@@ -100,9 +100,7 @@ impl<'font> Font<'font> {
 
     /// Returns the units per EM square of this font
     pub fn units_per_em(&self) -> u16 {
-        self.inner()
-            .units_per_em()
-            .expect("Invalid font units_per_em")
+        self.inner().units_per_em()
     }
 
     /// The number of glyphs present in this font. Glyph identifiers for this
@@ -220,13 +218,16 @@ impl<'font> Font<'font> {
             let hscale = self.scale_for_pixel_height(scale.y);
             hscale * (scale.x / scale.y)
         };
-        let kern = self
-            .inner()
-            .kerning_subtables()
-            .filter(|st| st.is_horizontal() && !st.is_variable())
-            .filter_map(|st| st.glyphs_kerning(first_id, second_id))
-            .next()
-            .unwrap_or(0);
+
+        let kern = if let Some(kern) = self.inner().tables().kern {
+            kern.subtables
+                .into_iter()
+                .filter(|st| st.horizontal && !st.variable)
+                .find_map(|st| st.glyphs_kerning(first_id, second_id))
+                .unwrap_or(0)
+        } else {
+            0
+        };
 
         factor * f32::from(kern)
     }
