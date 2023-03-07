@@ -51,7 +51,7 @@ impl Font<'_> {
     ///
     /// Returns `None` for invalid data.
     pub fn try_from_bytes_and_index(bytes: &[u8], index: u32) -> Option<Font<'_>> {
-        let inner = Arc::new(owned_ttf_parser::Face::from_slice(bytes, index).ok()?);
+        let inner = Arc::new(owned_ttf_parser::Face::parse(bytes, index).ok()?);
         Some(Font::Ref(inner))
     }
 
