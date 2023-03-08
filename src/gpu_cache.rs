@@ -934,7 +934,7 @@ impl<'font> Cache<'font> {
             tex_coords: mut tex_rect,
             offset: tex_offset,
             ..
-        } = self.rows[&row].glyphs[*index as usize];
+        } = self.rows[row].glyphs[*index as usize];
         if self.pad_glyphs {
             tex_rect = tex_rect.unpadded();
         }
