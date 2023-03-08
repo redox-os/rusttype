@@ -2,7 +2,7 @@
 name = "dev"
 version = "0.1.0"
 description = "Tests, examples & benchmarks avoiding dependency feature bleed"
-edition = "2018"
+edition = "2021"
 publish = false
 
 [dev-dependencies]
